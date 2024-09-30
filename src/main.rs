@@ -3,6 +3,10 @@ use aoee_rust::networks::node::Node;
 use aoee_rust::networks::edge::Edge;
 use aoee_rust::networks::pathfinding::a_star::a_star_search;
 use aoee_rust::rendering::flat_ui::rendering::draw_network;
+use macroquad::{color::Color, window::{clear_background, next_frame}};
+
+const NOT_WHITE: Color = Color::new(251.0,250.0,250.0, 1.0);
+
 
 #[macroquad::main("A* Pathfinding")]
 async fn main() {
@@ -30,11 +34,17 @@ async fn main() {
     graph.add_edge(Edge::new(0, 6));
     graph.add_edge(Edge::new(5, 3));
 
-    let found_path = a_star_search(0, 5, &graph);
+    let found_path = a_star_search(0, 4, &graph);
     println!("Path:");
     for node_index in found_path.iter() {
-        println!("  -> {}", node_index);
+        println!("  ↳ {}", node_index);
     }
-    draw_network(graph, found_path).await;
+    
+    loop {
+
+        clear_background(NOT_WHITE);
+        draw_network(&graph, &found_path).await;
+        next_frame().await
+    }
 
 }

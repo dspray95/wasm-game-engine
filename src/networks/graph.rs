@@ -1,6 +1,7 @@
 use super::node::Node;
 use super::edge::Edge;
 
+#[derive(Clone)]
 pub struct Graph {
     last_node_index: i32,
     last_edge_index: i32,

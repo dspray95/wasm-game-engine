@@ -2,14 +2,11 @@ use macroquad::prelude::*;
 
 use crate::networks::{graph::Graph, node::{get_distance_between_nodes, get_midpoint_between_nodes, Node}};
 
-pub async fn draw_network(graph: Graph, path: Vec<i32>) {
+pub async fn draw_network(graph: &Graph, path: &Vec<i32>) {
     const SCALE: f32 = 1.0;
     const PADDING: f32 = 0.0;
-    const NOT_WHITE: Color = Color::new(251.0,250.0,250.0, 1.0);
     const NODE_IN_PATH_COLOR: Color = GREEN;
 
-    loop {
-        clear_background(NOT_WHITE);
 
         for edge in graph.edges {
             if !edge.is_active() {break;}
@@ -22,8 +19,13 @@ pub async fn draw_network(graph: Graph, path: Vec<i32>) {
 
             let midpoint = get_midpoint_between_nodes(node_a, node_b);
             let distance = get_distance_between_nodes(node_a, node_b);
+
+            let line_color = if path.contains(&node_a.index_of) && path.contains(&node_b.index_of) 
+                {NODE_IN_PATH_COLOR} 
+            else 
+                {GRAY};
             let label = format!("{:.0}px", distance);
-            draw_line(x_1, y_1, x_2, y_2, 2.0, GRAY);
+            draw_line(x_1, y_1, x_2, y_2, 2.0, line_color);
             draw_text(&label, midpoint.x, midpoint.y, 12.0, GREEN);
 
         }
@@ -40,7 +42,5 @@ pub async fn draw_network(graph: Graph, path: Vec<i32>) {
         }
 
        
-        next_frame().await
-    }
 }
 
