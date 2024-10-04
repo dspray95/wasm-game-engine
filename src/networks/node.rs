@@ -5,6 +5,7 @@ pub struct Node {
     pub index_of: i32,
     pub x_pos: f32,
     pub y_pos: f32,
+    pub flags: u8,
 }
 
 impl Node {
@@ -13,6 +14,7 @@ impl Node {
             index_of: index,
             x_pos: x,
             y_pos: y,
+            flags: 0,
         }
     }
 
@@ -21,6 +23,7 @@ impl Node {
             index_of: -1,
             x_pos: -1.0,
             y_pos: -1.0,
+            flags: 0
         }
     }
 

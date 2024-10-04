@@ -1,22 +1,28 @@
+use std::vec;
+
 use super::node::Node;
 use super::edge::Edge;
+
+//With 1 million max nodes we have arrays of sizes:
+// nodes: 1_000_000 * 16 = 16_000_000 bytes = 16 MB
+// edges: 1_000_000 * 8 = 8_000_000 bytes = 8 MB
+const MAX_NODES: usize = 1_000_000;
 
 #[derive(Clone)]
 pub struct Graph {
     last_node_index: i32,
     last_edge_index: i32,
-    pub nodes: [Node; 100],
-    pub edges: [Edge; 100]
+    pub nodes: Vec<Node>,
+    pub edges: Vec<Edge>
 }
-
 
 impl Graph {
     pub fn new() -> Graph {
         Graph {
             last_node_index: -1,
             last_edge_index: -1,
-            nodes: [Node::new_inactive(); 100],
-            edges: [Edge::new_inactive(); 100]
+            nodes: vec![Node::new_inactive(); MAX_NODES],
+            edges: vec![Edge::new_inactive(); MAX_NODES],
         }
     }
 
@@ -76,7 +82,7 @@ impl Graph {
 
         //Delte edges that are connected to the node we're removing - this could be faster
         let mut edges_to_remove: Vec<i32> = Vec::new();
-        for edge in self.edges {
+        for edge in &self.edges {
             if edge.source_index == index_to_remove || edge.destination_index == index_to_remove {
                 edges_to_remove.push(edge.source_index);
             }
