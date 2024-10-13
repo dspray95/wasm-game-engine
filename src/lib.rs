@@ -1,4 +1,4 @@
-pub mod scenairos;
-pub mod vector;
+pub mod maths;
+pub mod functional_tests;
 pub mod rendering;
 pub mod networks;

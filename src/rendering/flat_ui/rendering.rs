@@ -1,20 +1,19 @@
 use macroquad::prelude::*;
 
-use crate::networks::{graph::Graph, node::{get_distance_between_nodes, get_midpoint_between_nodes, Node}};
+use crate::networks::{graph::{self, Graph}, node::{get_distance_between_nodes, get_midpoint_between_nodes, Node}};
 
 pub fn draw_network(graph: &Graph, path: &Vec<i32>) {
-    const SCALE: f32 = 1.0;
-    const PADDING: f32 = 0.0;
     const NODE_IN_PATH_COLOR: Color = GREEN;
+    let node_size: f32 = if graph.last_node_index > 100 {5.0} else {0.5};
 
     for edge in &graph.edges {
         if !edge.is_active() {break;}
         let node_a: Node = graph.nodes[edge.source_index as usize];
         let node_b: Node = graph.nodes[edge.destination_index as usize];
-        let x_1 = (node_a.x_pos * SCALE) + PADDING;
-        let y_1 = (node_a.y_pos * SCALE) + PADDING;
-        let x_2 = (node_b.x_pos * SCALE) + PADDING;
-        let y_2 = (node_b.y_pos * SCALE) + PADDING;
+        let x_1 = node_a.x_pos;
+        let y_1 = node_a.y_pos;
+        let x_2 = node_b.x_pos;
+        let y_2 = node_b.y_pos;
 
         let midpoint = get_midpoint_between_nodes(node_a, node_b);
         let distance = get_distance_between_nodes(node_a, node_b);
@@ -31,11 +30,11 @@ pub fn draw_network(graph: &Graph, path: &Vec<i32>) {
 
     for node in &graph.nodes {
         if !node.is_active() {break;}
-        let x_pos = (node.x_pos * SCALE) + PADDING;
-        let y_pos = (node.y_pos * SCALE) + PADDING;
+        let y_pos = node.y_pos;
+            let x_pos = node.x_pos;
 
         let node_color = if path.contains(&node.index_of) {NODE_IN_PATH_COLOR} else {BLUE};
-        draw_circle(x_pos, y_pos, 5.0, node_color);
+        draw_circle(x_pos, y_pos, node_size, node_color);
         let label = format!("N{}", node.index_of);
         draw_text(&label, x_pos - 8.0, y_pos + 20.0, 18.0, BLUE);
     }

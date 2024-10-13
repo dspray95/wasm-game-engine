@@ -10,8 +10,8 @@ const MAX_NODES: usize = 1_000_000;
 
 #[derive(Clone)]
 pub struct Graph {
-    last_node_index: i32,
-    last_edge_index: i32,
+    pub last_node_index: i32,
+    pub last_edge_index: i32,
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>
 }

@@ -1,4 +1,4 @@
-use crate::vector::vector_2d::Vector2D;
+use crate::maths::vector::vector_2d::Vector2D;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Node {
@@ -50,7 +50,7 @@ pub fn get_manhattan_distance_between_nodes(node_a: Node, node_b: Node) -> f32{
 
 pub fn get_midpoint_between_nodes(node_a: Node, node_b: Node) -> Vector2D {
     let x_pos = (node_a.x_pos + node_b.x_pos) / 2.0;
-    let y_pos = (node_a.y_pos + node_b.y_pos) / 2.0;
+    let y_pos: f32 = (node_a.y_pos + node_b.y_pos) / 2.0;
     return Vector2D::new(x_pos, y_pos);
 }
 
