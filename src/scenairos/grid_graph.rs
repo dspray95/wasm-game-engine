@@ -1,4 +1,4 @@
-use crate::{networks::{edge::Edge, graph::Graph, node::Node, pathfinding::a_star::a_star_search}, rendering::flat_ui::rendering::draw_network};
+use crate::networks::{edge::Edge, graph::Graph, node::Node, pathfinding::a_star::a_star_search};
 
 use super::scenario::Scenario;
 
@@ -13,8 +13,14 @@ impl Scenario for GridGraphScenario {
             graph: Graph::new(),
             found_path: Vec::new(),
         };
-        println!("Initalized graph with size of {} bytes", size_of_val(&*scenario.graph.nodes));
-        println!("  and edges array size of {} bytes", size_of_val(&*scenario.graph.edges));
+        println!(
+            "Initalized graph with size of {} bytes",
+            size_of_val(&*scenario.graph.nodes)
+        );
+        println!(
+            "  and edges array size of {} bytes",
+            size_of_val(&*scenario.graph.edges)
+        );
 
         const SCALE: f32 = 50.0;
         const PADDING: f32 = 50.0;
@@ -43,12 +49,10 @@ impl Scenario for GridGraphScenario {
         println!("Path:");
         for node_index in scenario.found_path.iter() {
             println!("  ↳ {}", node_index);
-        } 
+        }
 
         return scenario;
     }
 
-    fn tick(&self) {
-        draw_network(&self.graph, &self.found_path);
-    }
+    fn tick(&self) {}
 }
