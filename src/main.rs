@@ -19,7 +19,7 @@ async fn start() {
     let event_loop = EventLoop::new().unwrap();
     let mut surface = SurfaceWrapper::new();
     let context = Context::init(&mut surface).await;
-    let mut window_loop = WindowWrapper::new(context);
+    let mut window_loop: WindowWrapper = WindowWrapper::new(context, surface);
 
     log::info!("Entering event loop...");
 

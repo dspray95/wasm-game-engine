@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use wgpu::{core::instance, Adapter, Device, Instance, Queue};
+use wgpu::{core::instance, Adapter, Device, Instance, Queue, Surface};
 use winit::window::Window;
 
 use super::surface::SurfaceWrapper;
@@ -10,10 +10,20 @@ pub struct Context {
     pub instance: Instance,
     pub adapter: Adapter,
     pub device: Device,
+    pub surface: Surface<'static>,
     queue: Queue,
 }
 
 impl Context {
+    // pub fn new(instance: Instance, adapter: Adapter, device: Device, queue: Queue) -> Self {
+    //     return Self {
+    //         instance,
+    //         adapter,
+    //         device,
+    //         queue,
+    //     };
+    // }
+
     pub async fn init(surface: &mut SurfaceWrapper) -> Context {
         log::info!("Init wgpu...");
         let backends = wgpu::util::backend_bits_from_env().unwrap_or_default();
