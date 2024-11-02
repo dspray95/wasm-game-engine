@@ -1,4 +1,2 @@
-pub mod context;
-pub mod logger;
-pub mod surface;
-pub mod window;
+pub mod app;
+pub mod state;
