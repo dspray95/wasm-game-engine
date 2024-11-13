@@ -1,3 +1,5 @@
+use wgpu::util::DeviceExt;
+
 pub mod engine;
 pub mod networks;
 pub mod rendering;

@@ -90,7 +90,8 @@ impl App {
                 timestamp_writes: None,
             });
             render_pass.set_pipeline(&state.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
+            render_pass.draw(0..state.num_vertices, 0..1);
         }
         state.queue.submit(Some(encoder.finish()));
         surface_texture.present();

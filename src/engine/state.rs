@@ -1,4 +1,7 @@
+use wgpu::util::DeviceExt;
 use winit::window::Window;
+
+use super::vertex::{self, Vertex};
 
 pub struct AppState {
     pub device: wgpu::Device,
@@ -7,6 +10,8 @@ pub struct AppState {
     pub surface: wgpu::Surface<'static>,
     pub scale_factor: f32,
     pub render_pipeline: wgpu::RenderPipeline,
+    pub vertex_buffer: wgpu::Buffer,
+    pub num_vertices: u32,
 }
 
 impl AppState {
@@ -83,7 +88,7 @@ impl AppState {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[], // This is the vertex buffer
+                buffers: &[Vertex::get_buffer_layout()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -114,6 +119,13 @@ impl AppState {
             cache: None, // Only useful for Android
         });
 
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(vertex::VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let num_vertices = vertex::VERTICES.len() as u32;
         Self {
             device,
             queue,
@@ -121,6 +133,8 @@ impl AppState {
             surface_config,
             scale_factor,
             render_pipeline,
+            vertex_buffer,
+            num_vertices,
         }
     }
 
