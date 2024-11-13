@@ -70,6 +70,7 @@ impl App {
 
         let window = self.window.as_ref().unwrap();
         {
+            // Render pass init
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -89,9 +90,14 @@ impl App {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
+
+            // Render pass setup
             render_pass.set_pipeline(&state.render_pipeline);
+            render_pass.set_bind_group(0, &state.diffuse_bind_group, &[]);
             render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
             render_pass.set_index_buffer(state.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+
+            // Draw call
             render_pass.draw_indexed(0..state.num_indices, 0, 0..1);
         }
         state.queue.submit(Some(encoder.finish()));
