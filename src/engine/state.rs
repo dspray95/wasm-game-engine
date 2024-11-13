@@ -11,7 +11,8 @@ pub struct AppState {
     pub scale_factor: f32,
     pub render_pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: wgpu::Buffer,
-    pub num_vertices: u32,
+    pub index_buffer: wgpu::Buffer,
+    pub num_indices: u32,
 }
 
 impl AppState {
@@ -125,7 +126,14 @@ impl AppState {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let num_vertices = vertex::VERTICES.len() as u32;
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(vertex::INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let num_indices = vertex::INDICES.len() as u32;
+
         Self {
             device,
             queue,
@@ -134,7 +142,8 @@ impl AppState {
             scale_factor,
             render_pipeline,
             vertex_buffer,
-            num_vertices,
+            index_buffer,
+            num_indices,
         }
     }
 

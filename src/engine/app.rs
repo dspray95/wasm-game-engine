@@ -91,7 +91,8 @@ impl App {
             });
             render_pass.set_pipeline(&state.render_pipeline);
             render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
-            render_pass.draw(0..state.num_vertices, 0..1);
+            render_pass.set_index_buffer(state.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..state.num_indices, 0, 0..1);
         }
         state.queue.submit(Some(encoder.finish()));
         surface_texture.present();
