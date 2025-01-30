@@ -17,6 +17,5 @@ impl CameraController {
         let forward = camera.target - camera.eye;
         let forward_normalized = forward.normalize();
         camera.eye += forward_normalized * self.speed;
-        println!("new camere eye: {:?}", camera.eye);
     }
 }
