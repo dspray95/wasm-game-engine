@@ -5,21 +5,28 @@ use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowId};
 
+use super::game_state::{self, GameState};
 use super::state::AppState;
 
 pub struct App {
     instance: wgpu::Instance,
     state: Option<AppState>,
     window: Option<Arc<Window>>,
+    game_state: GameState,
 }
 
 impl App {
     pub fn new() -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+        let game_state = GameState {
+            game_objects: vec![],
+        };
+
         Self {
             instance,
             state: None,
             window: None,
+            game_state,
         }
     }
 
@@ -104,6 +111,20 @@ impl App {
         state.queue.submit(Some(encoder.finish()));
         surface_texture.present();
     }
+
+    fn handle_camera_update(&mut self) {
+        let state = self.state.as_mut().unwrap();
+
+        state.camera_controller.update_camera(&mut state.camera);
+        state
+            .camera_uniform_buffer
+            .update_view_projeciton(&state.camera);
+        state.queue.write_buffer(
+            &state.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[state.camera_uniform_buffer]),
+        );
+    }
 }
 
 impl ApplicationHandler for App {
@@ -114,22 +135,6 @@ impl ApplicationHandler for App {
         pollster::block_on(self.set_window(window));
     }
 
-    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
-        if cause == winit::event::StartCause::Poll {
-            let state = self.state.as_mut().unwrap();
-
-            state.camera_controller.update_camera(&mut state.camera);
-            state
-                .camera_uniform_buffer
-                .update_view_projeciton(&state.camera);
-            state.queue.write_buffer(
-                &state.camera_buffer,
-                0,
-                bytemuck::cast_slice(&[state.camera_uniform_buffer]),
-            );
-        }
-    }
-
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => {
@@ -137,6 +142,7 @@ impl ApplicationHandler for App {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
+                self.handle_camera_update();
                 self.handle_redraw();
 
                 self.window.as_ref().unwrap().request_redraw();
