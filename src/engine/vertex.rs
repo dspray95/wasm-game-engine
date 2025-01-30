@@ -28,6 +28,7 @@ impl Vertex {
     }
 }
 
+// Builds a lovely pentagon
 pub const VERTICES: &[Vertex] = &[
     // Changed
     Vertex {

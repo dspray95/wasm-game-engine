@@ -94,6 +94,7 @@ impl App {
             // Render pass setup
             render_pass.set_pipeline(&state.render_pipeline);
             render_pass.set_bind_group(0, &state.diffuse_bind_group, &[]);
+            render_pass.set_bind_group(1, &state.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
             render_pass.set_index_buffer(state.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
@@ -111,6 +112,22 @@ impl ApplicationHandler for App {
             .create_window(Window::default_attributes())
             .unwrap();
         pollster::block_on(self.set_window(window));
+    }
+
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: winit::event::StartCause) {
+        if cause == winit::event::StartCause::Poll {
+            let state = self.state.as_mut().unwrap();
+
+            state.camera_controller.update_camera(&mut state.camera);
+            state
+                .camera_uniform_buffer
+                .update_view_projeciton(&state.camera);
+            state.queue.write_buffer(
+                &state.camera_buffer,
+                0,
+                bytemuck::cast_slice(&[state.camera_uniform_buffer]),
+            );
+        }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
