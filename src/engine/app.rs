@@ -79,7 +79,7 @@ impl App {
             &(wgpu::CommandEncoderDescriptor { label: None })
         );
 
-        let window = self.window.as_ref().unwrap();
+        let _window = self.window.as_ref().unwrap();
         {
             // Render pass init
             let mut render_pass = encoder.begin_render_pass(
@@ -114,15 +114,17 @@ impl App {
             );
 
             // Render pass setup
+            render_pass.set_vertex_buffer(1, state.instance_buffer.slice(..));
             render_pass.set_pipeline(&state.render_pipeline);
             render_pass.set_bind_group(0, &state.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &state.camera_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, state.instance_buffer.slice(..));
-            render_pass.set_index_buffer(state.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
 
-            // Draw call
-            render_pass.draw_indexed(0..state.num_indices, 0, 0..state.instances.len() as _);
+            use super::model::DrawModel;
+            render_pass.draw_model_instanced(
+                &state.obj_model,
+                0..state.instances.len() as u32,
+                &state.camera_bind_group
+            );
         }
         state.queue.submit(Some(encoder.finish()));
         surface_texture.present();

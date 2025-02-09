@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0"
 winit = "0.30.5"
 wgpu = "23.0.0"
 env_logger = "0.11.5"
@@ -11,6 +12,13 @@ log = "0.4"
 pollster = "0.4.0"
 bytemuck = { version = "1.7.0", features = ["derive"] }
 cgmath = "0.18.0"
+cfg-if = "1"
+tobj = { version = "3.2", default-features = false, features = ["async"]}
+
+[build-dependencies]
+anyhow = "1.0"
+fs_extra = "1.2"
+glob = "0.3"
 
 [dependencies.image]
 version = "0.25.5"

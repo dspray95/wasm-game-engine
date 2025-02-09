@@ -1,6 +1,6 @@
 use crate::engine::camera::Camera;
 
-const CAMERA_SPEED: f32 = 0.0; //0.0002 looks okayish
+const CAMERA_SPEED: f32 = -0.002; //0.0002 looks okayish
 pub struct CameraController {
     speed: f32,
 }

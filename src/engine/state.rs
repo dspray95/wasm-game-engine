@@ -1,12 +1,12 @@
-use image::GenericImageView;
 use wgpu::util::DeviceExt;
-use winit::{ dpi::Position, window::Window };
+use winit::window::Window;
 use cgmath::Zero;
 use super::{
     camera::{ Camera, CameraUniformBuffer },
     instance::{ Instance, InstanceRaw },
+    model::{ self, Model, Vertex },
+    resources,
     texture::{ self, Texture },
-    vertex::{ self, Vertex },
 };
 use cgmath::InnerSpace;
 use cgmath::Rotation3;
@@ -26,9 +26,6 @@ pub struct AppState {
     pub surface: wgpu::Surface<'static>,
     pub scale_factor: f32,
     pub render_pipeline: wgpu::RenderPipeline,
-    pub vertex_buffer: wgpu::Buffer,
-    pub index_buffer: wgpu::Buffer,
-    pub num_indices: u32,
     pub diffuse_bind_group: wgpu::BindGroup,
     pub diffuse_texture: texture::Texture,
     pub camera: Camera,
@@ -39,6 +36,7 @@ pub struct AppState {
     pub instances: Vec<Instance>,
     pub instance_buffer: wgpu::Buffer,
     pub depth_texture: Texture,
+    pub obj_model: Model,
 }
 
 impl AppState {
@@ -149,24 +147,6 @@ impl AppState {
             source: wgpu::ShaderSource::Wgsl(include_str!("../shader.wgsl").into()),
         });
 
-        let vertex_buffer = device.create_buffer_init(
-            &(wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(vertex::VERTICES),
-                usage: wgpu::BufferUsages::VERTEX,
-            })
-        );
-
-        let index_buffer = device.create_buffer_init(
-            &(wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(vertex::INDICES),
-                usage: wgpu::BufferUsages::INDEX,
-            })
-        );
-
-        let num_indices = vertex::INDICES.len() as u32;
-
         let camera = Camera {
             eye: (0.0, 1.0, 2.0).into(),
             target: (0.0, 0.0, 0.0).into(),
@@ -241,7 +221,7 @@ impl AppState {
                     module: &shader,
                     entry_point: Some("vs_main"),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
-                    buffers: &[Vertex::get_buffer_layout(), InstanceRaw::desc()],
+                    buffers: &[model::ModelVertex::desc(), InstanceRaw::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -283,12 +263,16 @@ impl AppState {
 
         let camera_controller = CameraController::new();
 
-        let instances = (0..N_INSTANCES_PER_ROW)
+        const SPACE_BETWEEN: f32 = 3.0;
+        const NUM_INSTANCES_PER_ROW: i32 = 10;
+        let instances = (0..NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
-                (0..N_INSTANCES_PER_ROW).map(move |x| {
-                    let position =
-                        cgmath::Vector3 { x: x as f32, y: 0.0, z: z as f32 } -
-                        INSTANCE_DISPLACEMENT;
+                (0..NUM_INSTANCES_PER_ROW).map(move |x| {
+                    let x = SPACE_BETWEEN * ((x as f32) - (NUM_INSTANCES_PER_ROW as f32) / 2.0);
+                    let z = SPACE_BETWEEN * ((z as f32) - (NUM_INSTANCES_PER_ROW as f32) / 2.0);
+
+                    let position = cgmath::Vector3 { x, y: 0.0, z };
+
                     let rotation = if position.is_zero() {
                         cgmath::Quaternion::from_axis_angle(
                             cgmath::Vector3::unit_z(),
@@ -315,6 +299,10 @@ impl AppState {
             })
         );
 
+        let obj_model = resources
+            ::load_model("cube.obj", &device, &queue, &texture_bind_group_layout).await
+            .unwrap();
+
         Self {
             device,
             queue,
@@ -322,9 +310,6 @@ impl AppState {
             surface_config,
             scale_factor,
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            num_indices,
             diffuse_bind_group,
             diffuse_texture,
             camera,
@@ -335,6 +320,7 @@ impl AppState {
             instances,
             instance_buffer,
             depth_texture,
+            obj_model,
         }
     }
 
