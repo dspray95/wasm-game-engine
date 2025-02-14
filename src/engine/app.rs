@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use cgmath::Rotation3;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
@@ -115,15 +116,24 @@ impl App {
 
             // Render pass setup
             render_pass.set_vertex_buffer(1, state.instance_buffer.slice(..));
-            render_pass.set_pipeline(&state.render_pipeline);
             render_pass.set_bind_group(0, &state.diffuse_bind_group, &[]);
             render_pass.set_bind_group(1, &state.camera_bind_group, &[]);
 
+            use super::model::DrawLight;
+            render_pass.set_pipeline(&state.light_render_pipeline);
+            render_pass.draw_light_model(
+                &state.obj_model,
+                &state.camera_bind_group,
+                &state.light_bind_group
+            );
+
+            render_pass.set_pipeline(&state.render_pipeline);
             use super::model::DrawModel;
             render_pass.draw_model_instanced(
                 &state.obj_model,
                 0..state.instances.len() as u32,
-                &state.camera_bind_group
+                &state.camera_bind_group,
+                &state.light_bind_group
             );
         }
         state.queue.submit(Some(encoder.finish()));
@@ -139,6 +149,22 @@ impl App {
             &state.camera_buffer,
             0,
             bytemuck::cast_slice(&[state.camera_uniform_buffer])
+        );
+    }
+
+    fn update(&mut self) {
+        let state = self.state.as_mut().unwrap();
+
+        // Move our light around to see effect
+        let previous_position: cgmath::Vector3<_> = state.light_uniform.position.into();
+        state.light_uniform.position = (
+            cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0)) *
+            previous_position
+        ).into();
+        state.queue.write_buffer(
+            &state.light_buffer,
+            0,
+            bytemuck::cast_slice(&[state.light_uniform])
         );
     }
 }
@@ -157,6 +183,7 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => {
                 self.handle_camera_update();
+                self.update();
                 self.handle_redraw();
 
                 self.window.as_ref().unwrap().request_redraw();
