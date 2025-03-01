@@ -6,14 +6,6 @@ pub struct Model {
     pub(crate) meshes: Vec<Mesh>,
 }
 
-impl Model {
-    pub fn calculate_normals(&mut self) {
-        for i in 0..self.meshes.len() {
-            self.meshes[i].calculate_normals();
-        }
-    }
-}
-
 pub(in crate::engine) trait DrawModel<'a> {
     fn draw_mesh(
         &mut self,
