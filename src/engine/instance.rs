@@ -12,6 +12,18 @@ pub struct InstanceRaw {
     normal: [[f32; 3]; 3],
 }
 
+// To use instances in wgsl shaders we need to convert them to raw data first, before creating the
+// instance buffer like so:
+//
+//      let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+//      let instance_buffer = device.create_buffer_init(
+//         &(wgpu::util::BufferInitDescriptor {
+//              label: Some("Instance Buffer"),
+//              contents: bytemuck::cast_slice(&instance_data),
+//              usage: wgpu::BufferUsages::VERTEX,
+//          })
+//      );
+
 impl Instance {
     pub fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
@@ -32,7 +44,7 @@ impl InstanceRaw {
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
                 // Model //
-                // A mat4 takes up 4 vertex slots as it is technically 4 vec4s
+                // A mat4 (ie 4x4 matrix) takes up 4 vertex slots as it is technically 4 vec4s
                 wgpu::VertexAttribute {
                     offset: 0,
                     shader_location: 5,

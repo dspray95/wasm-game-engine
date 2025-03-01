@@ -1,34 +1,39 @@
 use std::sync::Arc;
 use cgmath::Rotation3;
+use wgpu::util::DeviceExt;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{ Window, WindowId };
 
-use super::game_state::{ self, GameState };
-use super::state::AppState;
+use crate::game::cube::{ self, Cube };
+
+use super::instance::Instance;
+use super::model::mesh::{ Mesh, MeshData };
+use super::model::model::{ DrawModel, Model };
+use super::resources;
+use super::state::EngineState;
 use super::texture::Texture;
 
 pub struct App {
     instance: wgpu::Instance,
-    state: Option<AppState>,
+    engine_state: Option<EngineState>,
     window: Option<Arc<Window>>,
-    game_state: GameState,
+    model: Option<Model>,
+    array_model: Option<Model>,
 }
 
 impl App {
     pub fn new() -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
-        let game_state = GameState {
-            game_objects: vec![],
-        };
 
         Self {
             instance,
-            state: None,
+            engine_state: None,
             window: None,
-            game_state,
+            model: None,
+            array_model: None,
         }
     }
 
@@ -43,7 +48,7 @@ impl App {
             .create_surface(window.clone())
             .expect("Failed to create surface!");
 
-        let state = AppState::new(
+        let engine_state = EngineState::new(
             &self.instance,
             surface,
             &window,
@@ -51,24 +56,40 @@ impl App {
             initial_width
         ).await;
 
+        let obj_model = resources
+            ::load_model_from_file("cube.obj", &engine_state.device).await
+            .unwrap();
+
+        let array_model = resources::load_model_from_arrays(
+            "array cube",
+            cube::VERTICES.to_vec(),
+            vec![],
+            cube::TRIANGLES.to_vec(),
+            &engine_state.device
+        );
         self.window.get_or_insert(window);
-        self.state.get_or_insert(state);
+        self.engine_state.get_or_insert(engine_state);
+        self.model.get_or_insert(obj_model);
+        self.array_model.get_or_insert(array_model);
     }
 
     fn handle_resized(&mut self, width: u32, height: u32) {
-        let state = self.state.as_mut().unwrap();
-        state.resize_surface(width, height);
-        state.depth_texture = Texture::create_depth_texture(
-            &state.device,
-            &state.surface_config,
+        let engine_state = self.engine_state.as_mut().unwrap();
+        engine_state.resize_surface(width, height);
+        engine_state.depth_texture = Texture::create_depth_texture(
+            &engine_state.device,
+            &engine_state.surface_config,
             "depth_texture"
         );
     }
 
     fn handle_redraw(&mut self) {
-        let state = self.state.as_mut().unwrap();
+        let engine_state = self.engine_state.as_mut().unwrap();
+        let model = self.model.as_mut().unwrap();
+        let array_model = self.array_model.as_mut().unwrap();
+        // Mesh Rendering //
 
-        let surface_texture = state.surface
+        let surface_texture = engine_state.surface
             .get_current_texture()
             .expect("Failed to acquire next swap chain texture");
 
@@ -76,9 +97,29 @@ impl App {
             &wgpu::TextureViewDescriptor::default()
         );
 
-        let mut encoder = state.device.create_command_encoder(
+        let mut encoder = engine_state.device.create_command_encoder(
             &(wgpu::CommandEncoderDescriptor { label: None })
         );
+
+        // TODO START move this to a more ad-hoc model loading process //
+        let instances = [
+            Instance {
+                position: cgmath::Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+                rotation: cgmath::Quaternion::from_axis_angle(
+                    (0.0, 1.0, 1.0).into(),
+                    cgmath::Deg(75.0)
+                ),
+            },
+        ];
+        let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        let instance_buffer = &engine_state.device.create_buffer_init(
+            &(wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Buffer"),
+                contents: bytemuck::cast_slice(&instance_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            })
+        );
+        // TODO END //
 
         let _window = self.window.as_ref().unwrap();
         {
@@ -102,7 +143,7 @@ impl App {
                         }),
                     ],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &state.depth_texture.view,
+                        view: &engine_state.depth_texture.view,
                         depth_ops: Some(wgpu::Operations {
                             load: wgpu::LoadOp::Clear(1.0),
                             store: wgpu::StoreOp::Store,
@@ -115,56 +156,51 @@ impl App {
             );
 
             // Render pass setup
-            render_pass.set_vertex_buffer(1, state.instance_buffer.slice(..));
-            render_pass.set_bind_group(0, &state.diffuse_bind_group, &[]);
-            render_pass.set_bind_group(1, &state.camera_bind_group, &[]);
+            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+            render_pass.set_bind_group(0, &engine_state.camera.render_pass_data.bind_group, &[]);
+            render_pass.set_pipeline(&engine_state.render_pipeline);
 
-            use super::model::DrawLight;
-            render_pass.set_pipeline(&state.light_render_pipeline);
-            render_pass.draw_light_model(
-                &state.obj_model,
-                &state.camera_bind_group,
-                &state.light_bind_group
-            );
-
-            render_pass.set_pipeline(&state.render_pipeline);
-            use super::model::DrawModel;
             render_pass.draw_model_instanced(
-                &state.obj_model,
-                0..state.instances.len() as u32,
-                &state.camera_bind_group,
-                &state.light_bind_group
+                &model,
+                0..instances.len() as u32,
+                &engine_state.camera.render_pass_data.bind_group,
+                &engine_state.light_bind_group
+            );
+            render_pass.draw_model(
+                &array_model,
+                &engine_state.camera.render_pass_data.bind_group,
+                &engine_state.light_bind_group
             );
         }
-        state.queue.submit(Some(encoder.finish()));
+        engine_state.queue.submit(Some(encoder.finish()));
         surface_texture.present();
     }
 
     fn handle_camera_update(&mut self) {
-        let state = self.state.as_mut().unwrap();
+        let engine_state = self.engine_state.as_mut().unwrap();
 
-        state.camera_controller.update_camera(&mut state.camera);
-        state.camera_uniform_buffer.update_view_projeciton(&state.camera);
-        state.queue.write_buffer(
-            &state.camera_buffer,
+        engine_state.camera_controller.update_camera(&mut engine_state.camera);
+        engine_state.camera.update_view_projeciton();
+        engine_state.queue.write_buffer(
+            &engine_state.camera.render_pass_data.buffer,
             0,
-            bytemuck::cast_slice(&[state.camera_uniform_buffer])
+            bytemuck::cast_slice(&[engine_state.camera.render_pass_data.uniform_buffer])
         );
     }
 
     fn update(&mut self) {
-        let state = self.state.as_mut().unwrap();
+        let engine_state = self.engine_state.as_mut().unwrap();
 
         // Move our light around to see effect
-        let previous_position: cgmath::Vector3<_> = state.light_uniform.position.into();
-        state.light_uniform.position = (
+        let previous_position: cgmath::Vector3<_> = engine_state.light_uniform.position.into();
+        engine_state.light_uniform.position = (
             cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0)) *
             previous_position
         ).into();
-        state.queue.write_buffer(
-            &state.light_buffer,
+        engine_state.queue.write_buffer(
+            &engine_state.light_buffer,
             0,
-            bytemuck::cast_slice(&[state.light_uniform])
+            bytemuck::cast_slice(&[engine_state.light_uniform])
         );
     }
 }

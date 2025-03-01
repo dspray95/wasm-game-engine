@@ -1,11 +1,12 @@
 pub mod app;
 pub mod camera;
-pub mod game_object;
-pub mod game_state;
-pub mod instance;
 pub mod light;
 pub mod model;
 pub mod resources;
-pub mod state;
-pub mod texture;
-pub mod render_pipeline;
+pub mod scene;
+
+mod instance;
+mod state;
+mod texture;
+mod render_pipeline;
+mod draw;

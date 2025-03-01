@@ -1,5 +1,5 @@
-use aoee_rust::engine;
-use winit::event_loop::{ControlFlow, EventLoop};
+use wasm_game_engine::engine;
+use winit::event_loop::{ ControlFlow, EventLoop };
 
 fn main() {
     pollster::block_on(run());

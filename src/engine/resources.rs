@@ -3,7 +3,15 @@ use std::io::{ BufReader, Cursor };
 use cfg_if::cfg_if;
 use wgpu::util::DeviceExt;
 
-use super::{ model, texture };
+use crate::engine::model::mesh;
+
+use super::instance::InstanceRaw;
+use super::model::material::Material;
+use super::model::mesh::Mesh;
+use super::model::normals::calculate_normal_for_triangle;
+use super::model::vertex::ModelVertex;
+use super::texture;
+use super::model::model::Model;
 
 #[cfg(target_arch = "wasm32")]
 fn format_url(file_name: &str) -> reqwest::Url {
@@ -45,7 +53,7 @@ pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
     Ok(data)
 }
 
-pub async fn load_texture(
+pub async fn load_texture_from_file(
     file_name: &str,
     device: &wgpu::Device,
     queue: &wgpu::Queue
@@ -54,12 +62,65 @@ pub async fn load_texture(
     Ok(texture::Texture::from_bytes(device, queue, &data, file_name)?)
 }
 
-pub async fn load_model(
-    file_name: &str,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    layout: &wgpu::BindGroupLayout
-) -> anyhow::Result<model::Model> {
+pub fn load_model_from_arrays(
+    label: &str,
+    vertices: Vec<[f32; 3]>,
+    normals: Vec<[f32; 3]>,
+    triangle_indices: Vec<u32>,
+    device: &wgpu::Device
+) -> Model {
+    let model_vertices: Vec<ModelVertex>;
+
+    if normals.is_empty() {
+        let generated_normals = mesh::calculate_normals(&vertices, &triangle_indices);
+        model_vertices = (0..vertices.len())
+            .map(|i| {
+                ModelVertex {
+                    position: [vertices[i][0], vertices[i][1], vertices[i][2]],
+                    tex_coords: [0.0, 0.0],
+                    normal: generated_normals[i],
+                }
+            })
+            .collect::<Vec<_>>();
+    } else {
+        model_vertices = (0..vertices.len())
+            .map(|i| {
+                ModelVertex {
+                    position: vertices[i],
+                    tex_coords: [0.0, 0.0],
+                    normal: normals[i],
+                }
+            })
+            .collect::<Vec<_>>();
+    }
+
+    let vertex_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("{:?} Vertex Buffer", label)),
+            contents: bytemuck::cast_slice(&model_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        })
+    );
+
+    let index_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("{:?} Index Buffer", label)),
+            contents: bytemuck::cast_slice(&triangle_indices),
+            usage: wgpu::BufferUsages::INDEX,
+        })
+    );
+
+    let mesh = Mesh {
+        label: label.to_string(),
+        vertex_buffer,
+        index_buffer,
+        num_elements: triangle_indices.len() as u32,
+    };
+
+    Model { meshes: vec![mesh] }
+}
+
+pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> anyhow::Result<Model> {
     let obj_text = load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
@@ -77,62 +138,30 @@ pub async fn load_model(
         }
     ).await?;
 
-    let mut materials = Vec::new();
-    for m in obj_materials? {
-        let diffuse_texture = load_texture(&m.diffuse_texture, device, queue).await?;
-        let bind_group = device.create_bind_group(
-            &(wgpu::BindGroupDescriptor {
-                layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                    },
-                ],
-                label: None,
-            })
-        );
-
-        materials.push(model::Material {
-            name: m.name,
-            diffuse_texture,
-            bind_group,
-        });
-    }
-
+    // Extract individual meshes from model file with normals + textures
     let meshes = models
         .into_iter()
         .map(|m| {
             let vertices = (0..m.mesh.positions.len() / 3)
                 .map(|i| {
                     if m.mesh.normals.is_empty() {
-                        model::ModelVertex {
+                        ModelVertex {
                             position: [
                                 m.mesh.positions[i * 3],
                                 m.mesh.positions[i * 3 + 1],
                                 m.mesh.positions[i * 3 + 2],
                             ],
-                            tex_coords: [
-                                m.mesh.texcoords[i * 2],
-                                1.0 - m.mesh.texcoords[i * 2 + 1],
-                            ],
+                            tex_coords: [0.0, 0.0],
                             normal: [0.0, 0.0, 0.0],
                         }
                     } else {
-                        model::ModelVertex {
+                        ModelVertex {
                             position: [
                                 m.mesh.positions[i * 3],
                                 m.mesh.positions[i * 3 + 1],
                                 m.mesh.positions[i * 3 + 2],
                             ],
-                            tex_coords: [
-                                m.mesh.texcoords[i * 2],
-                                1.0 - m.mesh.texcoords[i * 2 + 1],
-                            ],
+                            tex_coords: [0.0, 0.0],
                             normal: [
                                 m.mesh.normals[i * 3],
                                 m.mesh.normals[i * 3 + 1],
@@ -150,6 +179,7 @@ pub async fn load_model(
                     usage: wgpu::BufferUsages::VERTEX,
                 })
             );
+
             let index_buffer = device.create_buffer_init(
                 &(wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("{:?} Index Buffer", file_name)),
@@ -158,15 +188,14 @@ pub async fn load_model(
                 })
             );
 
-            model::Mesh {
-                name: file_name.to_string(),
+            Mesh {
+                label: file_name.to_string(),
                 vertex_buffer,
                 index_buffer,
                 num_elements: m.mesh.indices.len() as u32,
-                material: m.mesh.material_id.unwrap_or(0),
             }
         })
         .collect::<Vec<_>>();
 
-    Ok(model::Model { meshes, materials })
+    Ok(Model { meshes })
 }
