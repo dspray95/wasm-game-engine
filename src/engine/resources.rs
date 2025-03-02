@@ -1,10 +1,11 @@
 use std::io::{ BufReader, Cursor };
 
 use cfg_if::cfg_if;
+use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
-
 use crate::engine::model::mesh;
 
+use super::instance::Instance;
 use super::model::mesh::Mesh;
 use super::model::vertex::ModelVertex;
 use super::texture;
@@ -107,12 +108,23 @@ pub fn load_model_from_arrays(
         })
     );
 
-    let mesh = Mesh {
-        _label: label.to_string(),
+    let mesh = Mesh::new(
+        label.to_string(),
         vertex_buffer,
         index_buffer,
-        num_elements: triangle_indices.len() as u32,
-    };
+        triangle_indices.len() as u32,
+        Some(
+            vec![Instance {
+                position: cgmath::Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+                rotation: cgmath::Quaternion::from_axis_angle(
+                    (0.0, 1.0, 1.0).into(),
+                    cgmath::Deg(75.0)
+                ),
+                scale: cgmath::Vector3 { x: 0.5, y: 0.5, z: 0.5 },
+            }]
+        ),
+        device
+    );
 
     Model { meshes: vec![mesh] }
 }
@@ -184,13 +196,14 @@ pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> any
                     usage: wgpu::BufferUsages::INDEX,
                 })
             );
-
-            Mesh {
-                _label: file_name.to_string(),
+            Mesh::new(
+                file_name.to_string(),
                 vertex_buffer,
                 index_buffer,
-                num_elements: m.mesh.indices.len() as u32,
-            }
+                m.mesh.indices.len() as u32,
+                Some(vec![]),
+                device
+            )
         })
         .collect::<Vec<_>>();
 

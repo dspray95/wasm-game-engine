@@ -1,12 +1,84 @@
 use std::ops::{ Add, Sub };
 
 use cgmath::{ vec3, InnerSpace, Vector3 };
+use wgpu::{ core::instance, util::DeviceExt, Buffer, Device };
+
+use crate::engine::{ instance::Instance, state::EngineState };
 
 pub(crate) struct Mesh {
-    pub _label: String,
+    pub label: String,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub num_elements: u32,
+    pub instances: Vec<Instance>,
+    pub instance_buffer: Option<wgpu::Buffer>,
+}
+
+impl Mesh {
+    pub fn new(
+        label: String,
+        vertex_buffer: wgpu::Buffer,
+        index_buffer: wgpu::Buffer,
+        num_elements: u32,
+        instances: Option<Vec<Instance>>,
+        device: &wgpu::Device
+    ) -> Mesh {
+        let instances = instances.unwrap_or(vec![]);
+
+        let instance_buffer: Option<wgpu::Buffer>;
+        if instances.len() > 0 {
+            let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+            instance_buffer = Some(
+                device.create_buffer_init(
+                    &(wgpu::util::BufferInitDescriptor {
+                        label: Some(&format!("{}__instance_buffer", label)),
+                        contents: bytemuck::cast_slice(&instance_data),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    })
+                )
+            );
+        } else {
+            instance_buffer = None;
+        }
+        Mesh {
+            label,
+            vertex_buffer,
+            index_buffer,
+            num_elements,
+            instances,
+            instance_buffer,
+        }
+    }
+
+    pub(crate) fn add_instance(
+        &mut self,
+        position: cgmath::Vector3<f32>,
+        rotation: cgmath::Quaternion<f32>,
+        scale: cgmath::Vector3<f32>
+    ) {
+        self.instances.push(Instance {
+            position,
+            rotation,
+            scale,
+        });
+    }
+
+    pub(crate) fn update_instances(&mut self, device: &wgpu::Device) {
+        let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        self.instance_buffer = Some(
+            device.create_buffer_init(
+                &(wgpu::util::BufferInitDescriptor {
+                    label: Some(&format!("{}__instance_buffer", self.label)),
+                    contents: bytemuck::cast_slice(&instance_data),
+                    usage: wgpu::BufferUsages::VERTEX,
+                })
+            )
+        );
+    }
+
+    pub(crate) fn _remove_instance() {
+        todo!("NO_IMPL")
+    }
 }
 
 pub(crate) fn calculate_normals(

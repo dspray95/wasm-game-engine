@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use cgmath::Rotation3;
+use wgpu::core::instance;
 use wgpu::util::DeviceExt;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
@@ -101,24 +102,24 @@ impl App {
         );
 
         // TODO START move this to a more ad-hoc model loading process //
-        let instances = [
-            Instance {
-                position: cgmath::Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-                rotation: cgmath::Quaternion::from_axis_angle(
-                    (0.0, 1.0, 1.0).into(),
-                    cgmath::Deg(75.0)
-                ),
-                _scale: cgmath::Vector3 { x: 1.0, y: 1.0, z: 1.0 },
-            },
-        ];
-        let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-        let instance_buffer = &engine_state.device.create_buffer_init(
-            &(wgpu::util::BufferInitDescriptor {
-                label: Some("Instance Buffer"),
-                contents: bytemuck::cast_slice(&instance_data),
-                usage: wgpu::BufferUsages::VERTEX,
-            })
-        );
+        // let instances = [
+        //     Instance {
+        //         position: cgmath::Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+        //         rotation: cgmath::Quaternion::from_axis_angle(
+        //             (0.0, 1.0, 1.0).into(),
+        //             cgmath::Deg(75.0)
+        //         ),
+        //         scale: cgmath::Vector3 { x: 0.5, y: 0.5, z: 0.5 },
+        //     },
+        // ];
+        // let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        // let instance_buffer = &engine_state.device.create_buffer_init(
+        //     &(wgpu::util::BufferInitDescriptor {
+        //         label: Some("Instance Buffer"),
+        //         contents: bytemuck::cast_slice(&instance_data),
+        //         usage: wgpu::BufferUsages::VERTEX,
+        //     })
+        // );
         // TODO END //
 
         let _window = self.window.as_ref().unwrap();
@@ -156,21 +157,36 @@ impl App {
             );
 
             // Render pass setup
-            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
             render_pass.set_bind_group(0, &engine_state.camera.render_pass_data.bind_group, &[]);
             render_pass.set_pipeline(&engine_state.render_pipeline);
-
-            render_pass.draw_model_instanced(
-                &model,
-                0..instances.len() as u32,
-                &engine_state.camera.render_pass_data.bind_group,
-                &engine_state.light_bind_group
-            );
-            render_pass.draw_model(
-                &array_model,
-                &engine_state.camera.render_pass_data.bind_group,
-                &engine_state.light_bind_group
-            );
+            for mesh in &array_model.meshes {
+                match &mesh.instance_buffer {
+                    Some(instance_buffer) => {
+                        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                        render_pass.draw_model_instanced(
+                            &array_model,
+                            0..mesh.instances.len() as u32,
+                            &engine_state.camera.render_pass_data.bind_group,
+                            &engine_state.light_bind_group
+                        );
+                    }
+                    None => {
+                        continue;
+                    }
+                }
+            }
+            // render_pass.draw_model_instanced(
+            //     &model,
+            //     0..instances.len() as u32,
+            //     &engine_state.camera.render_pass_data.bind_group,
+            //     &engine_state.light_bind_group
+            // );
+            // render_pass.draw_model_instanced(
+            //     &array_model,
+            //     0..instances.len() as u32,
+            //     &engine_state.camera.render_pass_data.bind_group,
+            //     &engine_state.light_bind_group
+            // );
         }
         engine_state.queue.submit(Some(encoder.finish()));
         surface_texture.present();
