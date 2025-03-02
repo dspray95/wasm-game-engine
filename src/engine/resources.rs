@@ -5,10 +5,7 @@ use wgpu::util::DeviceExt;
 
 use crate::engine::model::mesh;
 
-use super::instance::InstanceRaw;
-use super::model::material::Material;
 use super::model::mesh::Mesh;
-use super::model::normals::calculate_normal_for_triangle;
 use super::model::vertex::ModelVertex;
 use super::texture;
 use super::model::model::Model;
@@ -111,7 +108,7 @@ pub fn load_model_from_arrays(
     );
 
     let mesh = Mesh {
-        label: label.to_string(),
+        _label: label.to_string(),
         vertex_buffer,
         index_buffer,
         num_elements: triangle_indices.len() as u32,
@@ -125,7 +122,7 @@ pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> any
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
 
-    let (models, obj_materials) = tobj::load_obj_buf_async(
+    let (models, _obj_materials) = tobj::load_obj_buf_async(
         &mut obj_reader,
         &(tobj::LoadOptions {
             triangulate: true,
@@ -189,7 +186,7 @@ pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> any
             );
 
             Mesh {
-                label: file_name.to_string(),
+                _label: file_name.to_string(),
                 vertex_buffer,
                 index_buffer,
                 num_elements: m.mesh.indices.len() as u32,

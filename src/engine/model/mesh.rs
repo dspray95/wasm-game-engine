@@ -1,14 +1,9 @@
 use std::ops::{ Add, Sub };
 
 use cgmath::{ vec3, InnerSpace, Vector3 };
-use wgpu::util::DeviceExt;
-
-use crate::engine::instance::Instance;
-
-use super::material::Material;
 
 pub(crate) struct Mesh {
-    pub label: String,
+    pub _label: String,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub num_elements: u32,
@@ -62,11 +57,4 @@ fn calculate_traingle_normals(a: &[f32; 3], b: &[f32; 3], c: &[f32; 3]) -> Vecto
     let ab = cgmath::Vector3::sub(vec3(a[0], a[1], a[2]), vec3(b[0], b[1], b[2]));
     let ac = cgmath::Vector3::sub(vec3(a[0], a[1], a[2]), vec3(c[0], c[1], c[2]));
     cgmath::Vector3::cross(ab, ac)
-}
-
-pub(crate) struct MeshData {
-    pub vertices: Vec<[f32; 3]>,
-    pub triangles: Vec<u32>,
-    pub normals: Vec<[f32; 3]>,
-    pub scale: f32,
 }

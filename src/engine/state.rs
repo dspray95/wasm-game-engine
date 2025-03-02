@@ -23,7 +23,6 @@ pub struct EngineState {
     pub light_uniform: LightUniform,
     pub light_buffer: wgpu::Buffer,
     pub light_bind_group: wgpu::BindGroup,
-    pub light_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl EngineState {
@@ -182,7 +181,6 @@ impl EngineState {
             light_uniform,
             light_buffer,
             light_bind_group,
-            light_bind_group_layout,
         }
     }
 

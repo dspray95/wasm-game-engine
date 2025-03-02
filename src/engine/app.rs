@@ -7,10 +7,9 @@ use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{ Window, WindowId };
 
-use crate::game::cube::{ self, Cube };
+use crate::game::cube::{ self };
 
 use super::instance::Instance;
-use super::model::mesh::{ Mesh, MeshData };
 use super::model::model::{ DrawModel, Model };
 use super::resources;
 use super::state::EngineState;
@@ -109,6 +108,7 @@ impl App {
                     (0.0, 1.0, 1.0).into(),
                     cgmath::Deg(75.0)
                 ),
+                _scale: cgmath::Vector3 { x: 1.0, y: 1.0, z: 1.0 },
             },
         ];
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();

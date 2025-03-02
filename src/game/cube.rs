@@ -1,29 +1,3 @@
-use crate::engine::model::{ mesh::{ Mesh, MeshData }, model::Model };
-
-pub struct Cube {
-    position: [f32; 3],
-    scale: [f32; 3],
-    pub(crate) mesh_data: Option<MeshData>,
-    pub model: Option<Model>,
-}
-
-impl Cube {
-    pub fn new(position: [f32; 3], scale: [f32; 3]) -> Self {
-        let mesh_data: MeshData = MeshData {
-            vertices: VERTICES.to_vec(),
-            triangles: TRIANGLES.to_vec(),
-            normals: vec![],
-            scale: SCALE,
-        };
-        Cube {
-            position,
-            scale,
-            mesh_data: Some(mesh_data),
-            model: None,
-        }
-    }
-}
-
 pub const SCALE: f32 = 10.0;
 const X_OFFSET: f32 = SCALE * 0.5;
 const Y_OFFSET: f32 = SCALE * 0.5;

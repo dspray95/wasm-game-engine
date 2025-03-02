@@ -1,19 +1,12 @@
 use std::ops::Range;
 
-use super::{ material::Material, mesh::Mesh };
+use super::mesh::Mesh;
 
 pub struct Model {
     pub(crate) meshes: Vec<Mesh>,
 }
 
 pub(in crate::engine) trait DrawModel<'a> {
-    fn draw_mesh(
-        &mut self,
-        mesh: &'a Mesh,
-        camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup
-    );
-
     fn draw_mesh_instanced(
         &mut self,
         mesh: &'a Mesh,
