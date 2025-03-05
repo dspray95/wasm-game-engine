@@ -117,10 +117,10 @@ pub fn load_model_from_arrays(
             vec![Instance {
                 position: cgmath::Vector3 { x: 0.0, y: 0.0, z: 0.0 },
                 rotation: cgmath::Quaternion::from_axis_angle(
-                    (0.0, 1.0, 1.0).into(),
-                    cgmath::Deg(75.0)
+                    (1.0, 1.0, 1.0).into(),
+                    cgmath::Deg(0.0)
                 ),
-                scale: cgmath::Vector3 { x: 0.5, y: 0.5, z: 0.5 },
+                scale: cgmath::Vector3 { x: 1.0, y: 1.0, z: 1.0 },
             }]
         ),
         device

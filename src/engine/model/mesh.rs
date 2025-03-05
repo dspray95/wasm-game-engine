@@ -66,6 +66,7 @@ impl Mesh {
     pub(crate) fn update_instances(&mut self, device: &wgpu::Device) {
         let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         self.instance_buffer = Some(
+            //TODO Enginestate -> Queue -> Write buffer for updating instance positions
             device.create_buffer_init(
                 &(wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("{}__instance_buffer", self.label)),

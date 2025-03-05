@@ -1,9 +1,10 @@
-use wgpu::util::DeviceExt;
+use wgpu::{ util::DeviceExt, RenderBundle };
 use winit::window::Window;
 use super::{
     camera::Camera,
     instance::InstanceRaw,
     model::vertex::{ ModelVertex, Vertex },
+    render_pipeline::create_wireframe_render_pipeline,
     texture::{ self, Texture },
 };
 use crate::{
@@ -23,6 +24,7 @@ pub struct EngineState {
     pub light_uniform: LightUniform,
     pub light_buffer: wgpu::Buffer,
     pub light_bind_group: wgpu::BindGroup,
+    pub wireframe_render_pipeline: wgpu::RenderPipeline,
 }
 
 impl EngineState {
@@ -169,6 +171,19 @@ impl EngineState {
             shader
         );
 
+        let wireframe_shader = wgpu::ShaderModuleDescriptor {
+            label: Some("Base Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../wireframe.wgsl").into()),
+        };
+        let wireframe_render_pipeline: wgpu::RenderPipeline = create_wireframe_render_pipeline(
+            &device,
+            &render_pipeline_layout,
+            surface_config.format,
+            Some(texture::Texture::DEPTH_FORMAT),
+            &[ModelVertex::desc(), InstanceRaw::desc()],
+            wireframe_shader
+        );
+
         Self {
             device,
             queue,
@@ -181,6 +196,7 @@ impl EngineState {
             light_uniform,
             light_buffer,
             light_bind_group,
+            wireframe_render_pipeline,
         }
     }
 

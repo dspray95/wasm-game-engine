@@ -1,7 +1,5 @@
 use std::sync::Arc;
 use cgmath::Rotation3;
-use wgpu::core::instance;
-use wgpu::util::DeviceExt;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
@@ -9,8 +7,8 @@ use winit::event_loop::ActiveEventLoop;
 use winit::window::{ Window, WindowId };
 
 use crate::game::cube::{ self };
+use crate::game::terrain::Terrain;
 
-use super::instance::Instance;
 use super::model::model::{ DrawModel, Model };
 use super::resources;
 use super::state::EngineState;
@@ -20,8 +18,8 @@ pub struct App {
     instance: wgpu::Instance,
     engine_state: Option<EngineState>,
     window: Option<Arc<Window>>,
-    model: Option<Model>,
-    array_model: Option<Model>,
+    cube_model: Option<Model>,
+    terrain_model: Option<Model>,
 }
 
 impl App {
@@ -32,8 +30,8 @@ impl App {
             instance,
             engine_state: None,
             window: None,
-            model: None,
-            array_model: None,
+            cube_model: None,
+            terrain_model: None,
         }
     }
 
@@ -67,10 +65,19 @@ impl App {
             cube::TRIANGLES.to_vec(),
             &engine_state.device
         );
+
+        let terrain_object = Terrain::new(5, 5);
+        let terrain_model = resources::load_model_from_arrays(
+            "terrain",
+            terrain_object.vertices,
+            vec![],
+            terrain_object.triangles,
+            &engine_state.device
+        );
         self.window.get_or_insert(window);
         self.engine_state.get_or_insert(engine_state);
-        self.model.get_or_insert(obj_model);
-        self.array_model.get_or_insert(array_model);
+        self.cube_model.get_or_insert(array_model);
+        self.terrain_model.get_or_insert(terrain_model);
     }
 
     fn handle_resized(&mut self, width: u32, height: u32) {
@@ -85,8 +92,9 @@ impl App {
 
     fn handle_redraw(&mut self) {
         let engine_state = self.engine_state.as_mut().unwrap();
-        let model = self.model.as_mut().unwrap();
-        let array_model = self.array_model.as_mut().unwrap();
+        let array_model = self.cube_model.as_mut().unwrap();
+        let terrain_model = self.terrain_model.as_mut().unwrap();
+
         // Mesh Rendering //
 
         let surface_texture = engine_state.surface
@@ -100,27 +108,6 @@ impl App {
         let mut encoder = engine_state.device.create_command_encoder(
             &(wgpu::CommandEncoderDescriptor { label: None })
         );
-
-        // TODO START move this to a more ad-hoc model loading process //
-        // let instances = [
-        //     Instance {
-        //         position: cgmath::Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-        //         rotation: cgmath::Quaternion::from_axis_angle(
-        //             (0.0, 1.0, 1.0).into(),
-        //             cgmath::Deg(75.0)
-        //         ),
-        //         scale: cgmath::Vector3 { x: 0.5, y: 0.5, z: 0.5 },
-        //     },
-        // ];
-        // let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-        // let instance_buffer = &engine_state.device.create_buffer_init(
-        //     &(wgpu::util::BufferInitDescriptor {
-        //         label: Some("Instance Buffer"),
-        //         contents: bytemuck::cast_slice(&instance_data),
-        //         usage: wgpu::BufferUsages::VERTEX,
-        //     })
-        // );
-        // TODO END //
 
         let _window = self.window.as_ref().unwrap();
         {
@@ -156,15 +143,15 @@ impl App {
                 })
             );
 
-            // Render pass setup
+            // Render pass
             render_pass.set_bind_group(0, &engine_state.camera.render_pass_data.bind_group, &[]);
             render_pass.set_pipeline(&engine_state.render_pipeline);
-            for mesh in &array_model.meshes {
+            for mesh in &terrain_model.meshes {
                 match &mesh.instance_buffer {
                     Some(instance_buffer) => {
                         render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                         render_pass.draw_model_instanced(
-                            &array_model,
+                            &terrain_model,
                             0..mesh.instances.len() as u32,
                             &engine_state.camera.render_pass_data.bind_group,
                             &engine_state.light_bind_group
@@ -175,18 +162,23 @@ impl App {
                     }
                 }
             }
-            // render_pass.draw_model_instanced(
-            //     &model,
-            //     0..instances.len() as u32,
-            //     &engine_state.camera.render_pass_data.bind_group,
-            //     &engine_state.light_bind_group
-            // );
-            // render_pass.draw_model_instanced(
-            //     &array_model,
-            //     0..instances.len() as u32,
-            //     &engine_state.camera.render_pass_data.bind_group,
-            //     &engine_state.light_bind_group
-            // );
+            render_pass.set_pipeline(&engine_state.wireframe_render_pipeline);
+            for mesh in &terrain_model.meshes {
+                match &mesh.instance_buffer {
+                    Some(instance_buffer) => {
+                        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                        render_pass.draw_model_instanced(
+                            &terrain_model,
+                            0..mesh.instances.len() as u32,
+                            &engine_state.camera.render_pass_data.bind_group,
+                            &engine_state.light_bind_group
+                        );
+                    }
+                    None => {
+                        continue;
+                    }
+                }
+            }
         }
         engine_state.queue.submit(Some(encoder.finish()));
         surface_texture.present();
