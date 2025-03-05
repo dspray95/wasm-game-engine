@@ -2,8 +2,9 @@ use std::sync::Arc;
 use cgmath::Rotation3;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event::WindowEvent;
+use winit::event::{ KeyEvent, WindowEvent };
 use winit::event_loop::ActiveEventLoop;
+use winit::keyboard::PhysicalKey;
 use winit::window::{ Window, WindowId };
 
 use crate::game::cube::{ self };
@@ -234,6 +235,13 @@ impl ApplicationHandler for App {
             }
             WindowEvent::Resized(new_size) => {
                 self.handle_resized(new_size.width, new_size.height);
+            }
+            WindowEvent::KeyboardInput {
+                event: KeyEvent { state, physical_key: PhysicalKey::Code(keycode), .. },
+                ..
+            } => {
+                let engine_state = self.engine_state.as_mut().unwrap();
+                engine_state.camera_controller.process_events(keycode, state);
             }
             _ => (),
         }
