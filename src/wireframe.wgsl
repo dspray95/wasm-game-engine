@@ -45,8 +45,6 @@ fn vs_main(
     );
     
     var out: VertexOutput;
-    // transform the normal(model.normal) to match the transformation of the instance(instance_normal_matrix)
-    // transform the vertices(model.position) to match the transformation of the instance(instance_model_matrix)
     var world_position: vec4<f32> = instance_model_matrix * vec4<f32>(model.position, 1.0);
     out.world_position = world_position.xyz;
 

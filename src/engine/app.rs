@@ -147,6 +147,7 @@ impl App {
             // Render pass
             render_pass.set_bind_group(0, &engine_state.camera.render_pass_data.bind_group, &[]);
             render_pass.set_pipeline(&engine_state.render_pipeline);
+
             for mesh in &terrain_model.meshes {
                 match &mesh.instance_buffer {
                     Some(instance_buffer) => {
@@ -163,13 +164,49 @@ impl App {
                     }
                 }
             }
+
+            for mesh in &array_model.meshes {
+                match &mesh.instance_buffer {
+                    Some(instance_buffer) => {
+                        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                        render_pass.draw_model_instanced(
+                            &array_model,
+                            0..mesh.instances.len() as u32,
+                            &engine_state.camera.render_pass_data.bind_group,
+                            &engine_state.light_bind_group
+                        );
+                    }
+                    None => {
+                        continue;
+                    }
+                }
+            }
+
             render_pass.set_pipeline(&engine_state.wireframe_render_pipeline);
+
             for mesh in &terrain_model.meshes {
                 match &mesh.instance_buffer {
                     Some(instance_buffer) => {
                         render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                         render_pass.draw_model_instanced(
                             &terrain_model,
+                            0..mesh.instances.len() as u32,
+                            &engine_state.camera.render_pass_data.bind_group,
+                            &engine_state.light_bind_group
+                        );
+                    }
+                    None => {
+                        continue;
+                    }
+                }
+            }
+
+            for mesh in &array_model.meshes {
+                match &mesh.instance_buffer {
+                    Some(instance_buffer) => {
+                        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                        render_pass.draw_model_instanced(
+                            &array_model,
                             0..mesh.instances.len() as u32,
                             &engine_state.camera.render_pass_data.bind_group,
                             &engine_state.light_bind_group
