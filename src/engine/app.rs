@@ -1,8 +1,9 @@
 use std::sync::Arc;
+use std::time::{ Duration, Instant };
 use cgmath::Rotation3;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event::{ KeyEvent, WindowEvent };
+use winit::event::{ DeviceEvent, ElementState, KeyEvent, MouseButton, WindowEvent };
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::PhysicalKey;
 use winit::window::{ Window, WindowId };
@@ -89,6 +90,7 @@ impl App {
             &engine_state.surface_config,
             "depth_texture"
         );
+        engine_state.camera.projection.resize(width, height);
     }
 
     fn handle_redraw(&mut self) {
@@ -225,10 +227,10 @@ impl App {
         surface_texture.present();
     }
 
-    fn handle_camera_update(&mut self) {
+    fn handle_camera_update(&mut self, delta_time: Duration) {
         let engine_state = self.engine_state.as_mut().unwrap();
 
-        engine_state.camera_controller.update_camera(&mut engine_state.camera);
+        engine_state.camera_controller.update_camera(&mut engine_state.camera, delta_time);
         engine_state.camera.update_view_projeciton();
         engine_state.queue.write_buffer(
             &engine_state.camera.render_pass_data.buffer,
@@ -260,14 +262,38 @@ impl ApplicationHandler for App {
         pollster::block_on(self.set_window(window));
     }
 
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent
+    ) {
+        match event {
+            DeviceEvent::MouseMotion { delta } => {
+                let engine_state: &mut EngineState = self.engine_state.as_mut().unwrap();
+                if engine_state.camera_controller.is_orbit_enabled {
+                    engine_state.camera_controller.process_mouse_movement(delta.0, delta.1);
+                }
+            }
+            _ => (),
+        }
+    }
+
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
+        // This won't work on web at the moment, Instant::now() will panic
         match event {
             WindowEvent::CloseRequested => {
-                println!("The close button was pressed; stopping");
+                println!("Close button pressed; stopping window event loop...");
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                self.handle_camera_update();
+                let engine_state = self.engine_state.as_mut().unwrap();
+
+                let now = Instant::now();
+                let delta_time = now - engine_state.last_redraw_requested_time;
+                engine_state.last_redraw_requested_time = now;
+
+                self.handle_camera_update(delta_time);
                 self.update();
                 self.handle_redraw();
 
@@ -282,6 +308,14 @@ impl ApplicationHandler for App {
             } => {
                 let engine_state = self.engine_state.as_mut().unwrap();
                 engine_state.camera_controller.process_events(keycode, state);
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                let engine_state: &mut EngineState = self.engine_state.as_mut().unwrap();
+                engine_state.camera_controller.process_scroll(&delta);
+            }
+            WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => {
+                let engine_state = self.engine_state.as_mut().unwrap();
+                engine_state.camera_controller.process_mouse_click(state == ElementState::Pressed);
             }
             _ => (),
         }

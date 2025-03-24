@@ -4,6 +4,7 @@ pub mod light;
 pub mod model;
 pub mod resources;
 pub mod scene;
+pub mod cam;
 
 mod instance;
 mod state;

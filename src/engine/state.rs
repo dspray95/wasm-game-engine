@@ -1,7 +1,11 @@
+use std::time::Instant;
+
+use cgmath::{ Deg, Rad };
 use wgpu::{ util::DeviceExt, RenderBundle };
 use winit::window::Window;
 use super::{
-    camera::Camera,
+    cam::{ camera::Camera, controller::CameraController },
+    camera::CameraOld,
     instance::InstanceRaw,
     model::vertex::{ ModelVertex, Vertex },
     render_pipeline::create_wireframe_render_pipeline,
@@ -9,7 +13,7 @@ use super::{
 };
 use crate::{
     engine::{ light::LightUniform, render_pipeline::create_render_pipeline },
-    game::camera_controller::CameraController,
+    game::camera_controller::CameraControllerOld,
 };
 
 pub struct EngineState {
@@ -27,6 +31,7 @@ pub struct EngineState {
     pub wireframe_render_pipeline: wgpu::RenderPipeline,
     pub index_bind_group_layout: wgpu::BindGroupLayout,
     pub positions_bind_group_layout: wgpu::BindGroupLayout,
+    pub last_redraw_requested_time: Instant,
 }
 
 impl EngineState {
@@ -84,13 +89,21 @@ impl EngineState {
         surface.configure(&device, &surface_config);
 
         // Camera + Controller //
-        let camera = Camera::new(
+        let camera = CameraOld::new(
             [0.0, 2.0, -20.0],
             surface_config.width as f32,
             surface_config.height as f32,
             &device
         );
-        let camera_controller = CameraController::new();
+        let camera = Camera::new(
+            [0.0, 5.0, 10.0],
+            Deg(-90.0),
+            Deg(-20.0),
+            surface_config.width,
+            surface_config.height,
+            &device
+        );
+        let camera_controller = CameraController::new(10.0, 10.0);
 
         // Depth texture //
         let depth_texture = Texture::create_depth_texture(
@@ -250,6 +263,7 @@ impl EngineState {
             wireframe_render_pipeline,
             index_bind_group_layout,
             positions_bind_group_layout,
+            last_redraw_requested_time: Instant::now(),
         }
     }
 
