@@ -15,6 +15,15 @@ pub(in crate::engine) trait DrawModel<'a> {
         light_bind_group: &'a wgpu::BindGroup
     );
 
+    fn draw_mesh_wireframe_instanced(
+        &mut self,
+        mesh: &'a Mesh,
+        instances: Range<u32>,
+        camera_bind_group: &'a wgpu::BindGroup,
+        index_bind_group: &'a wgpu::BindGroup,
+        positions_bind_group: &'a wgpu::BindGroup
+    );
+
     fn draw_model(
         &mut self,
         model: &'a Model,
@@ -28,5 +37,14 @@ pub(in crate::engine) trait DrawModel<'a> {
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup
+    );
+
+    fn draw_model_wireframe_instanced(
+        &mut self,
+        model: &'a Model,
+        instances: Range<u32>,
+        camera_bind_group: &'a wgpu::BindGroup,
+        index_bind_group: &'a wgpu::BindGroup,
+        positions_bind_group: &'a wgpu::BindGroup
     );
 }

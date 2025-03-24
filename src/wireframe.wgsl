@@ -1,8 +1,14 @@
 struct CameraUniformBuffer {
     view_projection: mat4x4<f32>,
 };
-@group(0) @binding(0)
+@group(0) @binding(0) 
 var<uniform> camera: CameraUniformBuffer;
+
+@group(1) @binding(0)  
+var<storage, read> indices : array<u32>;
+
+@group(2) @binding(0)
+var<storage, read> positions: array<f32>;
 
 struct InstanceInput {
     // model //
@@ -17,6 +23,8 @@ struct InstanceInput {
 }
 
 struct VerexInput {
+    @builtin(instance_index) instanceID : u32,
+    @builtin(vertex_index) vertexID : u32,
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
 }
@@ -29,26 +37,36 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(
-    model: VerexInput,
+    vertex: VerexInput,
     instance: InstanceInput,
 ) -> VertexOutput {
-     let instance_model_matrix = mat4x4<f32>(
+    var localToElement = array<u32, 6>(0u, 1u, 1u, 2u, 2u, 0u);
+
+    var triangleIndex = vertex.vertexID / 6u;
+    var localVertexIndex = vertex.vertexID % 6u;
+
+    var elementIndexIndex = 3u * triangleIndex + localToElement[localVertexIndex];
+    var elementIndex = indices[elementIndexIndex];    
+
+     var position = vec3<f32>(
+        positions[3u * elementIndex + 0u],
+        positions[3u * elementIndex + 1u],
+        positions[3u * elementIndex + 2u],
+    );
+
+    let instance_model_matrix = mat4x4<f32>(
         instance.model_matrix_0,
         instance.model_matrix_1,
         instance.model_matrix_2,
         instance.model_matrix_3,
     );
-    let instance_normal_matrix = mat3x3<f32>(
-        instance.normal_matrix_0,
-        instance.normal_matrix_1,
-        instance.normal_matrix_2,
-    );
-    
+
     var out: VertexOutput;
-    var world_position: vec4<f32> = instance_model_matrix * vec4<f32>(model.position, 1.0);
+
+    var world_position: vec4<f32> = instance_model_matrix * vec4<f32>(position, 1.0);
     out.world_position = world_position.xyz;
 
-    out.clip_position = camera.view_projection * instance_model_matrix * vec4<f32>(model.position, 1.0);
+    out.clip_position = camera.view_projection * instance_model_matrix * vec4<f32>(position, 1.0);
     return out;    
 }
 

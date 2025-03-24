@@ -25,6 +25,8 @@ pub struct EngineState {
     pub light_buffer: wgpu::Buffer,
     pub light_bind_group: wgpu::BindGroup,
     pub wireframe_render_pipeline: wgpu::RenderPipeline,
+    pub index_bind_group_layout: wgpu::BindGroupLayout,
+    pub positions_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl EngineState {
@@ -143,14 +145,63 @@ impl EngineState {
                 ],
             })
         );
+        // Bind Group Layouts for Wireframe Renderer //
+        // The actual bind groups are defined on a per-mesh basis, built with this layout
+        let index_bind_group_layout = device.create_bind_group_layout(
+            &(wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+                label: Some(&"index_bind_group_layout"),
+            })
+        );
 
-        // Render Pipeline Definition //
+        let positions_bind_group_layout = device.create_bind_group_layout(
+            &(wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+                label: Some(&"positions_bind_group_layout"),
+            })
+        );
+
+        // Render Pipeline Definitions //
         let render_pipeline_layout = device.create_pipeline_layout(
             &(wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
                     &camera.render_pass_data.bind_group_layout,
                     &light_bind_group_layout,
+                ],
+                push_constant_ranges: &[],
+            })
+        );
+
+        let render_wireframe_pipeline_layout = device.create_pipeline_layout(
+            &(wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Wireframe Pipeline Layout"),
+                bind_group_layouts: &[
+                    &camera.render_pass_data.bind_group_layout,
+                    &index_bind_group_layout,
+                    &positions_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             })
@@ -172,12 +223,12 @@ impl EngineState {
         );
 
         let wireframe_shader = wgpu::ShaderModuleDescriptor {
-            label: Some("Base Shader"),
+            label: Some("Wireframe Shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../wireframe.wgsl").into()),
         };
         let wireframe_render_pipeline: wgpu::RenderPipeline = create_wireframe_render_pipeline(
             &device,
-            &render_pipeline_layout,
+            &render_wireframe_pipeline_layout,
             surface_config.format,
             Some(texture::Texture::DEPTH_FORMAT),
             &[ModelVertex::desc(), InstanceRaw::desc()],
@@ -197,6 +248,8 @@ impl EngineState {
             light_buffer,
             light_bind_group,
             wireframe_render_pipeline,
+            index_bind_group_layout,
+            positions_bind_group_layout,
         }
     }
 

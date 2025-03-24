@@ -12,6 +12,8 @@ pub(crate) struct Mesh {
     pub num_elements: u32,
     pub instances: Vec<Instance>,
     pub instance_buffer: Option<wgpu::Buffer>,
+    pub index_bind_group: wgpu::BindGroup,
+    pub positions_bind_group: wgpu::BindGroup,
 }
 
 impl Mesh {
@@ -21,7 +23,9 @@ impl Mesh {
         index_buffer: wgpu::Buffer,
         num_elements: u32,
         instances: Option<Vec<Instance>>,
-        device: &wgpu::Device
+        device: &wgpu::Device,
+        index_bind_group_layout: &wgpu::BindGroupLayout,
+        positions_bind_group_layout: &wgpu::BindGroupLayout
     ) -> Mesh {
         let instances = instances.unwrap_or(vec![]);
 
@@ -40,6 +44,33 @@ impl Mesh {
         } else {
             instance_buffer = None;
         }
+
+        let index_bind_group = device.create_bind_group(
+            &(wgpu::BindGroupDescriptor {
+                layout: index_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: index_buffer.as_entire_binding(),
+                    },
+                ],
+                label: Some(&format!("{}__index_bind_group", label)),
+            })
+        );
+
+        let positions_bind_group = device.create_bind_group(
+            &(wgpu::BindGroupDescriptor {
+                layout: positions_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: vertex_buffer.as_entire_binding(),
+                    },
+                ],
+                label: Some(&format!("{}__index_bind_group", label)),
+            })
+        );
+
         Mesh {
             label,
             vertex_buffer,
@@ -47,6 +78,8 @@ impl Mesh {
             num_elements,
             instances,
             instance_buffer,
+            index_bind_group,
+            positions_bind_group,
         }
     }
 

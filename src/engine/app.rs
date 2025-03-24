@@ -55,16 +55,14 @@ impl App {
             initial_width
         ).await;
 
-        let obj_model = resources
-            ::load_model_from_file("cube.obj", &engine_state.device).await
-            .unwrap();
-
         let array_model = resources::load_model_from_arrays(
             "array cube",
             cube::VERTICES.to_vec(),
             vec![],
             cube::TRIANGLES.to_vec(),
-            &engine_state.device
+            &engine_state.device,
+            &engine_state.index_bind_group_layout,
+            &engine_state.positions_bind_group_layout
         );
 
         let terrain_object = Terrain::new(5, 5);
@@ -73,7 +71,9 @@ impl App {
             terrain_object.vertices,
             vec![],
             terrain_object.triangles,
-            &engine_state.device
+            &engine_state.device,
+            &engine_state.index_bind_group_layout,
+            &engine_state.positions_bind_group_layout
         );
         self.window.get_or_insert(window);
         self.engine_state.get_or_insert(engine_state);
@@ -144,7 +144,7 @@ impl App {
                 })
             );
 
-            // Render pass
+            // Render solid + lit meshes
             render_pass.set_bind_group(0, &engine_state.camera.render_pass_data.bind_group, &[]);
             render_pass.set_pipeline(&engine_state.render_pipeline);
 
@@ -182,17 +182,19 @@ impl App {
                 }
             }
 
+            // Render Wireframe
             render_pass.set_pipeline(&engine_state.wireframe_render_pipeline);
 
             for mesh in &terrain_model.meshes {
                 match &mesh.instance_buffer {
                     Some(instance_buffer) => {
                         render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                        render_pass.draw_model_instanced(
+                        render_pass.draw_model_wireframe_instanced(
                             &terrain_model,
                             0..mesh.instances.len() as u32,
                             &engine_state.camera.render_pass_data.bind_group,
-                            &engine_state.light_bind_group
+                            &mesh.index_bind_group,
+                            &mesh.positions_bind_group
                         );
                     }
                     None => {
@@ -205,11 +207,12 @@ impl App {
                 match &mesh.instance_buffer {
                     Some(instance_buffer) => {
                         render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                        render_pass.draw_model_instanced(
+                        render_pass.draw_model_wireframe_instanced(
                             &array_model,
                             0..mesh.instances.len() as u32,
                             &engine_state.camera.render_pass_data.bind_group,
-                            &engine_state.light_bind_group
+                            &mesh.index_bind_group,
+                            &mesh.positions_bind_group
                         );
                     }
                     None => {

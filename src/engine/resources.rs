@@ -3,6 +3,7 @@ use std::io::{ BufReader, Cursor };
 use cfg_if::cfg_if;
 use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
+use wgpu::BindGroupLayout;
 use crate::engine::model::mesh;
 
 use super::instance::Instance;
@@ -65,7 +66,9 @@ pub fn load_model_from_arrays(
     vertices: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
     triangle_indices: Vec<u32>,
-    device: &wgpu::Device
+    device: &wgpu::Device,
+    index_bind_group_layout: &wgpu::BindGroupLayout,
+    positions_bind_group_layout: &wgpu::BindGroupLayout
 ) -> Model {
     let model_vertices: Vec<ModelVertex>;
 
@@ -96,7 +99,7 @@ pub fn load_model_from_arrays(
         &(wgpu::util::BufferInitDescriptor {
             label: Some(&format!("{:?} Vertex Buffer", label)),
             contents: bytemuck::cast_slice(&model_vertices),
-            usage: wgpu::BufferUsages::VERTEX,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
         })
     );
 
@@ -104,7 +107,9 @@ pub fn load_model_from_arrays(
         &(wgpu::util::BufferInitDescriptor {
             label: Some(&format!("{:?} Index Buffer", label)),
             contents: bytemuck::cast_slice(&triangle_indices),
-            usage: wgpu::BufferUsages::INDEX,
+            usage: wgpu::BufferUsages::INDEX |
+            wgpu::BufferUsages::VERTEX |
+            wgpu::BufferUsages::STORAGE,
         })
     );
 
@@ -123,13 +128,20 @@ pub fn load_model_from_arrays(
                 scale: cgmath::Vector3 { x: 1.0, y: 1.0, z: 1.0 },
             }]
         ),
-        device
+        device,
+        index_bind_group_layout,
+        positions_bind_group_layout
     );
 
     Model { meshes: vec![mesh] }
 }
 
-pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> anyhow::Result<Model> {
+pub async fn load_model_from_file(
+    file_name: &str,
+    device: &wgpu::Device,
+    index_bind_group_layout: &wgpu::BindGroupLayout,
+    positions_bind_group_layout: &wgpu::BindGroupLayout
+) -> anyhow::Result<Model> {
     let obj_text = load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
@@ -202,7 +214,9 @@ pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> any
                 index_buffer,
                 m.mesh.indices.len() as u32,
                 Some(vec![]),
-                device
+                device,
+                index_bind_group_layout,
+                positions_bind_group_layout
             )
         })
         .collect::<Vec<_>>();

@@ -9,6 +9,8 @@ pub struct CameraController {
     is_backward_pressed: bool,
     is_left_pressed: bool,
     is_right_pressed: bool,
+    is_rotate_left_pressed: bool,
+    is_rotate_right_pressed: bool,
 }
 
 impl CameraController {
@@ -19,6 +21,8 @@ impl CameraController {
             is_backward_pressed: false,
             is_left_pressed: false,
             is_right_pressed: false,
+            is_rotate_left_pressed: false,
+            is_rotate_right_pressed: false,
         }
     }
 
@@ -30,16 +34,24 @@ impl CameraController {
                 self.is_forward_pressed = is_pressed;
                 true
             }
-            KeyCode::KeyA | KeyCode::ArrowLeft => {
-                self.is_left_pressed = is_pressed;
-                true
-            }
             KeyCode::KeyS | KeyCode::ArrowDown => {
                 self.is_backward_pressed = is_pressed;
                 true
             }
-            KeyCode::KeyD | KeyCode::ArrowRight => {
+            KeyCode::KeyA | KeyCode::ArrowRight => {
+                self.is_left_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyD | KeyCode::ArrowLeft => {
                 self.is_right_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyE => {
+                self.is_rotate_right_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyQ => {
+                self.is_rotate_left_pressed = is_pressed;
                 true
             }
             _ => false,
@@ -62,18 +74,24 @@ impl CameraController {
         }
 
         let right = forward_norm.cross(camera.up);
+        if self.is_left_pressed {
+            camera.eye -= right.normalize() * self.speed;
+        }
+        if self.is_right_pressed {
+            camera.eye += right.normalize() * self.speed;
+        }
 
         // Redo radius calc in case the forward/backward is pressed.
         let forward = camera.target - camera.eye;
         let forward_mag = forward.magnitude();
 
-        if self.is_right_pressed {
+        if self.is_rotate_right_pressed {
             // Rescale the distance between the target and the eye so
             // that it doesn't change. The eye, therefore, still
             // lies on the circle made by the target and eye.
             camera.eye = camera.target - (forward + right * self.speed).normalize() * forward_mag;
         }
-        if self.is_left_pressed {
+        if self.is_rotate_left_pressed {
             camera.eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
         }
     }
