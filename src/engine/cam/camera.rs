@@ -1,5 +1,5 @@
 use cgmath::{ Angle, Deg, InnerSpace, Matrix4, Point3, Rad, Vector3 };
-use wgpu::{ core::device, util::DeviceExt };
+use wgpu::util::DeviceExt;
 
 use super::{ projection::Projection, uniform::CameraUniformBuffer };
 

@@ -1,5 +1,4 @@
 pub mod app;
-pub mod camera;
 pub mod light;
 pub mod model;
 pub mod resources;
