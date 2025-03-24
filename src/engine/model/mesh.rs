@@ -1,9 +1,9 @@
 use std::ops::{ Add, Sub };
 
 use cgmath::{ vec3, InnerSpace, Vector3 };
-use wgpu::{ core::instance, util::DeviceExt, Buffer, Device };
+use wgpu::util::DeviceExt;
 
-use crate::engine::{ instance::Instance, state::EngineState };
+use crate::engine::instance::Instance;
 
 pub(crate) struct Mesh {
     pub label: String,

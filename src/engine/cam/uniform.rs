@@ -1,6 +1,5 @@
 use cgmath::{ Matrix4, Vector4 };
 
-use super::{ camera::Camera, projection::Projection };
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]

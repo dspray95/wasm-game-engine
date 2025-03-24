@@ -1,6 +1,4 @@
-use wgpu::naga::valid::WidthError;
 
-use crate::engine::model::model::Model;
 
 pub struct Terrain {
     pub n_vertices: u32,

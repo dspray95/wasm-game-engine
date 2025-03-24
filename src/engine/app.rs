@@ -22,6 +22,7 @@ pub struct App {
     window: Option<Arc<Window>>,
     cube_model: Option<Model>,
     terrain_model: Option<Model>,
+    cube_obj_model: Option<Model>,
 }
 
 impl App {
@@ -34,6 +35,7 @@ impl App {
             window: None,
             cube_model: None,
             terrain_model: None,
+            cube_obj_model: None,
         }
     }
 
@@ -76,10 +78,20 @@ impl App {
             &engine_state.index_bind_group_layout,
             &engine_state.positions_bind_group_layout
         );
+        let obj_model = resources
+            ::load_model_from_file(
+                "cube.obj",
+                &engine_state.device,
+                &engine_state.index_bind_group_layout,
+                &engine_state.positions_bind_group_layout
+            ).await
+            .unwrap();
+
         self.window.get_or_insert(window);
         self.engine_state.get_or_insert(engine_state);
-        self.cube_model.get_or_insert(array_model);
-        self.terrain_model.get_or_insert(terrain_model);
+        // self.cube_model.get_or_insert(array_model);
+        // self.terrain_model.get_or_insert(terrain_model);
+        self.cube_obj_model.get_or_insert(obj_model);
     }
 
     fn handle_resized(&mut self, width: u32, height: u32) {
@@ -95,9 +107,9 @@ impl App {
 
     fn handle_redraw(&mut self) {
         let engine_state = self.engine_state.as_mut().unwrap();
-        let array_model = self.cube_model.as_mut().unwrap();
-        let terrain_model = self.terrain_model.as_mut().unwrap();
-
+        // let array_model: &mut Model = self.cube_model.as_mut().unwrap();
+        // let terrain_model = self.terrain_model.as_mut().unwrap();
+        let cubje_obj_model = self.cube_obj_model.as_mut().unwrap();
         // Mesh Rendering //
 
         let surface_texture = engine_state.surface
@@ -150,12 +162,12 @@ impl App {
             render_pass.set_bind_group(0, &engine_state.camera.render_pass_data.bind_group, &[]);
             render_pass.set_pipeline(&engine_state.render_pipeline);
 
-            for mesh in &terrain_model.meshes {
+            for mesh in &cubje_obj_model.meshes {
                 match &mesh.instance_buffer {
                     Some(instance_buffer) => {
                         render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                         render_pass.draw_model_instanced(
-                            &terrain_model,
+                            &cubje_obj_model,
                             0..mesh.instances.len() as u32,
                             &engine_state.camera.render_pass_data.bind_group,
                             &engine_state.light_bind_group
@@ -166,62 +178,78 @@ impl App {
                     }
                 }
             }
+            // for mesh in &terrain_model.meshes {
+            //     match &mesh.instance_buffer {
+            //         Some(instance_buffer) => {
+            //             render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+            //             render_pass.draw_model_instanced(
+            //                 &terrain_model,
+            //                 0..mesh.instances.len() as u32,
+            //                 &engine_state.camera.render_pass_data.bind_group,
+            //                 &engine_state.light_bind_group
+            //             );
+            //         }
+            //         None => {
+            //             continue;
+            //         }
+            //     }
+            // }
 
-            for mesh in &array_model.meshes {
-                match &mesh.instance_buffer {
-                    Some(instance_buffer) => {
-                        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                        render_pass.draw_model_instanced(
-                            &array_model,
-                            0..mesh.instances.len() as u32,
-                            &engine_state.camera.render_pass_data.bind_group,
-                            &engine_state.light_bind_group
-                        );
-                    }
-                    None => {
-                        continue;
-                    }
-                }
-            }
+            // for mesh in &array_model.meshes {
+            //     match &mesh.instance_buffer {
+            //         Some(instance_buffer) => {
+            //             render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+            //             render_pass.draw_model_instanced(
+            //                 &array_model,
+            //                 0..mesh.instances.len() as u32,
+            //                 &engine_state.camera.render_pass_data.bind_group,
+            //                 &engine_state.light_bind_group
+            //             );
+            //         }
+            //         None => {
+            //             continue;
+            //         }
+            //     }
+            // }
 
             // Render Wireframe
             render_pass.set_pipeline(&engine_state.wireframe_render_pipeline);
 
-            for mesh in &terrain_model.meshes {
-                match &mesh.instance_buffer {
-                    Some(instance_buffer) => {
-                        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                        render_pass.draw_model_wireframe_instanced(
-                            &terrain_model,
-                            0..mesh.instances.len() as u32,
-                            &engine_state.camera.render_pass_data.bind_group,
-                            &mesh.index_bind_group,
-                            &mesh.positions_bind_group
-                        );
-                    }
-                    None => {
-                        continue;
-                    }
-                }
-            }
+            // for mesh in &terrain_model.meshes {
+            //     match &mesh.instance_buffer {
+            //         Some(instance_buffer) => {
+            //             render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+            //             render_pass.draw_model_wireframe_instanced(
+            //                 &terrain_model,
+            //                 0..mesh.instances.len() as u32,
+            //                 &engine_state.camera.render_pass_data.bind_group,
+            //                 &mesh.index_bind_group,
+            //                 &mesh.positions_bind_group
+            //             );
+            //         }
+            //         None => {
+            //             continue;
+            //         }
+            //     }
+            // }
 
-            for mesh in &array_model.meshes {
-                match &mesh.instance_buffer {
-                    Some(instance_buffer) => {
-                        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                        render_pass.draw_model_wireframe_instanced(
-                            &array_model,
-                            0..mesh.instances.len() as u32,
-                            &engine_state.camera.render_pass_data.bind_group,
-                            &mesh.index_bind_group,
-                            &mesh.positions_bind_group
-                        );
-                    }
-                    None => {
-                        continue;
-                    }
-                }
-            }
+            // for mesh in &array_model.meshes {
+            //     match &mesh.instance_buffer {
+            //         Some(instance_buffer) => {
+            //             render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+            //             render_pass.draw_model_wireframe_instanced(
+            //                 &array_model,
+            //                 0..mesh.instances.len() as u32,
+            //                 &engine_state.camera.render_pass_data.bind_group,
+            //                 &mesh.index_bind_group,
+            //                 &mesh.positions_bind_group
+            //             );
+            //         }
+            //         None => {
+            //             continue;
+            //         }
+            //     }
+            // }
         }
         engine_state.queue.submit(Some(encoder.finish()));
         surface_texture.present();
@@ -239,7 +267,7 @@ impl App {
         );
     }
 
-    fn update(&mut self) {
+    fn update_light(&mut self) {
         let engine_state = self.engine_state.as_mut().unwrap();
 
         // Move our light around to see effect
@@ -294,7 +322,7 @@ impl ApplicationHandler for App {
                 engine_state.last_redraw_requested_time = now;
 
                 self.handle_camera_update(delta_time);
-                self.update();
+                self.update_light();
                 self.handle_redraw();
 
                 self.window.as_ref().unwrap().request_redraw();

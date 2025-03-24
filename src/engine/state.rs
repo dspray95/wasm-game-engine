@@ -1,7 +1,7 @@
 use std::time::Instant;
 
-use cgmath::{ Deg, Rad };
-use wgpu::{ util::DeviceExt, RenderBundle };
+use cgmath::Deg;
+use wgpu::util::DeviceExt;
 use winit::window::Window;
 use super::{
     cam::{ camera::Camera, controller::CameraController },
@@ -148,6 +148,7 @@ impl EngineState {
                 ],
             })
         );
+
         // Bind Group Layouts for Wireframe Renderer //
         // The actual bind groups are defined on a per-mesh basis, built with this layout
         let index_bind_group_layout = device.create_bind_group_layout(

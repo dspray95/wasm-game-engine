@@ -3,7 +3,6 @@ use std::io::{ BufReader, Cursor };
 use cfg_if::cfg_if;
 use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
-use wgpu::BindGroupLayout;
 use crate::engine::model::mesh;
 
 use super::instance::Instance;
@@ -197,7 +196,7 @@ pub async fn load_model_from_file(
                 &(wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("{:?} Vertex Buffer", file_name)),
                     contents: bytemuck::cast_slice(&vertices),
-                    usage: wgpu::BufferUsages::VERTEX,
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
                 })
             );
 
@@ -205,9 +204,12 @@ pub async fn load_model_from_file(
                 &(wgpu::util::BufferInitDescriptor {
                     label: Some(&format!("{:?} Index Buffer", file_name)),
                     contents: bytemuck::cast_slice(&m.mesh.indices),
-                    usage: wgpu::BufferUsages::INDEX,
+                    usage: wgpu::BufferUsages::INDEX |
+                    wgpu::BufferUsages::VERTEX |
+                    wgpu::BufferUsages::STORAGE,
                 })
             );
+
             Mesh::new(
                 file_name.to_string(),
                 vertex_buffer,

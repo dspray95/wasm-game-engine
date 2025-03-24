@@ -71,7 +71,7 @@ impl Camera {
             position: position.into(),
             yaw: yaw.into(),
             pitch: pitch.into(),
-            projection: Projection::new(surface_width, surface_height, Deg(90.0), 10.0, 1000.0),
+            projection: Projection::new(surface_width, surface_height, Deg(45.0), 0.1, 100.0),
             render_pass_data: CameraRenderPassData {
                 buffer,
                 uniform_buffer,
