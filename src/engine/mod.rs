@@ -1,10 +1,9 @@
 pub mod app;
-pub mod camera;
 pub mod light;
 pub mod model;
 pub mod resources;
 pub mod scene;
-
+pub mod camera;
 mod instance;
 mod state;
 mod texture;

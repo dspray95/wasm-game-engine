@@ -1,16 +1,13 @@
 use wgpu::{ util::DeviceExt, RenderBundle };
 use winit::window::Window;
 use super::{
-    camera::Camera,
+    camera::{ camera::Camera, controller::CameraController },
     instance::InstanceRaw,
     model::vertex::{ ModelVertex, Vertex },
     render_pipeline::create_wireframe_render_pipeline,
     texture::{ self, Texture },
 };
-use crate::{
-    engine::{ light::LightUniform, render_pipeline::create_render_pipeline },
-    game::camera_controller::CameraController,
-};
+use crate::{ engine::{ light::LightUniform, render_pipeline::create_render_pipeline } };
 
 pub struct EngineState {
     pub device: wgpu::Device,
@@ -84,8 +81,8 @@ impl EngineState {
         // Camera + Controller //
         let camera = Camera::new(
             [0.0, 2.0, -20.0],
-            surface_config.width as f32,
-            surface_config.height as f32,
+            surface_config.width,
+            surface_config.height,
             &device
         );
         let camera_controller = CameraController::new();

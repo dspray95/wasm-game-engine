@@ -1,4 +1,7 @@
+use cgmath::Deg;
 use wgpu::util::DeviceExt;
+
+use super::{ projection::Projection, uniform::CameraUniformBuffer };
 
 const DEFAULT_FOV: f32 = 75.0;
 const DEAFAULT_NEAR: f32 = 0.1;
@@ -14,29 +17,26 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     0.0,  0.0, 0.0, 1.0,
 );
 
-pub(super) struct CameraRenderPassData {
-    pub(super) buffer: wgpu::Buffer,
-    pub(super) uniform_buffer: CameraUniformBuffer,
-    pub(super) bind_group: wgpu::BindGroup,
-    pub(super) bind_group_layout: wgpu::BindGroupLayout,
+pub struct CameraRenderPassData {
+    pub buffer: wgpu::Buffer,
+    pub uniform_buffer: CameraUniformBuffer,
+    pub bind_group: wgpu::BindGroup,
+    pub bind_group_layout: wgpu::BindGroupLayout,
 }
 
 pub struct Camera {
     pub eye: cgmath::Point3<f32>,
     pub target: cgmath::Point3<f32>,
     pub up: cgmath::Vector3<f32>,
-    pub aspect: f32,
-    pub fovy: f32,
-    pub znear: f32,
-    pub zfar: f32,
-    pub(super) render_pass_data: CameraRenderPassData,
+    pub projection: Projection,
+    pub render_pass_data: CameraRenderPassData,
 }
 
 impl Camera {
     pub fn new(
         location: [f32; 3],
-        surface_width: f32,
-        surface_height: f32,
+        surface_width: u32,
+        surface_height: u32,
         device: &wgpu::Device
     ) -> Self {
         let uniform_buffer: CameraUniformBuffer = CameraUniformBuffer::new();
@@ -83,10 +83,7 @@ impl Camera {
             eye: (location[0], location[1], location[2]).into(),
             target: (0.0, 0.0, 0.0).into(),
             up: cgmath::Vector3::unit_y(),
-            aspect: surface_width / surface_height,
-            fovy: DEFAULT_FOV,
-            znear: DEAFAULT_NEAR,
-            zfar: DEFAULT_FAR,
+            projection: Projection::new(surface_width, surface_height, Deg(45.0), 0.1, 100.0),
             render_pass_data: CameraRenderPassData {
                 buffer,
                 uniform_buffer,
@@ -97,15 +94,10 @@ impl Camera {
     }
 
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        // Move the world to the position and rotation of the camera
+        // Create a vector from eye to target
         let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
         // Warp the scene with a projeciton matrix
-        let projeciton = cgmath::perspective(
-            cgmath::Deg(self.fovy),
-            self.aspect,
-            self.znear,
-            self.zfar
-        );
+        let projeciton = self.projection.calculate_projection_matrix();
         OPENGL_TO_WGPU_MATRIX * projeciton * view
     }
 
@@ -113,24 +105,5 @@ impl Camera {
         self.render_pass_data.uniform_buffer.update_view_projeciton(
             self.build_view_projection_matrix().into()
         );
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct CameraUniformBuffer {
-    view_projection: [[f32; 4]; 4],
-}
-
-impl CameraUniformBuffer {
-    pub fn new() -> Self {
-        use cgmath::SquareMatrix;
-        Self {
-            view_projection: cgmath::Matrix4::identity().into(),
-        }
-    }
-
-    pub fn update_view_projeciton(&mut self, view_projection_matrix: [[f32; 4]; 4]) {
-        self.view_projection = view_projection_matrix;
     }
 }

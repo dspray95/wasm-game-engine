@@ -1,6 +1,6 @@
 use winit::{ event::{ ElementState, KeyEvent, WindowEvent }, keyboard::{ KeyCode, PhysicalKey } };
 
-use crate::engine::camera::Camera;
+use super::camera::Camera;
 
 const CAMERA_SPEED: f32 = -0.2; //0.0002 looks okayish
 pub struct CameraController {
