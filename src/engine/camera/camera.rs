@@ -1,4 +1,4 @@
-use cgmath::Deg;
+use cgmath::{ Deg, InnerSpace, Point3, Rad, Vector3 };
 use wgpu::util::DeviceExt;
 
 use super::{ projection::Projection, uniform::CameraUniformBuffer };
@@ -25,16 +25,18 @@ pub struct CameraRenderPassData {
 }
 
 pub struct Camera {
-    pub eye: cgmath::Point3<f32>,
-    pub target: cgmath::Point3<f32>,
-    pub up: cgmath::Vector3<f32>,
+    pub position: Point3<f32>,
+    pub(super) yaw: Rad<f32>,
+    pub(super) pitch: Rad<f32>,
     pub projection: Projection,
     pub render_pass_data: CameraRenderPassData,
 }
 
 impl Camera {
-    pub fn new(
-        location: [f32; 3],
+    pub fn new<V: Into<Point3<f32>>, Y: Into<Rad<f32>>, P: Into<Rad<f32>>>(
+        position: V,
+        yaw: Y,
+        pitch: P,
         surface_width: u32,
         surface_height: u32,
         device: &wgpu::Device
@@ -80,9 +82,9 @@ impl Camera {
         );
 
         Camera {
-            eye: (location[0], location[1], location[2]).into(),
-            target: (0.0, 0.0, 0.0).into(),
-            up: cgmath::Vector3::unit_y(),
+            position: position.into(),
+            yaw: yaw.into(),
+            pitch: pitch.into(),
             projection: Projection::new(surface_width, surface_height, Deg(45.0), 0.1, 100.0),
             render_pass_data: CameraRenderPassData {
                 buffer,
@@ -94,11 +96,19 @@ impl Camera {
     }
 
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        // Create a vector from eye to target
-        let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
+        // Create a vector from camera eye to the view direction,
+        // calculated from the pitch and yaw
+        let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
+        let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
+
+        let view = cgmath::Matrix4::look_to_rh(
+            self.position,
+            Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize(),
+            Vector3::unit_y()
+        );
         // Warp the scene with a projeciton matrix
         let projeciton = self.projection.calculate_projection_matrix();
-        OPENGL_TO_WGPU_MATRIX * projeciton * view
+        projeciton * view
     }
 
     pub fn update_view_projeciton(&mut self) {

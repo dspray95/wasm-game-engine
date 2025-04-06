@@ -1,3 +1,4 @@
+use cgmath::{ Rad, Vector3 };
 use winit::{ event::{ ElementState, KeyEvent, WindowEvent }, keyboard::{ KeyCode, PhysicalKey } };
 
 use super::camera::Camera;
@@ -9,6 +10,8 @@ pub struct CameraController {
     is_backward_pressed: bool,
     is_left_pressed: bool,
     is_right_pressed: bool,
+    is_rotate_left_pressed: bool,
+    is_rotate_right_pressed: bool,
 }
 
 impl CameraController {
@@ -19,6 +22,8 @@ impl CameraController {
             is_backward_pressed: false,
             is_left_pressed: false,
             is_right_pressed: false,
+            is_rotate_left_pressed: false,
+            is_rotate_right_pressed: false,
         }
     }
 
@@ -42,39 +47,46 @@ impl CameraController {
                 self.is_right_pressed = is_pressed;
                 true
             }
+            KeyCode::KeyQ => {
+                self.is_rotate_left_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyE => {
+                self.is_rotate_right_pressed = is_pressed;
+                true
+            }
             _ => false,
         }
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {
         use cgmath::InnerSpace;
-        let forward = camera.target - camera.eye;
-        let forward_norm = forward.normalize();
-        let forward_mag = forward.magnitude();
 
-        // Prevents glitching when the camera gets too close to the
-        // center of the scene.
-        if self.is_forward_pressed && forward_mag > self.speed {
-            camera.eye -= forward_norm * self.speed;
+        let (yaw_sin, yaw_cos) = camera.yaw.0.sin_cos();
+        // forward + backward
+        let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
+        if self.is_forward_pressed {
+            camera.position -= forward * self.speed;
         }
         if self.is_backward_pressed {
-            camera.eye += forward_norm * self.speed;
+            camera.position += forward * self.speed;
         }
 
-        let right = forward_norm.cross(camera.up);
-
-        // Redo radius calc in case the forward/backward is pressed.
-        let forward = camera.target - camera.eye;
-        let forward_mag = forward.magnitude();
-
-        if self.is_right_pressed {
-            // Rescale the distance between the target and the eye so
-            // that it doesn't change. The eye, therefore, still
-            // lies on the circle made by the target and eye.
-            camera.eye = camera.target - (forward + right * self.speed).normalize() * forward_mag;
-        }
+        // left + right
+        let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
         if self.is_left_pressed {
-            camera.eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
+            camera.position += right * self.speed;
+        }
+        if self.is_right_pressed {
+            camera.position -= right * self.speed;
+        }
+
+        // rotate
+        if self.is_rotate_left_pressed {
+            camera.yaw -= Rad(0.025);
+        }
+        if self.is_rotate_right_pressed {
+            camera.yaw += Rad(0.025);
         }
     }
 }

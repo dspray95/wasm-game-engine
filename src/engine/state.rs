@@ -1,3 +1,4 @@
+use cgmath::{ Deg, Rad };
 use wgpu::{ util::DeviceExt, RenderBundle };
 use winit::window::Window;
 use super::{
@@ -81,6 +82,8 @@ impl EngineState {
         // Camera + Controller //
         let camera = Camera::new(
             [0.0, 2.0, -20.0],
+            Deg(75.0),
+            Deg(0.0),
             surface_config.width,
             surface_config.height,
             &device
