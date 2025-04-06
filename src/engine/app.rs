@@ -21,6 +21,7 @@ pub struct App {
     window: Option<Arc<Window>>,
     cube_model: Option<Model>,
     terrain_model: Option<Model>,
+    models: Vec<Model>,
 }
 
 impl App {
@@ -33,6 +34,7 @@ impl App {
             window: None,
             cube_model: None,
             terrain_model: None,
+            models: vec![],
         }
     }
 
@@ -77,8 +79,8 @@ impl App {
         );
         self.window.get_or_insert(window);
         self.engine_state.get_or_insert(engine_state);
-        self.cube_model.get_or_insert(array_model);
-        self.terrain_model.get_or_insert(terrain_model);
+        self.models.push(terrain_model);
+        self.models.push(array_model);
     }
 
     fn handle_resized(&mut self, width: u32, height: u32) {
@@ -93,11 +95,8 @@ impl App {
 
     fn handle_redraw(&mut self) {
         let engine_state = self.engine_state.as_mut().unwrap();
-        let array_model = self.cube_model.as_mut().unwrap();
-        let terrain_model = self.terrain_model.as_mut().unwrap();
 
         // Mesh Rendering //
-
         let surface_texture = engine_state.surface
             .get_current_texture()
             .expect("Failed to acquire next swap chain texture");
@@ -147,36 +146,40 @@ impl App {
             // Render pass
             render_pass.set_bind_group(0, &engine_state.camera.render_pass_data.bind_group, &[]);
             render_pass.set_pipeline(&engine_state.render_pipeline);
-            for mesh in &terrain_model.meshes {
-                match &mesh.instance_buffer {
-                    Some(instance_buffer) => {
-                        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                        render_pass.draw_model_instanced(
-                            &terrain_model,
-                            0..mesh.instances.len() as u32,
-                            &engine_state.camera.render_pass_data.bind_group,
-                            &engine_state.light_bind_group
-                        );
-                    }
-                    None => {
-                        continue;
+            for model in &self.models {
+                for mesh in &model.meshes {
+                    match &mesh.instance_buffer {
+                        Some(instance_buffer) => {
+                            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                            render_pass.draw_model_instanced(
+                                &model,
+                                0..mesh.instances.len() as u32,
+                                &engine_state.camera.render_pass_data.bind_group,
+                                &engine_state.light_bind_group
+                            );
+                        }
+                        None => {
+                            continue;
+                        }
                     }
                 }
             }
             render_pass.set_pipeline(&engine_state.wireframe_render_pipeline);
-            for mesh in &terrain_model.meshes {
-                match &mesh.instance_buffer {
-                    Some(instance_buffer) => {
-                        render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                        render_pass.draw_model_instanced(
-                            &terrain_model,
-                            0..mesh.instances.len() as u32,
-                            &engine_state.camera.render_pass_data.bind_group,
-                            &engine_state.light_bind_group
-                        );
-                    }
-                    None => {
-                        continue;
+            for model in &self.models {
+                for mesh in &model.meshes {
+                    match &mesh.instance_buffer {
+                        Some(instance_buffer) => {
+                            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                            render_pass.draw_model_instanced(
+                                &model,
+                                0..mesh.instances.len() as u32,
+                                &engine_state.camera.render_pass_data.bind_group,
+                                &engine_state.light_bind_group
+                            );
+                        }
+                        None => {
+                            continue;
+                        }
                     }
                 }
             }
