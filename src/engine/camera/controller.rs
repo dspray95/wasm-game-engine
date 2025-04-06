@@ -12,6 +12,8 @@ pub struct CameraController {
     is_right_pressed: bool,
     is_rotate_left_pressed: bool,
     is_rotate_right_pressed: bool,
+    is_up_pressed: bool,
+    is_down_pressed: bool,
 }
 
 impl CameraController {
@@ -22,6 +24,8 @@ impl CameraController {
             is_backward_pressed: false,
             is_left_pressed: false,
             is_right_pressed: false,
+            is_up_pressed: false,
+            is_down_pressed: false,
             is_rotate_left_pressed: false,
             is_rotate_right_pressed: false,
         }
@@ -55,6 +59,14 @@ impl CameraController {
                 self.is_rotate_right_pressed = is_pressed;
                 true
             }
+            KeyCode::Space => {
+                self.is_up_pressed = is_pressed;
+                true
+            }
+            KeyCode::ControlLeft => {
+                self.is_down_pressed = is_pressed;
+                true
+            }
             _ => false,
         }
     }
@@ -79,6 +91,14 @@ impl CameraController {
         }
         if self.is_right_pressed {
             camera.position -= right * self.speed;
+        }
+
+        let up = forward.cross(right);
+        if self.is_up_pressed {
+            camera.position += up * self.speed;
+        }
+        if self.is_down_pressed {
+            camera.position -= up * self.speed;
         }
 
         // rotate

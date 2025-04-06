@@ -57,10 +57,6 @@ impl App {
             initial_width
         ).await;
 
-        let obj_model = resources
-            ::load_model_from_file("cube.obj", &engine_state.device).await
-            .unwrap();
-
         let array_model = resources::load_model_from_arrays(
             "array cube",
             cube::VERTICES.to_vec(),
