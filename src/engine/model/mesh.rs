@@ -1,4 +1,4 @@
-use std::ops::{ Add, Sub };
+use std::{ collections::HashSet, ops::{ Add, Sub } };
 
 use cgmath::{ vec3, InnerSpace, Vector3 };
 use wgpu::{ core::instance, util::DeviceExt, Buffer, Device };
@@ -9,6 +9,8 @@ pub(crate) struct Mesh {
     pub label: String,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
+    pub wireframe_index_buffer: wgpu::Buffer,
+    pub wireframe_index_count: u32,
     pub num_elements: u32,
     pub instances: Vec<Instance>,
     pub instance_buffer: Option<wgpu::Buffer>,
@@ -19,6 +21,8 @@ impl Mesh {
         label: String,
         vertex_buffer: wgpu::Buffer,
         index_buffer: wgpu::Buffer,
+        wireframe_index_buffer: wgpu::Buffer,
+        wireframe_index_count: u32,
         num_elements: u32,
         instances: Option<Vec<Instance>>,
         device: &wgpu::Device
@@ -44,6 +48,8 @@ impl Mesh {
             label,
             vertex_buffer,
             index_buffer,
+            wireframe_index_buffer,
+            wireframe_index_count,
             num_elements,
             instances,
             instance_buffer,
@@ -130,4 +136,31 @@ fn calculate_traingle_normals(a: &[f32; 3], b: &[f32; 3], c: &[f32; 3]) -> Vecto
     let ab = cgmath::Vector3::sub(vec3(a[0], a[1], a[2]), vec3(b[0], b[1], b[2]));
     let ac = cgmath::Vector3::sub(vec3(a[0], a[1], a[2]), vec3(c[0], c[1], c[2]));
     cgmath::Vector3::cross(ab, ac)
+}
+
+pub fn triangles_to_lines(triangles: &[u32]) -> Vec<u32> {
+    let mut edges = HashSet::new();
+    let mut lines = vec![];
+
+    for tri in triangles.chunks_exact(3) {
+        let i0 = tri[0];
+        let i1 = tri[1];
+        let i2 = tri[2];
+
+        let edge_pairs = [
+            (i0, i1),
+            (i1, i2),
+            (i2, i0),
+        ];
+
+        for &(a, b) in &edge_pairs {
+            let edge = if a < b { (a, b) } else { (b, a) };
+            if edges.insert(edge) {
+                lines.push(edge.0);
+                lines.push(edge.1);
+            }
+        }
+    }
+
+    lines
 }

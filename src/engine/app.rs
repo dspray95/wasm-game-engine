@@ -19,8 +19,6 @@ pub struct App {
     instance: wgpu::Instance,
     engine_state: Option<EngineState>,
     window: Option<Arc<Window>>,
-    cube_model: Option<Model>,
-    terrain_model: Option<Model>,
     models: Vec<Model>,
 }
 
@@ -32,8 +30,6 @@ impl App {
             instance,
             engine_state: None,
             window: None,
-            cube_model: None,
-            terrain_model: None,
             models: vec![],
         }
     }
@@ -65,7 +61,7 @@ impl App {
             &engine_state.device
         );
 
-        let terrain_object = Terrain::new(5, 5);
+        let terrain_object = Terrain::new(50, 50);
         let terrain_model = resources::load_model_from_arrays(
             "terrain",
             terrain_object.vertices,
@@ -151,7 +147,8 @@ impl App {
                                 &model,
                                 0..mesh.instances.len() as u32,
                                 &engine_state.camera.render_pass_data.bind_group,
-                                &engine_state.light_bind_group
+                                &engine_state.light_bind_group,
+                                false
                             );
                         }
                         None => {
@@ -160,6 +157,8 @@ impl App {
                     }
                 }
             }
+
+            // Wireframe Pass
             render_pass.set_pipeline(&engine_state.wireframe_render_pipeline);
             for model in &self.models {
                 for mesh in &model.meshes {
@@ -170,7 +169,8 @@ impl App {
                                 &model,
                                 0..mesh.instances.len() as u32,
                                 &engine_state.camera.render_pass_data.bind_group,
-                                &engine_state.light_bind_group
+                                &engine_state.light_bind_group,
+                                true
                             );
                         }
                         None => {

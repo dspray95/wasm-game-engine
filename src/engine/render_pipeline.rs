@@ -97,7 +97,7 @@ pub(in crate::engine) fn create_wireframe_render_pipeline(
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::LineList,
-                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
                 ..Default::default()
             },
             depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {

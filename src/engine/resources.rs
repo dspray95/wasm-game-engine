@@ -6,7 +6,7 @@ use wgpu::util::DeviceExt;
 use crate::engine::model::mesh;
 
 use super::instance::Instance;
-use super::model::mesh::Mesh;
+use super::model::mesh::{ triangles_to_lines, Mesh };
 use super::model::vertex::ModelVertex;
 use super::texture;
 use super::model::model::Model;
@@ -108,10 +108,21 @@ pub fn load_model_from_arrays(
         })
     );
 
+    let wireframe_indices = triangles_to_lines(&triangle_indices);
+    let line_index_buffer = device.create_buffer_init(
+        &(wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("{:?} Line Index Buffer", label)),
+            contents: bytemuck::cast_slice(&wireframe_indices),
+            usage: wgpu::BufferUsages::INDEX,
+        })
+    );
+
     let mesh = Mesh::new(
         label.to_string(),
         vertex_buffer,
         index_buffer,
+        line_index_buffer,
+        wireframe_indices.len() as u32,
         triangle_indices.len() as u32,
         Some(
             vec![Instance {
@@ -196,10 +207,22 @@ pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> any
                     usage: wgpu::BufferUsages::INDEX,
                 })
             );
+            let wireframe_indices = triangles_to_lines(&m.mesh.indices);
+
+            let line_index_buffer = device.create_buffer_init(
+                &(wgpu::util::BufferInitDescriptor {
+                    label: Some(&format!("{:?} Line Index Buffer", file_name)),
+                    contents: bytemuck::cast_slice(&triangles_to_lines(&wireframe_indices)),
+                    usage: wgpu::BufferUsages::INDEX,
+                })
+            );
+
             Mesh::new(
                 file_name.to_string(),
                 vertex_buffer,
                 index_buffer,
+                line_index_buffer,
+                wireframe_indices.len() as u32,
                 m.mesh.indices.len() as u32,
                 Some(vec![]),
                 device
