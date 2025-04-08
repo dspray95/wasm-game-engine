@@ -1,7 +1,3 @@
-use wgpu::naga::valid::WidthError;
-
-use crate::engine::model::model::Model;
-
 pub struct Terrain {
     pub n_vertices: u32,
     pub vertices: Vec<[f32; 3]>,
@@ -11,35 +7,30 @@ pub struct Terrain {
 impl Terrain {
     pub fn new(width: u32, length: u32) -> Self {
         let n_vertices = width * length;
-        let mut vertices: Vec<[f32; 3]> = vec![];
-        let mut triangles: Vec<u32> = vec![];
+        let mut vertices: Vec<[f32; 3]> = Vec::with_capacity(n_vertices as usize);
+        let mut triangles: Vec<u32> = Vec::with_capacity(((width - 1) * (length - 1) * 6) as usize);
         let y_offset = -10.0;
-        // Generate vertices
+        // Triangles in shape
+        // a o---o b
+        //   | \ |
+        // c o---o d
         for z in 0..length {
             for x in 0..width {
                 vertices.push([x as f32, y_offset, z as f32]);
-                // Create triangles if we aren't in the final column or row of vertices
-                // a o-o b
-                //   |/|
-                // c o-o d
-                if x < width - 1 && z < length - 1 {
-                    let current_index = x + z;
-                    let index_vertex_a = current_index;
-                    // To the right of the current vertex
-                    let index_vertex_b = current_index + 1;
-                    // Immediately below the current vertex
-                    let index_vertex_c = current_index + width;
-                    // Below and to the right of the current vertex
-                    let index_vertex_d = current_index + width + 1;
 
-                    triangles.extend_from_slice(&[index_vertex_c, index_vertex_d, index_vertex_a]);
-                    triangles.extend_from_slice(&[index_vertex_b, index_vertex_a, index_vertex_d]);
+                if x < width - 1 && z < length - 1 {
+                    let current_index = x + z * width;
+                    let a = current_index;
+                    let b = current_index + 1;
+                    let c = current_index + width;
+                    let d = current_index + width + 1;
+
+                    triangles.extend_from_slice(&[c, d, a]);
+                    triangles.extend_from_slice(&[b, a, d]);
                 }
             }
         }
-        println!("{:?}", vertices);
-        println!("{:?}", triangles);
+
         Self { n_vertices, vertices, triangles }
-        // Generate Triangles
     }
 }
