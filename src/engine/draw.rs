@@ -9,6 +9,7 @@ impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a> where 'b: 'a {
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
+        color_bind_group: &'a wgpu::BindGroup,
         use_line_index_buffer: bool
     ) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
@@ -20,6 +21,7 @@ impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a> where 'b: 'a {
 
         self.set_bind_group(0, camera_bind_group, &[]);
         self.set_bind_group(1, light_bind_group, &[]);
+        self.set_bind_group(2, color_bind_group, &[]);
         if use_line_index_buffer {
             self.draw_indexed(0..mesh.wireframe_index_count, 0, instances);
         } else {
@@ -31,9 +33,17 @@ impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a> where 'b: 'a {
         &mut self,
         model: &'b Model,
         camera_bind_group: &'b wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup
+        light_bind_group: &'a wgpu::BindGroup,
+        color_bind_group: &'a wgpu::BindGroup
     ) {
-        self.draw_model_instanced(model, 0..1, camera_bind_group, light_bind_group, false);
+        self.draw_model_instanced(
+            model,
+            0..1,
+            camera_bind_group,
+            light_bind_group,
+            color_bind_group,
+            false
+        );
     }
 
     fn draw_model_instanced(
@@ -42,6 +52,7 @@ impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a> where 'b: 'a {
         instances: Range<u32>,
         camera_bind_group: &'b wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
+        color_bind_group: &'a wgpu::BindGroup,
         use_line_index_buffer: bool
     ) {
         for mesh in &model.meshes {
@@ -50,6 +61,7 @@ impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a> where 'b: 'a {
                 instances.clone(),
                 camera_bind_group,
                 light_bind_group,
+                color_bind_group,
                 use_line_index_buffer
             );
         }

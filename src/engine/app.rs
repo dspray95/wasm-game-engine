@@ -58,21 +58,33 @@ impl App {
             cube::VERTICES.to_vec(),
             vec![],
             cube::TRIANGLES.to_vec(),
-            &engine_state.device
+            &engine_state.device,
+            [255, 255, 255]
         );
 
-        let terrain_object = Terrain::new(50, 50);
+        let terrain_object = Terrain::new(50, 5000);
         let terrain_model = resources::load_model_from_arrays(
             "terrain",
             terrain_object.vertices,
             vec![],
             terrain_object.triangles,
-            &engine_state.device
+            &engine_state.device,
+            [255, 255, 255]
         );
+        let canyon_model = resources::load_model_from_arrays(
+            "canyon",
+            terrain_object.canyon_vertices,
+            vec![],
+            terrain_object.canyon_triangles,
+            &engine_state.device,
+            [255, 0, 255]
+        );
+
         self.window.get_or_insert(window);
         self.engine_state.get_or_insert(engine_state);
         self.models.push(terrain_model);
         self.models.push(array_model);
+        self.models.push(canyon_model);
     }
 
     fn handle_resized(&mut self, width: u32, height: u32) {
@@ -148,6 +160,7 @@ impl App {
                                 0..mesh.instances.len() as u32,
                                 &engine_state.camera.render_pass_data.bind_group,
                                 &engine_state.light_bind_group,
+                                &mesh.color_bind_group,
                                 false
                             );
                         }
@@ -170,6 +183,7 @@ impl App {
                                 0..mesh.instances.len() as u32,
                                 &engine_state.camera.render_pass_data.bind_group,
                                 &engine_state.light_bind_group,
+                                &mesh.color_bind_group,
                                 true
                             );
                         }

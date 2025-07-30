@@ -65,7 +65,8 @@ pub fn load_model_from_arrays(
     vertices: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
     triangle_indices: Vec<u32>,
-    device: &wgpu::Device
+    device: &wgpu::Device,
+    material: [u32; 3]
 ) -> Model {
     let model_vertices: Vec<ModelVertex>;
 
@@ -134,7 +135,8 @@ pub fn load_model_from_arrays(
                 scale: cgmath::Vector3 { x: 1.0, y: 1.0, z: 1.0 },
             }]
         ),
-        device
+        device,
+        material
     );
 
     Model { meshes: vec![mesh] }
@@ -225,7 +227,8 @@ pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> any
                 wireframe_indices.len() as u32,
                 m.mesh.indices.len() as u32,
                 Some(vec![]),
-                device
+                device,
+                [255, 255, 255]
             )
         })
         .collect::<Vec<_>>();

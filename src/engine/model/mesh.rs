@@ -5,8 +5,19 @@ use wgpu::{ core::instance, util::DeviceExt, Buffer, Device };
 
 use crate::engine::{ instance::Instance, state::EngineState };
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct ColorUniform {
+    // The paddings here are because WGSL shader structs have
+    // to be powers of 2.
+    // f32 array of length 3 would be 12 bytes, and the padding
+    // brings it up to 16 (2^4).
+    pub color: [f32; 3],
+    pub __padding: u32,
+}
+
 pub(crate) struct Mesh {
-    pub label: String,
+    pub _label: String,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub wireframe_index_buffer: wgpu::Buffer,
@@ -14,6 +25,8 @@ pub(crate) struct Mesh {
     pub num_elements: u32,
     pub instances: Vec<Instance>,
     pub instance_buffer: Option<wgpu::Buffer>,
+    pub material: [u32; 3],
+    pub color_bind_group: wgpu::BindGroup,
 }
 
 impl Mesh {
@@ -25,7 +38,8 @@ impl Mesh {
         wireframe_index_count: u32,
         num_elements: u32,
         instances: Option<Vec<Instance>>,
-        device: &wgpu::Device
+        device: &wgpu::Device,
+        material: [u32; 3]
     ) -> Mesh {
         let instances = instances.unwrap_or(vec![]);
 
@@ -44,8 +58,57 @@ impl Mesh {
         } else {
             instance_buffer = None;
         }
+
+        // Flat color rendering setup //
+        let color_uniform = ColorUniform {
+            color: [
+                (material[0] as f32) / 255.0,
+                (material[1] as f32) / 255.0,
+                (material[2] as f32) / 255.0,
+            ],
+            __padding: 0,
+        };
+
+        let color_buffer = device.create_buffer_init(
+            &(wgpu::util::BufferInitDescriptor {
+                label: Some("Color Buffer"),
+                contents: bytemuck::cast_slice(&[color_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            })
+        );
+
+        let color_bind_group_layout = device.create_bind_group_layout(
+            &(wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            })
+        );
+        let color_bind_group = device.create_bind_group(
+            &(wgpu::BindGroupDescriptor {
+                label: None,
+                layout: &color_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: color_buffer.as_entire_binding(),
+                    },
+                ],
+            })
+        );
+
         Mesh {
-            label,
+            _label: label,
             vertex_buffer,
             index_buffer,
             wireframe_index_buffer,
@@ -53,6 +116,8 @@ impl Mesh {
             num_elements,
             instances,
             instance_buffer,
+            material,
+            color_bind_group,
         }
     }
 
@@ -75,7 +140,7 @@ impl Mesh {
             //TODO Enginestate -> Queue -> Write buffer for updating instance positions
             device.create_buffer_init(
                 &(wgpu::util::BufferInitDescriptor {
-                    label: Some(&format!("{}__instance_buffer", self.label)),
+                    label: Some(&format!("{}__instance_buffer", self._label)),
                     contents: bytemuck::cast_slice(&instance_data),
                     usage: wgpu::BufferUsages::VERTEX,
                 })

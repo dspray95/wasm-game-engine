@@ -2,8 +2,11 @@
 struct CameraUniformBuffer {
     view_projection: mat4x4<f32>,
 };
+
+
 @group(0) @binding(0)
 var<uniform> camera: CameraUniformBuffer;
+
 
 struct InstanceInput {
     // model //
@@ -34,6 +37,14 @@ struct Light {
 }
 @group(1) @binding(0)
 var<uniform> light: Light;
+
+// Flat material
+struct Material {
+    color: vec3<f32>,
+    _padding: u32,
+}
+@group(2) binding(0)
+var<uniform> material: Material;
 
 @vertex
 fn vs_main(
@@ -66,15 +77,7 @@ fn vs_main(
 // Fragment Shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let ambient_light_strength = 0.1;
-    let ambient_light_color = ambient_light_strength;
-
-    let light_direction = normalize(light.position - in.world_position);
-
-    let diffuse_strength = max(dot(in.world_normal, light_direction), 0.0);
-    let diffuse_color = light.color * diffuse_strength;
-
-    let result = (ambient_light_color + diffuse_color) * 1;
-    let alpha = 1.0;
-    return vec4<f32>(result, alpha);
+    let result = material.color;
+    let alpha = 0.5;
+    return vec4<f32>(1.0, 0.0, 0.0, 1.0);
 }

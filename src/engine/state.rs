@@ -144,6 +144,24 @@ impl EngineState {
             })
         );
 
+        let color_bind_group_layout = device.create_bind_group_layout(
+            &(wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            })
+        );
+
         // Render Pipeline Definition //
         let render_pipeline_layout = device.create_pipeline_layout(
             &(wgpu::PipelineLayoutDescriptor {
@@ -151,6 +169,7 @@ impl EngineState {
                 bind_group_layouts: &[
                     &camera.render_pass_data.bind_group_layout,
                     &light_bind_group_layout,
+                    &color_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             })

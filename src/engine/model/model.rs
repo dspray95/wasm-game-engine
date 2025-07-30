@@ -13,6 +13,7 @@ pub(in crate::engine) trait DrawModel<'a> {
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
+        color_bind_group: &'a wgpu::BindGroup,
         use_line_index_buffer: bool
     );
 
@@ -20,7 +21,8 @@ pub(in crate::engine) trait DrawModel<'a> {
         &mut self,
         model: &'a Model,
         camera_bind_group: &'a wgpu::BindGroup,
-        light_bind_group: &'a wgpu::BindGroup
+        light_bind_group: &'a wgpu::BindGroup,
+        color_bind_group: &'a wgpu::BindGroup
     );
 
     fn draw_model_instanced(
@@ -29,6 +31,7 @@ pub(in crate::engine) trait DrawModel<'a> {
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
+        color_bind_group: &'a wgpu::BindGroup,
         use_line_index_buffer: bool
     );
 }

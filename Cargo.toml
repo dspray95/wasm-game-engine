@@ -14,6 +14,8 @@ bytemuck = { version = "1.7.0", features = ["derive"] }
 cgmath = "0.18.0"
 cfg-if = "1"
 tobj = { version = "3.2", default-features = false, features = ["async"]}
+noise = "0.9.0"
+rand = "0.9.1"
 
 [build-dependencies]
 anyhow = "1.0"

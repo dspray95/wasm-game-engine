@@ -63,6 +63,14 @@ fn vs_main(
     return out;    
 }
 
+// Flat material
+struct Material {
+    color: vec3<f32>,
+    _padding: u32,
+}
+@group(2) @binding(0)
+var<uniform> material: Material;
+
 // Fragment Shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -74,7 +82,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let diffuse_strength = max(dot(in.world_normal, light_direction), 0.0);
     let diffuse_color = light.color * diffuse_strength;
 
-    let result = (ambient_light_color + diffuse_color) * 1;
+    let result = material.color;
     let alpha = 1.0;
     return vec4<f32>(result, alpha);
 }
