@@ -1,4 +1,4 @@
-use wasm_game_engine::{ engine, game::terrain::Terrain };
+use wasm_game_engine::{ engine };
 use winit::event_loop::{ ControlFlow, EventLoop };
 
 fn main() {

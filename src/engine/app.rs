@@ -62,14 +62,14 @@ impl App {
             [255, 255, 255]
         );
 
-        let terrain_object = Terrain::new(50, 5000);
+        let terrain_object = Terrain::new(50, 150);
         let terrain_model = resources::load_model_from_arrays(
             "terrain",
             terrain_object.vertices,
             vec![],
             terrain_object.triangles,
             &engine_state.device,
-            [255, 255, 255]
+            [60, 66, 98]
         );
         let canyon_model = resources::load_model_from_arrays(
             "canyon",
