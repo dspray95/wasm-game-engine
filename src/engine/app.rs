@@ -17,6 +17,7 @@ pub struct App {
     engine_state: Option<EngineState>,
     window: Option<Arc<Window>>,
     scene_manager: Option<SceneManager>,
+    render_state: RenderState,
 }
 
 impl App {
@@ -28,6 +29,7 @@ impl App {
             engine_state: None,
             window: None,
             scene_manager: None,
+            render_state: RenderState::new(),
         }
     }
 
@@ -109,7 +111,7 @@ impl ApplicationHandler for App {
             WindowEvent::RedrawRequested => {
                 self.handle_camera_update();
                 self.update();
-                RenderState::handle_redraw(
+                self.render_state.handle_redraw(
                     self.engine_state.as_ref().unwrap().render_context(),
                     &self.scene_manager.as_ref().unwrap().models
                 );

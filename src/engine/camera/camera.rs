@@ -3,14 +3,14 @@ use wgpu::util::DeviceExt;
 
 use super::{ projection::Projection, uniform::CameraUniformBuffer };
 
-const DEFAULT_FOV: f32 = 75.0;
-const DEAFAULT_NEAR: f32 = 0.1;
-const DEFAULT_FAR: f32 = 100.0;
+const _DEFAULT_FOV: f32 = 75.0;
+const _DEAFAULT_NEAR: f32 = 0.1;
+const _DEFAULT_FAR: f32 = 100.0;
 
 // This is used to convert the cgmath crate coordinate system to the wgpu system which
 // uses normalised device coordinates
 #[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+pub const _OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     1.0,  0.0, 0.0, 0.0,
     0.0, 1.0, 0.0, 0.0,
     0.0,  0.0, 0.5, 0.5,

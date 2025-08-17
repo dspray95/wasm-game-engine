@@ -1,5 +1,5 @@
 use cgmath::Vector2;
-use noise::{ NoiseFn, Perlin };
+use noise::Perlin;
 use rand::Rng;
 
 use crate::game::procedural_generation;
@@ -50,7 +50,7 @@ impl Terrain {
             &mut terrain_vertices,
             &mut terrain_triangles,
             &mut rng,
-            Vector2 { x: 0, y: 0 } // chunk_z_offset
+            Vector2 { x: 0, y: 0 } // chunk_y(aka z)_offset
         );
 
         Terrain::generate_canyon(
@@ -70,53 +70,6 @@ impl Terrain {
             n_canyon_vertices,
             canyon_vertices,
             canyon_triangles,
-        }
-    }
-
-    fn generate_terrain(
-        length: u32,
-        width: u32,
-        y_offset: f32,
-        path_left_edge: u32,
-        path_right_edge: u32,
-        perlin: Perlin,
-        noise_scale: f64,
-        height_multiplier: f32,
-        vertices: &mut Vec<[f32; 3]>,
-        triangles: &mut Vec<u32>
-    ) {
-        for z in 0..length {
-            for x in 0..width {
-                let vertex_y_value = if x >= path_left_edge && x <= path_right_edge {
-                    y_offset
-                } else {
-                    let noise_x = (x as f64) * noise_scale;
-                    let noise_z = (z as f64) * noise_scale;
-                    (perlin.get([noise_x, noise_z]) as f32) + y_offset * height_multiplier
-                };
-
-                vertices.push([x as f32, vertex_y_value, z as f32]);
-
-                if x < width - 1 && z < length - 1 {
-                    let current_index = x + z * width;
-                    let next_x = x + 1;
-
-                    // Skip triangles if any vertex is in the canyon path
-                    let is_in_canyon =
-                        (x >= path_left_edge + 1 && x <= path_right_edge - 1) ||
-                        (next_x >= path_left_edge + 1 && next_x <= path_right_edge - 1);
-
-                    if !is_in_canyon {
-                        let a = current_index;
-                        let b = current_index + 1;
-                        let c = current_index + width;
-                        let d = current_index + width + 1;
-
-                        triangles.extend_from_slice(&[c, d, a]);
-                        triangles.extend_from_slice(&[b, a, d]);
-                    }
-                }
-            }
         }
     }
 

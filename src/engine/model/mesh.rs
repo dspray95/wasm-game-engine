@@ -25,7 +25,7 @@ pub(crate) struct Mesh {
     pub num_elements: u32,
     pub instances: Vec<Instance>,
     pub instance_buffer: Option<wgpu::Buffer>,
-    pub material: [u32; 3],
+    pub _material: [u32; 3],
     pub color_bind_group: wgpu::BindGroup,
 }
 
@@ -116,12 +116,12 @@ impl Mesh {
             num_elements,
             instances,
             instance_buffer,
-            material,
+            _material: material,
             color_bind_group,
         }
     }
 
-    pub(crate) fn add_instance(
+    pub(crate) fn _add_instance(
         &mut self,
         position: cgmath::Vector3<f32>,
         rotation: cgmath::Quaternion<f32>,
@@ -134,7 +134,7 @@ impl Mesh {
         });
     }
 
-    pub(crate) fn update_instances(&mut self, device: &wgpu::Device) {
+    pub(crate) fn _update_instances(&mut self, device: &wgpu::Device) {
         let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         self.instance_buffer = Some(
             //TODO Enginestate -> Queue -> Write buffer for updating instance positions

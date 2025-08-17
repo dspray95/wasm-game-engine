@@ -17,6 +17,7 @@ pub(in crate::engine) trait DrawModel<'a> {
         use_line_index_buffer: bool
     );
 
+    #[allow(dead_code)] // May need this later
     fn draw_model(
         &mut self,
         model: &'a Model,

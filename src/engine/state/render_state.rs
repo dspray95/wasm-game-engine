@@ -1,13 +1,26 @@
 use crate::engine::state::context::RenderContext;
-use crate::engine::{model::model::Model};
-use crate::engine::model::model::DrawModel; 
+use crate::engine::{ model::model::Model };
+use crate::engine::model::model::DrawModel;
 
-pub struct RenderState {}
+pub struct RenderState {
+    clear_color: wgpu::Color,
+}
 
 impl RenderState {
-    
-    pub fn handle_redraw(render_context: RenderContext, models: &[Model]) {
-    
+    pub fn new() -> Self {
+        RenderState {
+            clear_color: wgpu::Color {
+                r: 0.0075,
+                g: 0.01,
+                b: 0.05,
+                a: 1.0,
+            },
+        }
+    }
+
+    pub fn handle_redraw(&self, render_context: RenderContext, models: &[Model]) {
+        //0.118, 0.129, 0.192
+
         // Mesh Rendering //
         let surface_texture = render_context.surface
             .get_current_texture()
@@ -33,12 +46,7 @@ impl RenderState {
                             view: &surface_view,
                             resolve_target: None,
                             ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: 0.1,
-                                    g: 0.2,
-                                    b: 0.3,
-                                    a: 1.0,
-                                }),
+                                load: wgpu::LoadOp::Clear(self.clear_color),
                                 store: wgpu::StoreOp::Store,
                             },
                         }),

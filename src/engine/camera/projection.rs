@@ -33,7 +33,7 @@ impl Projection {
         }
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
+    pub fn _resize(&mut self, width: u32, height: u32) {
         self.aspect = (width as f32) / (height as f32);
     }
 

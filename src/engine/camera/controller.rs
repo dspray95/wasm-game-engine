@@ -1,5 +1,5 @@
 use cgmath::{ Rad, Vector3 };
-use winit::{ event::{ ElementState, KeyEvent, WindowEvent }, keyboard::{ KeyCode, PhysicalKey } };
+use winit::{ event::{ ElementState }, keyboard::{ KeyCode } };
 
 use super::camera::Camera;
 
