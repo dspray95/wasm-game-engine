@@ -1,14 +1,8 @@
-use cgmath::{ Deg, Rad };
-use wgpu::{ util::DeviceExt, RenderBundle };
+use cgmath::{ Deg };
+use wgpu::{ util::DeviceExt };
 use winit::window::Window;
-use super::{
-    camera::{ camera::Camera, controller::CameraController },
-    instance::InstanceRaw,
-    model::vertex::{ ModelVertex, Vertex },
-    render_pipeline::create_wireframe_render_pipeline,
-    texture::{ self, Texture },
-};
-use crate::{ engine::{ light::LightUniform, render_pipeline::create_render_pipeline } };
+
+use crate::engine::{ camera::{camera::Camera, controller::CameraController}, instance::InstanceRaw, light::LightUniform, model::vertex::{ModelVertex, Vertex}, render_pipeline::{create_render_pipeline, create_wireframe_render_pipeline}, state::context::{GpuContext, RenderContext}, texture::{self, Texture} };
 
 pub struct EngineState {
     pub device: wgpu::Device,
@@ -178,7 +172,7 @@ impl EngineState {
         // Shader + Pipeline Setup //
         let shader = wgpu::ShaderModuleDescriptor {
             label: Some("Base Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../../shader.wgsl").into()),
         };
 
         let render_pipeline: wgpu::RenderPipeline = create_render_pipeline(
@@ -192,7 +186,7 @@ impl EngineState {
 
         let wireframe_shader = wgpu::ShaderModuleDescriptor {
             label: Some("Base Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../wireframe.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../../wireframe.wgsl").into()),
         };
         let wireframe_render_pipeline: wgpu::RenderPipeline = create_wireframe_render_pipeline(
             &device,
@@ -224,4 +218,22 @@ impl EngineState {
         self.surface_config.height = height;
         self.surface.configure(&self.device, &self.surface_config);
     }
+
+    pub(crate) fn gpu_context(&self) -> GpuContext<'_> {
+        GpuContext { device: &self.device, queue: &self.queue }
+    }
+
+    pub(crate) fn render_context(&self) -> RenderContext<'_> {
+        RenderContext { 
+            device: &self.device,
+            queue: &self.queue,
+            surface: &self.surface, 
+            depth_texture_view: &self.depth_texture.view, 
+            camera_bind_group: &self.camera.render_pass_data.bind_group,
+            light_bind_group: &self.light_bind_group,
+            render_pipeline: &self.render_pipeline,
+            wireframe_render_pipeline: &self.wireframe_render_pipeline
+        }
+    }
+    
 }

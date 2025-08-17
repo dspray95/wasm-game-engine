@@ -1,9 +1,9 @@
 use std::{ collections::HashSet, ops::{ Add, Sub } };
 
 use cgmath::{ vec3, InnerSpace, Vector3 };
-use wgpu::{ core::instance, util::DeviceExt, Buffer, Device };
+use wgpu::util::DeviceExt;
 
-use crate::engine::{ instance::Instance, state::EngineState };
+use crate::engine::instance::Instance;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]

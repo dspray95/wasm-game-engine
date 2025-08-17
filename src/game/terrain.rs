@@ -152,14 +152,14 @@ impl Terrain {
             }
         }
 
-        // Generate tariangles separately (and correctly)
+        // Generate tariangles separately
         for z in 0..length - 1 {
             for x in 0..canyon_width - 1 {
-                let current_index = x + z * canyon_width; // Fixed: use canyon_width, not width
+                let current_index = x + z * canyon_width; 
                 let a = current_index;
                 let b = current_index + 1;
-                let c = current_index + canyon_width; // Fixed: use canyon_width
-                let d = current_index + canyon_width + 1; // Fixed: use canyon_width
+                let c = current_index + canyon_width;
+                let d = current_index + canyon_width + 1; 
 
                 canyon_triangles.extend_from_slice(&[c, d, a]);
                 canyon_triangles.extend_from_slice(&[b, a, d]);

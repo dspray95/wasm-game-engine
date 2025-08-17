@@ -4,6 +4,7 @@ use cfg_if::cfg_if;
 use cgmath::Rotation3;
 use wgpu::util::DeviceExt;
 use crate::engine::model::mesh;
+use crate::engine::state::context::GpuContext;
 
 use super::instance::Instance;
 use super::model::mesh::{ triangles_to_lines, Mesh };
@@ -65,9 +66,10 @@ pub fn load_model_from_arrays(
     vertices: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
     triangle_indices: Vec<u32>,
-    device: &wgpu::Device,
+    gpu_context: &GpuContext<'_>,
     material: [u32; 3]
 ) -> Model {
+    let device = gpu_context.device;
     let model_vertices: Vec<ModelVertex>;
 
     if normals.is_empty() {
