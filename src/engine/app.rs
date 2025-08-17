@@ -7,19 +7,16 @@ use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::PhysicalKey;
 use winit::window::{ Window, WindowId };
 
-use crate::game::cube::{ self };
-use crate::game::terrain::Terrain;
-
-use super::model::model::{ DrawModel, Model };
-use super::resources;
-use super::state::EngineState;
+use crate::engine::scene::scene_manager::SceneManager;
+use crate::engine::state::render_state::RenderState;
+use super::state::engine_state::EngineState;
 use super::texture::Texture;
 
 pub struct App {
     instance: wgpu::Instance,
     engine_state: Option<EngineState>,
     window: Option<Arc<Window>>,
-    models: Vec<Model>,
+    scene_manager: Option<SceneManager>,
 }
 
 impl App {
@@ -30,7 +27,7 @@ impl App {
             instance,
             engine_state: None,
             window: None,
-            models: vec![],
+            scene_manager: None,
         }
     }
 
@@ -53,38 +50,9 @@ impl App {
             initial_width
         ).await;
 
-        let array_model = resources::load_model_from_arrays(
-            "array cube",
-            cube::VERTICES.to_vec(),
-            vec![],
-            cube::TRIANGLES.to_vec(),
-            &engine_state.device,
-            [255, 255, 255]
-        );
-
-        let terrain_object = Terrain::new(50, 150);
-        let terrain_model = resources::load_model_from_arrays(
-            "terrain",
-            terrain_object.vertices,
-            vec![],
-            terrain_object.triangles,
-            &engine_state.device,
-            [60, 66, 98]
-        );
-        let canyon_model = resources::load_model_from_arrays(
-            "canyon",
-            terrain_object.canyon_vertices,
-            vec![],
-            terrain_object.canyon_triangles,
-            &engine_state.device,
-            [255, 0, 255]
-        );
-
+        self.scene_manager.get_or_insert(SceneManager::new(engine_state.gpu_context()));
         self.window.get_or_insert(window);
         self.engine_state.get_or_insert(engine_state);
-        self.models.push(terrain_model);
-        self.models.push(array_model);
-        self.models.push(canyon_model);
     }
 
     fn handle_resized(&mut self, width: u32, height: u32) {
@@ -95,107 +63,6 @@ impl App {
             &engine_state.surface_config,
             "depth_texture"
         );
-    }
-
-    fn handle_redraw(&mut self) {
-        let engine_state = self.engine_state.as_mut().unwrap();
-
-        // Mesh Rendering //
-        let surface_texture = engine_state.surface
-            .get_current_texture()
-            .expect("Failed to acquire next swap chain texture");
-
-        let surface_view = surface_texture.texture.create_view(
-            &wgpu::TextureViewDescriptor::default()
-        );
-
-        let mut encoder = engine_state.device.create_command_encoder(
-            &(wgpu::CommandEncoderDescriptor { label: None })
-        );
-
-        let _window = self.window.as_ref().unwrap();
-        {
-            // Render pass init
-            let mut render_pass = encoder.begin_render_pass(
-                &(wgpu::RenderPassDescriptor {
-                    label: Some("Render Pass"),
-                    color_attachments: &[
-                        Some(wgpu::RenderPassColorAttachment {
-                            view: &surface_view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: 0.1,
-                                    g: 0.2,
-                                    b: 0.3,
-                                    a: 1.0,
-                                }),
-                                store: wgpu::StoreOp::Store,
-                            },
-                        }),
-                    ],
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &engine_state.depth_texture.view,
-                        depth_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(1.0),
-                            store: wgpu::StoreOp::Store,
-                        }),
-                        stencil_ops: None,
-                    }),
-                    occlusion_query_set: None,
-                    timestamp_writes: None,
-                })
-            );
-
-            // Render pass
-            render_pass.set_bind_group(0, &engine_state.camera.render_pass_data.bind_group, &[]);
-            render_pass.set_pipeline(&engine_state.render_pipeline);
-            for model in &self.models {
-                for mesh in &model.meshes {
-                    match &mesh.instance_buffer {
-                        Some(instance_buffer) => {
-                            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                            render_pass.draw_model_instanced(
-                                &model,
-                                0..mesh.instances.len() as u32,
-                                &engine_state.camera.render_pass_data.bind_group,
-                                &engine_state.light_bind_group,
-                                &mesh.color_bind_group,
-                                false
-                            );
-                        }
-                        None => {
-                            continue;
-                        }
-                    }
-                }
-            }
-
-            // Wireframe Pass
-            render_pass.set_pipeline(&engine_state.wireframe_render_pipeline);
-            for model in &self.models {
-                for mesh in &model.meshes {
-                    match &mesh.instance_buffer {
-                        Some(instance_buffer) => {
-                            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                            render_pass.draw_model_instanced(
-                                &model,
-                                0..mesh.instances.len() as u32,
-                                &engine_state.camera.render_pass_data.bind_group,
-                                &engine_state.light_bind_group,
-                                &mesh.color_bind_group,
-                                true
-                            );
-                        }
-                        None => {
-                            continue;
-                        }
-                    }
-                }
-            }
-        }
-        engine_state.queue.submit(Some(encoder.finish()));
-        surface_texture.present();
     }
 
     fn handle_camera_update(&mut self) {
@@ -242,7 +109,10 @@ impl ApplicationHandler for App {
             WindowEvent::RedrawRequested => {
                 self.handle_camera_update();
                 self.update();
-                self.handle_redraw();
+                RenderState::handle_redraw(
+                    self.engine_state.as_ref().unwrap().render_context(),
+                    &self.scene_manager.as_ref().unwrap().models
+                );
 
                 self.window.as_ref().unwrap().request_redraw();
             }
