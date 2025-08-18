@@ -1,6 +1,12 @@
+use std::vec;
+
 use crate::{
-    engine::{ model::model::Model, resources, state::context::GpuContext },
-    game::terrain::Terrain,
+    engine::{
+        model::{ material::Material, model::Model, vertex::ModelVertex },
+        resources,
+        state::context::GpuContext,
+    },
+    game::{ cube, starfighter::Starfighter, terrain::Terrain },
 };
 
 pub struct SceneManager {
@@ -8,19 +14,21 @@ pub struct SceneManager {
 }
 
 impl SceneManager {
-    pub fn new(gpu_context: GpuContext) -> Self {
-        SceneManager::load_scene(gpu_context)
+    pub async fn new<'a>(gpu_context: GpuContext<'a>) -> Self {
+        SceneManager::load_scene(gpu_context).await.unwrap()
     }
+
     // Will load the default scene
-    pub fn load_scene(gpu_context: GpuContext) -> Self {
+    pub async fn load_scene<'a>(gpu_context: GpuContext<'a>) -> anyhow::Result<Self> {
         let terrain_object = Terrain::new(50, 5000);
+
         let terrain_model = resources::load_model_from_arrays(
             "terrain",
             terrain_object.vertices,
             vec![],
             terrain_object.triangles,
             &gpu_context,
-            [60, 66, 98]
+            Material::new([60, 66, 98], 0.5)
         );
         let canyon_model = resources::load_model_from_arrays(
             "canyon",
@@ -28,9 +36,18 @@ impl SceneManager {
             vec![],
             terrain_object.canyon_triangles,
             &gpu_context,
-            [255, 0, 255]
+            Material::new([236, 95, 255], 1.0)
         );
-        let models: Vec<Model> = vec![terrain_model, canyon_model];
-        SceneManager { models }
+
+        let mut starfighter = resources
+            ::load_model_from_file("starfighter.obj", &gpu_context.device).await
+            .unwrap();
+
+        for (i, mesh) in starfighter.meshes.iter_mut().enumerate() {
+            mesh.position(0.0, 5.0, 5.0, &gpu_context);
+        }
+        let models: Vec<Model> = vec![canyon_model, terrain_model, starfighter];
+
+        Ok(SceneManager { models })
     }
 }

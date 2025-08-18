@@ -2,7 +2,15 @@ use cgmath::{ Deg };
 use wgpu::{ util::DeviceExt };
 use winit::window::Window;
 
-use crate::engine::{ camera::{camera::Camera, controller::CameraController}, instance::InstanceRaw, light::LightUniform, model::vertex::{ModelVertex, Vertex}, render_pipeline::{create_render_pipeline, create_wireframe_render_pipeline}, state::context::{GpuContext, RenderContext}, texture::{self, Texture} };
+use crate::engine::{
+    camera::{ camera::Camera, controller::CameraController },
+    instance::InstanceRaw,
+    light::LightUniform,
+    model::vertex::{ ModelVertex, Vertex },
+    render_pipeline::{ create_render_pipeline, create_wireframe_render_pipeline },
+    state::context::{ GpuContext, RenderContext },
+    texture::{ self, Texture },
+};
 
 pub struct EngineState {
     pub device: wgpu::Device,
@@ -224,16 +232,15 @@ impl EngineState {
     }
 
     pub(crate) fn render_context(&self) -> RenderContext<'_> {
-        RenderContext { 
+        RenderContext {
             device: &self.device,
             queue: &self.queue,
-            surface: &self.surface, 
-            depth_texture_view: &self.depth_texture.view, 
+            surface: &self.surface,
+            depth_texture_view: &self.depth_texture.view,
             camera_bind_group: &self.camera.render_pass_data.bind_group,
             light_bind_group: &self.light_bind_group,
             render_pipeline: &self.render_pipeline,
-            wireframe_render_pipeline: &self.wireframe_render_pipeline
+            wireframe_render_pipeline: &self.wireframe_render_pipeline,
         }
     }
-    
 }

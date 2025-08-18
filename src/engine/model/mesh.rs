@@ -3,7 +3,7 @@ use std::{ collections::HashSet, ops::{ Add, Sub } };
 use cgmath::{ vec3, InnerSpace, Vector3 };
 use wgpu::util::DeviceExt;
 
-use crate::engine::instance::Instance;
+use crate::engine::{ instance::Instance, model::material::Material, state::context::GpuContext };
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -13,7 +13,7 @@ pub struct ColorUniform {
     // f32 array of length 3 would be 12 bytes, and the padding
     // brings it up to 16 (2^4).
     pub color: [f32; 3],
-    pub __padding: u32,
+    pub alpha: f32,
 }
 
 pub(crate) struct Mesh {
@@ -25,7 +25,7 @@ pub(crate) struct Mesh {
     pub num_elements: u32,
     pub instances: Vec<Instance>,
     pub instance_buffer: Option<wgpu::Buffer>,
-    pub _material: [u32; 3],
+    pub _material: Material,
     pub color_bind_group: wgpu::BindGroup,
 }
 
@@ -39,7 +39,7 @@ impl Mesh {
         num_elements: u32,
         instances: Option<Vec<Instance>>,
         device: &wgpu::Device,
-        material: [u32; 3]
+        material: Material
     ) -> Mesh {
         let instances = instances.unwrap_or(vec![]);
 
@@ -60,13 +60,14 @@ impl Mesh {
         }
 
         // Flat color rendering setup //
+        // Convert from 0-255 sRGB to linear
         let color_uniform = ColorUniform {
             color: [
-                (material[0] as f32) / 255.0,
-                (material[1] as f32) / 255.0,
-                (material[2] as f32) / 255.0,
+                ((material.diffuse_color[0] as f32) / 255.0).powf(2.2),
+                ((material.diffuse_color[1] as f32) / 255.0).powf(2.2),
+                ((material.diffuse_color[2] as f32) / 255.0).powf(2.2),
             ],
-            __padding: 0,
+            alpha: material.alpha,
         };
 
         let color_buffer = device.create_buffer_init(
@@ -119,6 +120,43 @@ impl Mesh {
             _material: material,
             color_bind_group,
         }
+    }
+
+    pub fn scale(&mut self, x: f32, y: f32, z: f32, gpu_context: &GpuContext) {
+        for instance in &mut self.instances {
+            instance.scale = cgmath::vec3(x, y, z);
+        }
+
+        self.update_instance_buffer(gpu_context);
+        println!("Updated mesh instances: {}", self.instances.len());
+    }
+
+    pub fn position(&mut self, x: f32, y: f32, z: f32, gpu_context: &GpuContext) {
+        for instance in &mut self.instances {
+            instance.position = cgmath::vec3(x, y, z);
+        }
+
+        self.update_instance_buffer(gpu_context);
+        println!("Updated mesh instances: {}", self.instances.len());
+    }
+
+    fn update_instance_buffer(&mut self, gpu_context: &GpuContext) {
+        let instance_buffer: Option<wgpu::Buffer>;
+        if self.instances.len() > 0 {
+            let instances = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+            instance_buffer = Some(
+                gpu_context.device.create_buffer_init(
+                    &(wgpu::util::BufferInitDescriptor {
+                        label: Some(&format!("{}__instance_buffer", self._label)),
+                        contents: bytemuck::cast_slice(&instances),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    })
+                )
+            );
+        } else {
+            instance_buffer = None;
+        }
+        self.instance_buffer = instance_buffer;
     }
 
     pub(crate) fn _add_instance(

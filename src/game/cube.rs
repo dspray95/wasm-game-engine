@@ -1,4 +1,4 @@
-pub const SCALE: f32 = 10.0;
+pub const SCALE: f32 = 1.0;
 const X_OFFSET: f32 = SCALE * 0.5;
 const Y_OFFSET: f32 = SCALE * 0.5;
 const Z_OFFSET: f32 = SCALE * 0.5;

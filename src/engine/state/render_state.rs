@@ -10,9 +10,9 @@ impl RenderState {
     pub fn new() -> Self {
         RenderState {
             clear_color: wgpu::Color {
-                r: 0.0075,
-                g: 0.01,
-                b: 0.05,
+                r: 0.011,
+                g: 0.014,
+                b: 0.03,
                 a: 1.0,
             },
         }
@@ -65,15 +65,42 @@ impl RenderState {
             );
 
             // Render pass
-            render_pass.set_bind_group(0, render_context.camera_bind_group, &[]);
+            // 1. Render wireframes that should be behind transparent objects
+            render_pass.set_pipeline(render_context.wireframe_render_pipeline);
+            for model in models {
+                for mesh in &model.meshes {
+                    // Only render if this mesh is transparent (has alpha < 1.0)
+                    if mesh._material.alpha < 1.0 {
+                        match &mesh.instance_buffer {
+                            Some(instance_buffer) => {
+                                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                                render_pass.draw_mesh_instanced(
+                                    mesh,
+                                    0..mesh.instances.len() as u32,
+                                    render_context.camera_bind_group,
+                                    render_context.light_bind_group,
+                                    &mesh.color_bind_group,
+                                    true
+                                );
+                            }
+                            None => {
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Transparent terrain
             render_pass.set_pipeline(render_context.render_pipeline);
             for model in models {
                 for mesh in &model.meshes {
                     match &mesh.instance_buffer {
                         Some(instance_buffer) => {
                             render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                            render_pass.draw_model_instanced(
-                                &model,
+                            render_pass.draw_mesh_instanced(
+                                // Changed this line
+                                mesh, // Pass mesh instead of model
                                 0..mesh.instances.len() as u32,
                                 render_context.camera_bind_group,
                                 render_context.light_bind_group,
@@ -88,24 +115,26 @@ impl RenderState {
                 }
             }
 
-            // Wireframe Pass
+            // 3. Render wireframes on top
             render_pass.set_pipeline(render_context.wireframe_render_pipeline);
             for model in models {
                 for mesh in &model.meshes {
-                    match &mesh.instance_buffer {
-                        Some(instance_buffer) => {
-                            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                            render_pass.draw_model_instanced(
-                                &model,
-                                0..mesh.instances.len() as u32,
-                                render_context.camera_bind_group,
-                                render_context.light_bind_group,
-                                &mesh.color_bind_group,
-                                true
-                            );
-                        }
-                        None => {
-                            continue;
+                    if mesh._material.alpha < 1.0 {
+                        match &mesh.instance_buffer {
+                            Some(instance_buffer) => {
+                                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                                render_pass.draw_mesh_instanced(
+                                    mesh,
+                                    0..mesh.instances.len() as u32,
+                                    render_context.camera_bind_group,
+                                    render_context.light_bind_group,
+                                    &mesh.color_bind_group,
+                                    false
+                                );
+                            }
+                            None => {
+                                continue;
+                            }
                         }
                     }
                 }

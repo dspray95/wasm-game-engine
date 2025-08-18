@@ -46,10 +46,7 @@ pub(super) fn create_render_pipeline(
                 targets: &[
                     Some(wgpu::ColorTargetState {
                         format: color_format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent::REPLACE,
-                        }),
+                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     }),
                 ],
@@ -72,7 +69,7 @@ pub(in crate::engine) fn create_wireframe_render_pipeline(
 
     device.create_render_pipeline(
         &(wgpu::RenderPipelineDescriptor {
-            label: None,
+            label: Some("Wireframe Render Pipeline"),
             layout: Some(layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -87,10 +84,7 @@ pub(in crate::engine) fn create_wireframe_render_pipeline(
                 targets: &[
                     Some(wgpu::ColorTargetState {
                         format: color_format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent::REPLACE,
-                        }),
+                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     }),
                 ],
@@ -102,7 +96,7 @@ pub(in crate::engine) fn create_wireframe_render_pipeline(
             },
             depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
                 format,
-                depth_write_enabled: true,
+                depth_write_enabled: false,
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),

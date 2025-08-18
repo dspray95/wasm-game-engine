@@ -111,6 +111,14 @@ impl Camera {
         projeciton * view
     }
 
+    pub fn update_position(&mut self) {
+        self.render_pass_data.uniform_buffer.update_position([
+            self.position.x,
+            self.position.y,
+            self.position.z,
+        ]);
+    }
+
     pub fn update_view_projeciton(&mut self) {
         self.render_pass_data.uniform_buffer.update_view_projeciton(
             self.build_view_projection_matrix().into()

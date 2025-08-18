@@ -13,7 +13,7 @@ const MESH_HEIGHT_MULTIPLIER: f32 = 1.0;
 pub(crate) fn generate_terrain_chunk(
     length: u32,
     width: u32,
-    y_offset: f32,
+    canyon_y_offset: f32,
     path_left_edge: u32,
     path_right_edge: u32,
     perlin: Perlin,
@@ -45,7 +45,7 @@ pub(crate) fn generate_terrain_chunk(
             // Sample noise for vertex
             let vertex_y_value = if x >= path_left_edge && x <= path_right_edge {
                 // Clamp the height to the canyon path if the vertex is on the edge of the canyon
-                y_offset
+                canyon_y_offset
             } else {
                 // Otherwise sample noise
                 //set values for octave

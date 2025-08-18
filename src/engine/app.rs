@@ -52,7 +52,7 @@ impl App {
             initial_width
         ).await;
 
-        self.scene_manager.get_or_insert(SceneManager::new(engine_state.gpu_context()));
+        self.scene_manager.get_or_insert(SceneManager::new(engine_state.gpu_context()).await);
         self.window.get_or_insert(window);
         self.engine_state.get_or_insert(engine_state);
     }
@@ -72,6 +72,7 @@ impl App {
 
         engine_state.camera_controller.update_camera(&mut engine_state.camera);
         engine_state.camera.update_view_projeciton();
+        engine_state.camera.update_position();
         engine_state.queue.write_buffer(
             &engine_state.camera.render_pass_data.buffer,
             0,

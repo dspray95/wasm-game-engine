@@ -35,7 +35,9 @@ impl Terrain {
         let seed: u32 = rng.random();
         let perlin: Perlin = Perlin::new(seed);
 
-        let y_offset: f32 = 0.0;
+        // This drops the canyon into the terrain, roughly to
+        // where the lowest bits of terrain should be
+        let canyon_y_offset: f32 = -1.0;
 
         let path_left_edge = width / 2 - 2;
         let path_right_edge = width / 2 + 1;
@@ -43,7 +45,7 @@ impl Terrain {
         procedural_generation::generate_terrain_chunk(
             length,
             width,
-            y_offset,
+            canyon_y_offset,
             path_left_edge,
             path_right_edge,
             perlin,
@@ -55,7 +57,7 @@ impl Terrain {
 
         Terrain::generate_canyon(
             length,
-            y_offset,
+            canyon_y_offset,
             path_left_edge,
             path_right_edge,
             &mut canyon_vertices,

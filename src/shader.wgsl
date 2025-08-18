@@ -1,6 +1,8 @@
 //Vertex Shader
 struct CameraUniformBuffer {
     view_projection: mat4x4<f32>,
+    position: vec3<f32>,
+    _padding: f32,
 };
 @group(0) @binding(0)
 var<uniform> camera: CameraUniformBuffer;
@@ -66,7 +68,7 @@ fn vs_main(
 // Flat material
 struct Material {
     color: vec3<f32>,
-    _padding: u32,
+    alpha: f32,
 }
 @group(2) @binding(0)
 var<uniform> material: Material;
@@ -74,6 +76,8 @@ var<uniform> material: Material;
 // Fragment Shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    // We're not doing lighting at the moment, keeping here
+    // for reference later
     let ambient_light_strength = 0.1;
     let ambient_light_color = ambient_light_strength;
 
@@ -82,7 +86,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let diffuse_strength = max(dot(in.world_normal, light_direction), 0.0);
     let diffuse_color = light.color * diffuse_strength;
 
+    // This is what is returned from the fragment shader for now
     let result = material.color;
-    let alpha = 1.0;
+    let alpha = material.alpha;
     return vec4<f32>(result, alpha);
 }
