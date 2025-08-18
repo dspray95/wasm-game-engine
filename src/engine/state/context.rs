@@ -1,3 +1,4 @@
+use crate::engine::camera::camera::Camera;
 
 pub struct GpuContext<'a> {
     pub device: &'a wgpu::Device,
@@ -13,4 +14,9 @@ pub struct RenderContext<'a> {
     pub light_bind_group: &'a wgpu::BindGroup,
     pub render_pipeline: &'a wgpu::RenderPipeline,
     pub wireframe_render_pipeline: &'a wgpu::RenderPipeline,
+}
+
+pub struct CameraContext<'a> {
+    pub camera: &'a Camera,
+    pub queue: &'a wgpu::Queue,
 }

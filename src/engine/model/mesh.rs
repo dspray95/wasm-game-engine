@@ -1,7 +1,7 @@
-use std::{ collections::HashSet, ops::{ Add, Sub } };
+use std::{ collections::HashSet, ops::{ Add, Sub }, vec };
 
 use cgmath::{ vec3, InnerSpace, Vector3 };
-use wgpu::util::DeviceExt;
+use wgpu::{ core::instance, util::DeviceExt };
 
 use crate::engine::{ instance::Instance, model::material::Material, state::context::GpuContext };
 
@@ -122,13 +122,14 @@ impl Mesh {
         }
     }
 
+    // TODO: When we have an event loop we should batch these transforms and only update the instance buffer
+    // once
     pub fn scale(&mut self, x: f32, y: f32, z: f32, gpu_context: &GpuContext) {
         for instance in &mut self.instances {
             instance.scale = cgmath::vec3(x, y, z);
         }
 
         self.update_instance_buffer(gpu_context);
-        println!("Updated mesh instances: {}", self.instances.len());
     }
 
     pub fn position(&mut self, x: f32, y: f32, z: f32, gpu_context: &GpuContext) {
@@ -137,7 +138,24 @@ impl Mesh {
         }
 
         self.update_instance_buffer(gpu_context);
-        println!("Updated mesh instances: {}", self.instances.len());
+    }
+
+    pub fn rotate(&mut self, rotation: cgmath::Quaternion<f32>, gpu_context: &GpuContext) {
+        for instance in &mut self.instances {
+            instance.rotation = rotation;
+        }
+        self.update_instance_buffer(gpu_context);
+    }
+
+    pub fn translate(&mut self, x: f32, y: f32, z: f32, gpu_context: &GpuContext) {
+        for instance in self.instances.iter_mut() {
+            instance.position = cgmath::vec3(
+                instance.position.x + x,
+                instance.position.y + y,
+                instance.position.z + z
+            );
+        }
+        self.update_instance_buffer(gpu_context);
     }
 
     fn update_instance_buffer(&mut self, gpu_context: &GpuContext) {

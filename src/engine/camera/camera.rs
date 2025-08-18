@@ -1,5 +1,7 @@
-use cgmath::{ Deg, InnerSpace, Point3, Rad, Vector3 };
+use cgmath::{ point3, Deg, InnerSpace, Point3, Rad, Vector3 };
 use wgpu::util::DeviceExt;
+
+use crate::engine::state::context::{ CameraContext, GpuContext };
 
 use super::{ projection::Projection, uniform::CameraUniformBuffer };
 
@@ -122,6 +124,17 @@ impl Camera {
     pub fn update_view_projeciton(&mut self) {
         self.render_pass_data.uniform_buffer.update_view_projeciton(
             self.build_view_projection_matrix().into()
+        );
+    }
+
+    pub fn translate(&mut self, x: f32, y: f32, z: f32, queue: &wgpu::Queue) {
+        self.position = point3(self.position.x + x, self.position.y + y, self.position.z + z);
+        self.update_view_projeciton();
+        self.update_position();
+        queue.write_buffer(
+            &self.render_pass_data.buffer,
+            0,
+            bytemuck::cast_slice(&[self.render_pass_data.uniform_buffer])
         );
     }
 }

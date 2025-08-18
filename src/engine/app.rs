@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Instant;
 use cgmath::Rotation3;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
@@ -18,6 +19,8 @@ pub struct App {
     window: Option<Arc<Window>>,
     scene_manager: Option<SceneManager>,
     render_state: RenderState,
+    last_frame_time: Instant,
+    delta_time: f32,
 }
 
 impl App {
@@ -30,6 +33,8 @@ impl App {
             window: None,
             scene_manager: None,
             render_state: RenderState::new(),
+            last_frame_time: Instant::now(),
+            delta_time: 0.0,
         }
     }
 
@@ -81,19 +86,19 @@ impl App {
     }
 
     fn update(&mut self) {
-        let engine_state = self.engine_state.as_mut().unwrap();
+        // Update delta_time
+        let now = Instant::now();
+        // Min delta_time stops big jumps etc
+        self.delta_time = now.duration_since(self.last_frame_time).as_secs_f32().min(0.1);
+        self.last_frame_time = now;
 
-        // Move our light around to see effect
-        let previous_position: cgmath::Vector3<_> = engine_state.light_uniform.position.into();
-        engine_state.light_uniform.position = (
-            cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0)) *
-            previous_position
-        ).into();
-        engine_state.queue.write_buffer(
-            &engine_state.light_buffer,
-            0,
-            bytemuck::cast_slice(&[engine_state.light_uniform])
-        );
+        // Update scene
+        let engine_state = self.engine_state.as_mut().unwrap();
+        let gpu_context = engine_state.gpu_context();
+        self.scene_manager.as_mut().unwrap().update(self.delta_time, gpu_context);
+
+        // Move camera forward
+        engine_state.camera.translate(0.0, 0.0, 7.5 * self.delta_time, &engine_state.queue);
     }
 }
 
@@ -126,8 +131,12 @@ impl ApplicationHandler for App {
                 event: KeyEvent { state, physical_key: PhysicalKey::Code(keycode), .. },
                 ..
             } => {
-                let engine_state = self.engine_state.as_mut().unwrap();
-                engine_state.camera_controller.process_events(keycode, state);
+                self.engine_state
+                    .as_mut()
+                    .unwrap()
+                    .camera_controller.process_events(keycode, state);
+
+                self.scene_manager.as_mut().unwrap().player_control_event(keycode, state);
             }
             _ => (),
         }

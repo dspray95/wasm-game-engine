@@ -8,7 +8,7 @@ use crate::engine::{
     light::LightUniform,
     model::vertex::{ ModelVertex, Vertex },
     render_pipeline::{ create_render_pipeline, create_wireframe_render_pipeline },
-    state::context::{ GpuContext, RenderContext },
+    state::context::{ CameraContext, GpuContext, RenderContext },
     texture::{ self, Texture },
 };
 
@@ -83,8 +83,8 @@ impl EngineState {
 
         // Camera + Controller //
         let camera = Camera::new(
-            [0.0, 2.0, -20.0],
-            Deg(75.0),
+            [24.5, 1.0, 1.0],
+            Deg(90.0),
             Deg(0.0),
             surface_config.width,
             surface_config.height,

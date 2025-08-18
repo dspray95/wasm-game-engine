@@ -1,51 +1,66 @@
+use cgmath::{ vec3, Vector3 };
+
 pub struct Starfighter {
-    pub mesh_vertices: [[f32; 3]; 10],
-    pub triangles: [u32; 12 * 3],
+    current_direction: String,
+    upper_limit: f32,
+    lower_limit: f32,
+    left_limit: f32,
+    right_limit: f32,
+    called: bool,
 }
 
 impl Starfighter {
-    pub fn new() -> Self {
-        let vertices: [[f32; 3]; 10] = [
-            [0.0, 0.0, 0.4],
-            [-0.05, 0.0, 0.3],
-            [0.0, -0.02, 0.3],
-            [-0.04, -0.02, 0.1],
-            [0.0, -0.05, 0.15],
-            [0.0, 0.0, 0.05],
-            [-0.15, 0.0, 0.0],
-            [0.05, 0.0, 0.3],
-            [0.15, 0.0, 0.0],
-            [0.04, -0.02, 0.1],
-        ];
+    pub fn new(start_position: Vector3<f32>) -> Starfighter {
+        Starfighter {
+            current_direction: "up".to_string(),
+            upper_limit: -0.45,
+            lower_limit: -0.55,
+            left_limit: start_position.x + 1.0,
+            right_limit: start_position.x - 1.0,
+            called: false,
+        }
+    }
 
-        // Unflatened here for visual separation in-code
-        let triangles_unflattened: [[u32; 3]; 12] = [
-            [0, 1, 2],
-            [2, 1, 3],
-            [2, 3, 4],
-            [4, 3, 5],
-            [1, 6, 3],
-            [7, 0, 2],
-            [7, 2, 9],
-            [2, 4, 9],
-            [5, 3, 6],
-            [9, 4, 5],
-            [8, 9, 5],
-            [8, 7, 9],
-        ];
+    pub fn player_control(
+        &mut self,
+        is_left_pressed: bool,
+        is_right_pressed: bool,
+        current_position: Vector3<f32>,
+        delta_time: f32
+    ) -> Vector3<f32> {
+        let movement_speed = 4.0;
 
-        let mut triangles: [u32; 12 * 3] = [0; 12 * 3];
-        let mut i = 0;
-        for triangle in triangles_unflattened {
-            for triangle_index in triangle {
-                triangles[i] = triangle_index;
-                i = i + 1;
+        let x_movement = {
+            if is_left_pressed {
+                movement_speed * delta_time
+            } else if is_right_pressed {
+                -movement_speed * delta_time
+            } else {
+                0.0
+            }
+        };
+
+        let new_x_pos = (current_position.x + x_movement)
+            .max(self.right_limit)
+            .min(self.left_limit);
+
+        vec3(new_x_pos, current_position.y, current_position.z)
+    }
+
+    pub fn animate(&mut self, current_position: Vector3<f32>, delta_time: f32) -> Vector3<f32> {
+        let mut new_position = current_position.clone();
+        if self.current_direction == "up" {
+            new_position.y = current_position.y + 0.2 * delta_time;
+            if new_position.y >= self.upper_limit {
+                self.current_direction = "down".to_string();
+            }
+        } else {
+            new_position.y = current_position.y - 0.2 * delta_time;
+            if new_position.y <= self.lower_limit {
+                self.current_direction = "up".to_string();
             }
         }
 
-        Self {
-            mesh_vertices: vertices,
-            triangles: triangles,
-        }
+        new_position
     }
 }

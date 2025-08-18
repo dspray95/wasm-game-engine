@@ -86,12 +86,12 @@ impl CameraController {
 
         // left + right
         let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
-        if self.is_left_pressed {
-            camera.position += right * self.speed;
-        }
-        if self.is_right_pressed {
-            camera.position -= right * self.speed;
-        }
+        // if self.is_left_pressed {
+        //     camera.position += right * self.speed;
+        // }
+        // if self.is_right_pressed {
+        //     camera.position -= right * self.speed;
+        // }
 
         let up = forward.cross(right);
         if self.is_up_pressed {
