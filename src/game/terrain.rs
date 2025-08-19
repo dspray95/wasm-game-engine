@@ -1,6 +1,6 @@
 use cgmath::Vector2;
 use noise::Perlin;
-use rand::Rng;
+use rand::{ Rng, SeedableRng };
 
 use crate::game::procedural_generation;
 
@@ -11,11 +11,10 @@ pub struct Terrain {
     pub n_canyon_vertices: u32,
     pub canyon_vertices: Vec<[f32; 3]>,
     pub canyon_triangles: Vec<u32>,
-    _seed: u32,
 }
 
 impl Terrain {
-    pub fn new(width: u32, length: u32) -> Self {
+    pub fn new(width: u32, length: u32, chunk_offset: Vector2<i32>) -> Self {
         let n_total_vertices = width * length;
 
         let canyon_width = width / 2 + 1 - (width / 2 - 1) + 1; // path_right_edge - path_left_edge + 1
@@ -31,9 +30,9 @@ impl Terrain {
             ((width - 1) * (length - 1) * 6) as usize
         );
 
-        let mut rng = rand::rng();
-        let seed: u32 = rng.random();
-        let perlin: Perlin = Perlin::new(seed);
+        let seed = 500;
+        let mut rng: rand::prelude::StdRng = rand::rngs::StdRng::seed_from_u64(seed);
+        let perlin = Perlin::new(seed as u32);
 
         // This drops the canyon into the terrain, roughly to
         // where the lowest bits of terrain should be
@@ -52,7 +51,7 @@ impl Terrain {
             &mut terrain_vertices,
             &mut terrain_triangles,
             &mut rng,
-            Vector2 { x: 0, y: 0 } // chunk_y(aka z)_offset
+            chunk_offset // chunk_y(aka z)_offset
         );
 
         Terrain::generate_canyon(
@@ -68,7 +67,6 @@ impl Terrain {
             n_vertices,
             vertices: terrain_vertices,
             triangles: terrain_triangles,
-            _seed: seed,
             n_canyon_vertices,
             canyon_vertices,
             canyon_triangles,
@@ -92,6 +90,7 @@ impl Terrain {
                 canyon_vertices.push([x as f32, vertex_y_value, z as f32]);
             }
         }
+        println!("canyon vertices: {:?}", canyon_vertices);
 
         for z in 0..length - 1 {
             for x in 0..canyon_width - 1 {

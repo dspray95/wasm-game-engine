@@ -9,12 +9,18 @@ use crate::{
         resources,
         state::context::GpuContext,
     },
-    game::{ cube, starfighter::{ self, Starfighter }, terrain::Terrain },
+    game::{
+        cube,
+        starfighter::{ self, Starfighter },
+        terrain::Terrain,
+        terrain_generation::{ self, TerrainGeneration },
+    },
 };
 
 pub struct SceneManager {
     pub models: Vec<Model>,
     pub starfighter: Starfighter,
+    pub terrain_generation: TerrainGeneration,
     pub is_left_pressed: bool,
     pub is_right_pressed: bool,
     pub is_space_pressed: bool,
@@ -27,7 +33,7 @@ impl SceneManager {
 
     pub fn update(&mut self, delta_time: f32, gpu_context: GpuContext) {
         // Move forward
-        let mut starfighter_model = &mut self.models[2];
+        let starfighter_model = &mut self.models[2];
         starfighter_model.translate(0.0, 0.0, 7.5 * delta_time, &gpu_context);
         // Hover animation
         let new_position = self.starfighter.animate(
@@ -72,24 +78,51 @@ impl SceneManager {
 
     // Will load the default scene
     pub async fn load_scene<'a>(gpu_context: GpuContext<'a>) -> anyhow::Result<Self> {
+        const TERRAIN_WIDTH: u32 = 50;
+        const TERRAIN_LENGTH: u32 = 50;
+
         // Terrain setup
-        let terrain_object = Terrain::new(50, 5000);
-        let terrain_model = resources::load_model_from_arrays(
-            "terrain",
-            terrain_object.vertices,
-            vec![],
-            terrain_object.triangles,
-            &gpu_context,
-            Material::new([60, 66, 98], 0.5)
-        );
-        let canyon_model = resources::load_model_from_arrays(
-            "canyon",
-            terrain_object.canyon_vertices,
-            vec![],
-            terrain_object.canyon_triangles,
-            &gpu_context,
-            Material::new([236, 95, 255], 1.0)
-        );
+        let mut terrain_models: Vec<Model> = vec![];
+        let terrain_generation = TerrainGeneration::new(TERRAIN_WIDTH, TERRAIN_LENGTH);
+        let terrain_objects = terrain_generation.get_initial_terrain();
+        for terrain_object in terrain_objects {
+            let canyon_model = resources::load_model_from_arrays(
+                "canyon",
+                terrain_object.canyon_vertices,
+                vec![],
+                terrain_object.canyon_triangles,
+                &gpu_context,
+                Material::new([236, 95, 255], 1.0)
+            );
+            let terrain_model = resources::load_model_from_arrays(
+                "terrain",
+                terrain_object.vertices,
+                vec![],
+                terrain_object.triangles,
+                &gpu_context,
+                Material::new([60, 66, 98], 0.5)
+            );
+            terrain_models.push(canyon_model);
+            terrain_models.push(terrain_model);
+        }
+
+        // let terrain_object = Terrain::new(TERRAIN_WIDTH, TERRAIN_LENGTH);
+        // let terrain_model = resources::load_model_from_arrays(
+        //     "terrain",
+        //     terrain_object.vertices,
+        //     vec![],
+        //     terrain_object.triangles,
+        //     &gpu_context,
+        //     Material::new([60, 66, 98], 0.5)
+        // );
+        // let canyon_model = resources::load_model_from_arrays(
+        //     "canyon",
+        //     terrain_object.canyon_vertices,
+        //     vec![],
+        //     terrain_object.canyon_triangles,
+        //     &gpu_context,
+        //     Material::new([236, 95, 255], 1.0)
+        // );
 
         // Player model
         let mut starfighter_model = resources
@@ -105,11 +138,13 @@ impl SceneManager {
             &gpu_context
         );
 
-        let models: Vec<Model> = vec![canyon_model, terrain_model, starfighter_model];
+        let mut models: Vec<Model> = terrain_models;
+        models.push(starfighter_model);
 
         Ok(SceneManager {
             models,
             starfighter: Starfighter::new(vec3(24.5, -0.5, 5.0)),
+            terrain_generation,
             is_left_pressed: false,
             is_right_pressed: false,
             is_space_pressed: false,

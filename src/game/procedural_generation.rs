@@ -1,6 +1,6 @@
 use cgmath::Vector2;
 use noise::{ NoiseFn, Perlin };
-use rand::{ rngs::ThreadRng, Rng };
+use rand::{ rngs::{ StdRng }, Rng };
 
 const NOISE_SCALE: f64 = 1.0;
 
@@ -19,7 +19,7 @@ pub(crate) fn generate_terrain_chunk(
     perlin: Perlin,
     vertices: &mut Vec<[f32; 3]>,
     triangles: &mut Vec<u32>,
-    rng: &mut ThreadRng,
+    rng: &mut StdRng,
     chunk_offset: Vector2<i32>
 ) {
     let mut noise_amplitude: f64 = 2.0;
@@ -55,11 +55,16 @@ pub(crate) fn generate_terrain_chunk(
 
                 // Sample noise with octaves
                 for octave in 0..NOISE_OCTAVES as u32 {
+                    let world_x = (x as f32) + (chunk_offset.x as f32);
+                    let world_z = (z as f32) + (chunk_offset.y as f32);
+
                     let sample_x =
-                        (((x as f64) + (octave_offsets[octave as usize].x as f64)) / NOISE_SCALE) *
+                        (((world_x as f64) + (octave_offsets[octave as usize].x as f64)) /
+                            NOISE_SCALE) *
                         noise_frequency;
                     let sample_y =
-                        (((z as f64) + (octave_offsets[octave as usize].y as f64)) / NOISE_SCALE) *
+                        (((world_z as f64) + (octave_offsets[octave as usize].y as f64)) /
+                            NOISE_SCALE) *
                         noise_frequency;
 
                     let sample_value = perlin.get([sample_x, sample_y]);
@@ -72,7 +77,7 @@ pub(crate) fn generate_terrain_chunk(
                 (noise_height as f32) * MESH_HEIGHT_MULTIPLIER
             };
 
-            vertices.push([x as f32, vertex_y_value, z as f32]);
+            vertices.push([x as f32, vertex_y_value, (z as f32) + (chunk_offset.y as f32)]);
 
             // Build triangles
             if x < width - 1 && z < length - 1 {
