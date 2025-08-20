@@ -17,7 +17,7 @@ pub struct ColorUniform {
 }
 
 pub(crate) struct Mesh {
-    pub _label: String,
+    pub label: String,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub wireframe_index_buffer: wgpu::Buffer,
@@ -109,7 +109,7 @@ impl Mesh {
         );
 
         Mesh {
-            _label: label,
+            label,
             vertex_buffer,
             index_buffer,
             wireframe_index_buffer,
@@ -165,7 +165,7 @@ impl Mesh {
             instance_buffer = Some(
                 gpu_context.device.create_buffer_init(
                     &(wgpu::util::BufferInitDescriptor {
-                        label: Some(&format!("{}__instance_buffer", self._label)),
+                        label: Some(&format!("{}__instance_buffer", self.label)),
                         contents: bytemuck::cast_slice(&instances),
                         usage: wgpu::BufferUsages::VERTEX,
                     })
@@ -196,7 +196,7 @@ impl Mesh {
             //TODO Enginestate -> Queue -> Write buffer for updating instance positions
             device.create_buffer_init(
                 &(wgpu::util::BufferInitDescriptor {
-                    label: Some(&format!("{}__instance_buffer", self._label)),
+                    label: Some(&format!("{}__instance_buffer", self.label)),
                     contents: bytemuck::cast_slice(&instance_data),
                     usage: wgpu::BufferUsages::VERTEX,
                 })

@@ -30,8 +30,8 @@ pub(crate) fn generate_terrain_chunk(
         NOISE_OCTAVES as usize
     ];
     for octave in 0..NOISE_OCTAVES as u32 {
-        let octave_offset_x = rng.random_range(-1000..1000) + chunk_offset.x;
-        let octave_offset_y = rng.random_range(-1000..1000) + chunk_offset.y;
+        let octave_offset_x = rng.random_range(-1000..1000);
+        let octave_offset_y = rng.random_range(-1000..1000);
         octave_offsets[octave as usize] = Vector2 {
             x: octave_offset_x,
             y: octave_offset_y,
@@ -40,7 +40,7 @@ pub(crate) fn generate_terrain_chunk(
         noise_amplitude *= NOISE_PERSISTENCE;
     }
 
-    for z in 0..length {
+    for z in 0..=length {
         for x in 0..width {
             // Sample noise for vertex
             let vertex_y_value = if x >= path_left_edge && x <= path_right_edge {
@@ -80,7 +80,7 @@ pub(crate) fn generate_terrain_chunk(
             vertices.push([x as f32, vertex_y_value, (z as f32) + (chunk_offset.y as f32)]);
 
             // Build triangles
-            if x < width - 1 && z < length - 1 {
+            if x < width - 1 && z < length {
                 let current_index = x + z * width;
                 let next_x = x + 1;
 

@@ -35,38 +35,38 @@ impl CameraController {
         let is_pressed = key_state == ElementState::Pressed;
 
         match key_code {
-            KeyCode::KeyW | KeyCode::ArrowUp => {
-                self.is_forward_pressed = is_pressed;
-                true
-            }
-            KeyCode::KeyA | KeyCode::ArrowLeft => {
-                self.is_left_pressed = is_pressed;
-                true
-            }
-            KeyCode::KeyS | KeyCode::ArrowDown => {
-                self.is_backward_pressed = is_pressed;
-                true
-            }
-            KeyCode::KeyD | KeyCode::ArrowRight => {
-                self.is_right_pressed = is_pressed;
-                true
-            }
-            KeyCode::KeyQ => {
-                self.is_rotate_left_pressed = is_pressed;
-                true
-            }
-            KeyCode::KeyE => {
-                self.is_rotate_right_pressed = is_pressed;
-                true
-            }
-            KeyCode::Space => {
-                self.is_up_pressed = is_pressed;
-                true
-            }
-            KeyCode::ControlLeft => {
-                self.is_down_pressed = is_pressed;
-                true
-            }
+            // KeyCode::KeyW | KeyCode::ArrowUp => {
+            //     self.is_forward_pressed = is_pressed;
+            //     true
+            // }
+            // KeyCode::KeyA | KeyCode::ArrowLeft => {
+            //     self.is_left_pressed = is_pressed;
+            //     true
+            // }
+            // KeyCode::KeyS | KeyCode::ArrowDown => {
+            //     self.is_backward_pressed = is_pressed;
+            //     true
+            // }
+            // KeyCode::KeyD | KeyCode::ArrowRight => {
+            //     self.is_right_pressed = is_pressed;
+            //     true
+            // }
+            // KeyCode::KeyQ => {
+            //     self.is_rotate_left_pressed = is_pressed;
+            //     true
+            // }
+            // KeyCode::KeyE => {
+            //     self.is_rotate_right_pressed = is_pressed;
+            //     true
+            // }
+            // KeyCode::Space => {
+            //     self.is_up_pressed = is_pressed;
+            //     true
+            // }
+            // KeyCode::ControlLeft => {
+            //     self.is_down_pressed = is_pressed;
+            //     true
+            // }
             _ => false,
         }
     }
@@ -86,12 +86,12 @@ impl CameraController {
 
         // left + right
         let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
-        // if self.is_left_pressed {
-        //     camera.position += right * self.speed;
-        // }
-        // if self.is_right_pressed {
-        //     camera.position -= right * self.speed;
-        // }
+        if self.is_left_pressed {
+            camera.position += right * self.speed;
+        }
+        if self.is_right_pressed {
+            camera.position -= right * self.speed;
+        }
 
         let up = forward.cross(right);
         if self.is_up_pressed {

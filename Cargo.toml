@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 winit = "0.30.5"
-wgpu = "23.0.0"
+wgpu = "24.0.5"
 env_logger = "0.11.5"
 log = "0.4"
 pollster = "0.4.0"
@@ -16,6 +16,7 @@ cfg-if = "1"
 tobj = { version = "3.2", default-features = false, features = ["async"]}
 noise = "0.9.0"
 rand = "0.9.1"
+wgpu_text = "=0.9.2"
 
 [build-dependencies]
 anyhow = "1.0"

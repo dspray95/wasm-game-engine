@@ -17,6 +17,5 @@ pub struct RenderContext<'a> {
 }
 
 pub struct CameraContext<'a> {
-    pub camera: &'a Camera,
     pub queue: &'a wgpu::Queue,
 }

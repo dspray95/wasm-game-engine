@@ -73,7 +73,7 @@ impl EngineState {
             format: *swapchain_format,
             width,
             height,
-            present_mode: wgpu::PresentMode::AutoVsync,
+            present_mode: wgpu::PresentMode::Immediate,
             desired_maximum_frame_latency: 0,
             alpha_mode: swapchain_capabilities.alpha_modes[0],
             view_formats: vec![],
@@ -231,6 +231,9 @@ impl EngineState {
         GpuContext { device: &self.device, queue: &self.queue }
     }
 
+    pub(crate) fn camera_context(&self) -> CameraContext<'_> {
+        CameraContext { queue: &self.queue }
+    }
     pub(crate) fn render_context(&self) -> RenderContext<'_> {
         RenderContext {
             device: &self.device,

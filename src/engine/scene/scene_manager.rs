@@ -5,25 +5,22 @@ use winit::{ event::ElementState, keyboard::KeyCode };
 
 use crate::{
     engine::{
-        model::{ material::Material, model::Model, vertex::ModelVertex },
+        camera::camera::Camera,
+        model::{ material::Material, model::Model },
         resources,
         state::context::GpuContext,
     },
-    game::{
-        cube,
-        starfighter::{ self, Starfighter },
-        terrain::Terrain,
-        terrain_generation::{ self, TerrainGeneration },
-    },
+    game::{ starfighter::Starfighter, terrain_generation::TerrainGeneration },
 };
 
 pub struct SceneManager {
-    pub models: Vec<Model>,
+    pub models: Vec<Model>, // 0-5 are terrain, 6 is the player
     pub starfighter: Starfighter,
     pub terrain_generation: TerrainGeneration,
     pub is_left_pressed: bool,
     pub is_right_pressed: bool,
     pub is_space_pressed: bool,
+    pub oldest_terrain_index: u32,
 }
 
 impl SceneManager {
@@ -31,10 +28,33 @@ impl SceneManager {
         SceneManager::load_scene(gpu_context).await.unwrap()
     }
 
-    pub fn update(&mut self, delta_time: f32, gpu_context: GpuContext) {
+    pub fn update(&mut self, delta_time: f32, gpu_context: GpuContext, camera: &mut Camera) {
+        self.move_player(delta_time, &gpu_context, camera);
+        let terrain_result = self.terrain_generation.terrain_update(
+            camera.position.z,
+            &gpu_context
+        );
+        if let Some(new_terrain) = terrain_result {
+            println!("Replacing terrain at index: {}", self.oldest_terrain_index);
+
+            self.models[self.oldest_terrain_index as usize] = new_terrain;
+            self.oldest_terrain_index = (self.oldest_terrain_index + 1) % 3;
+        }
+    }
+
+    fn move_player(&mut self, delta_time: f32, gpu_context: &GpuContext, camera: &mut Camera) {
+        self.move_camera(delta_time, gpu_context, camera);
+        self.move_starfighter(delta_time, gpu_context);
+    }
+
+    fn move_camera(&mut self, delta_time: f32, gpu_context: &GpuContext, camera: &mut Camera) {
+        camera.translate(0.0, 0.0, 20.0 * delta_time, gpu_context.queue);
+    }
+
+    fn move_starfighter(&mut self, delta_time: f32, gpu_context: &GpuContext) {
         // Move forward
-        let starfighter_model = &mut self.models[2];
-        starfighter_model.translate(0.0, 0.0, 7.5 * delta_time, &gpu_context);
+        let starfighter_model = &mut self.models[3];
+        starfighter_model.translate(0.0, 0.0, 20.0 * delta_time, &gpu_context);
         // Hover animation
         let new_position = self.starfighter.animate(
             starfighter_model.meshes[0].instances[0].position,
@@ -79,32 +99,45 @@ impl SceneManager {
     // Will load the default scene
     pub async fn load_scene<'a>(gpu_context: GpuContext<'a>) -> anyhow::Result<Self> {
         const TERRAIN_WIDTH: u32 = 50;
-        const TERRAIN_LENGTH: u32 = 50;
+        const TERRAIN_LENGTH: u32 = 150;
 
         // Terrain setup
         let mut terrain_models: Vec<Model> = vec![];
-        let terrain_generation = TerrainGeneration::new(TERRAIN_WIDTH, TERRAIN_LENGTH);
-        let terrain_objects = terrain_generation.get_initial_terrain();
-        for terrain_object in terrain_objects {
-            let canyon_model = resources::load_model_from_arrays(
-                "canyon",
-                terrain_object.canyon_vertices,
-                vec![],
-                terrain_object.canyon_triangles,
-                &gpu_context,
-                Material::new([236, 95, 255], 1.0)
-            );
-            let terrain_model = resources::load_model_from_arrays(
-                "terrain",
-                terrain_object.vertices,
-                vec![],
-                terrain_object.triangles,
-                &gpu_context,
-                Material::new([60, 66, 98], 0.5)
-            );
-            terrain_models.push(canyon_model);
-            terrain_models.push(terrain_model);
-        }
+        let mut terrain_generation = TerrainGeneration::new(TERRAIN_WIDTH, TERRAIN_LENGTH);
+        let terrain_models = terrain_generation.get_initial_terrain(&gpu_context);
+        // let mut i = 0;
+        // for terrain_object in terrain_objects {
+        //     let canyon_color: [u32; 3] = {
+        //         if i == 0 {
+        //             [236, 95, 255]
+        //         } else if i == 1 {
+        //             [0, 255, 0]
+        //         } else if i == 2 {
+        //             [0, 155, 255]
+        //         } else {
+        //             [236, 95, 255]
+        //         }
+        //     };
+        //     let canyon_model = resources::load_mesh_from_arrays(
+        //         "canyon",
+        //         terrain_object.canyon_vertices,
+        //         vec![],
+        //         terrain_object.canyon_triangles,
+        //         &gpu_context,
+        //         Material::new(canyon_color, 1.0)
+        //     );
+        //     let terrain_model = resources::load_mesh_from_arrays(
+        //         "terrain",
+        //         terrain_object.vertices,
+        //         vec![],
+        //         terrain_object.triangles,
+        //         &gpu_context,
+        //         Material::new([60, 66, 98], 0.5)
+        //     );
+        //     terrain_models.push(canyon_model);
+        //     terrain_models.push(terrain_model);
+        //     i = i + 1;
+        // }
 
         // let terrain_object = Terrain::new(TERRAIN_WIDTH, TERRAIN_LENGTH);
         // let terrain_model = resources::load_model_from_arrays(
@@ -138,7 +171,7 @@ impl SceneManager {
             &gpu_context
         );
 
-        let mut models: Vec<Model> = terrain_models;
+        let mut models: Vec<Model> = terrain_models.into();
         models.push(starfighter_model);
 
         Ok(SceneManager {
@@ -148,6 +181,7 @@ impl SceneManager {
             is_left_pressed: false,
             is_right_pressed: false,
             is_space_pressed: false,
+            oldest_terrain_index: 0,
         })
     }
 }

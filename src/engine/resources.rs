@@ -62,14 +62,14 @@ pub async fn load_texture_from_file(
     Ok(texture::Texture::from_bytes(device, queue, &data, file_name)?)
 }
 
-pub fn load_model_from_arrays(
+pub fn load_mesh_from_arrays(
     label: &str,
     vertices: Vec<[f32; 3]>,
     normals: Vec<[f32; 3]>,
     triangle_indices: Vec<u32>,
     gpu_context: &GpuContext<'_>,
     material: Material
-) -> Model {
+) -> Mesh {
     let device = gpu_context.device;
     let model_vertices: Vec<ModelVertex>;
 
@@ -142,7 +142,7 @@ pub fn load_model_from_arrays(
         material
     );
 
-    Model { meshes: vec![mesh] }
+    mesh
 }
 
 pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> anyhow::Result<Model> {
@@ -163,23 +163,10 @@ pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> any
         }
     ).await?;
 
-    println!("Loaded {} objects from OBJ", models.len());
-    for (i, model) in models.iter().enumerate() {
-        println!(
-            "Object {}: '{}', {} vertices, {} faces, material_id: {:?}",
-            i,
-            model.name,
-            model.mesh.positions.len() / 3,
-            model.mesh.indices.len() / 3,
-            model.mesh.material_id
-        );
-    }
-
     // Extract individual meshes from model file with normals + textures
     let meshes = models
         .into_iter()
-        .enumerate()
-        .map(|(mesh_index, m)| {
+        .map(|m| {
             let vertex_count = m.mesh.positions.len() / 3;
             let normal_count = if m.mesh.normals.is_empty() { 0 } else { m.mesh.normals.len() / 3 };
 
