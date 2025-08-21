@@ -9,7 +9,7 @@ use crate::{
     game::procedural_generation,
 };
 
-const RAINBOW_ROAD: bool = true; // useful for debugging chunks
+const RAINBOW_ROAD: bool = false; // useful for debugging chunks
 
 const VIBRANT_COLORS: [[u32; 3]; 10] = [
     [255, 50, 50], // Bright Red
