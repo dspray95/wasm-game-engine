@@ -1,3 +1,4 @@
+use wgpu::{ SurfaceConfiguration, TextureFormat };
 use wgpu_text::glyph_brush::ab_glyph::FontRef;
 use wgpu_text::glyph_brush::{ Section, Text };
 use wgpu_text::{ BrushBuilder, TextBrush };
@@ -94,12 +95,12 @@ impl<'a> RenderState<'a> {
                         match &mesh.instance_buffer {
                             Some(instance_buffer) => {
                                 render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-
                                 render_pass.draw_mesh_instanced(
                                     mesh,
                                     0..mesh.instances.len() as u32,
                                     render_context.camera_bind_group,
-                                    &mesh.material_bind_group,
+                                    render_context.light_bind_group,
+                                    &mesh.color_bind_group,
                                     true
                                 );
                             }
@@ -123,7 +124,8 @@ impl<'a> RenderState<'a> {
                                 mesh, // Pass mesh instead of model
                                 0..mesh.instances.len() as u32,
                                 render_context.camera_bind_group,
-                                &mesh.material_bind_group,
+                                render_context.light_bind_group,
+                                &mesh.color_bind_group,
                                 false
                             );
                         }
@@ -146,7 +148,8 @@ impl<'a> RenderState<'a> {
                                     mesh,
                                     0..mesh.instances.len() as u32,
                                     render_context.camera_bind_group,
-                                    &mesh.material_bind_group,
+                                    render_context.light_bind_group,
+                                    &mesh.color_bind_group,
                                     false
                                 );
                             }

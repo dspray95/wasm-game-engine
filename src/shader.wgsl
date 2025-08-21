@@ -30,6 +30,13 @@ struct VertexOutput {
     @location(1) world_position: vec3<f32>,
 }
 
+struct Light {
+    position: vec3<f32>,
+    color: vec3<f32>,
+}
+@group(1) @binding(0)
+var<uniform> light: Light;
+
 @vertex
 fn vs_main(
     model: VerexInput,
@@ -63,7 +70,7 @@ struct Material {
     color: vec3<f32>,
     alpha: f32,
 }
-@group(1) @binding(0)
+@group(2) @binding(0)
 var<uniform> material: Material;
 
 // Fragment Shader
@@ -71,13 +78,13 @@ var<uniform> material: Material;
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // We're not doing lighting at the moment, keeping here
     // for reference later
-    // let ambient_light_strength = 0.1;
-    // let ambient_light_color = ambient_light_strength;
+    let ambient_light_strength = 0.1;
+    let ambient_light_color = ambient_light_strength;
 
-    // let light_direction = normalize(light.position - in.world_position);
+    let light_direction = normalize(light.position - in.world_position);
 
-    // let diffuse_strength = max(dot(in.world_normal, light_direction), 0.0);
-    // let diffuse_color = light.color * diffuse_strength;
+    let diffuse_strength = max(dot(in.world_normal, light_direction), 0.0);
+    let diffuse_color = light.color * diffuse_strength;
 
     // This is what is returned from the fragment shader for now
     let result = material.color;

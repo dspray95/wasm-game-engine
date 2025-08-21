@@ -1,7 +1,7 @@
 use std::{ collections::HashSet, ops::{ Add, Sub }, vec };
 
 use cgmath::{ vec3, InnerSpace, Vector3 };
-use wgpu::util::DeviceExt;
+use wgpu::{ core::instance, util::DeviceExt };
 
 use crate::engine::{ instance::Instance, model::material::Material, state::context::GpuContext };
 
@@ -16,7 +16,7 @@ pub struct ColorUniform {
     pub alpha: f32,
 }
 
-pub struct Mesh {
+pub(crate) struct Mesh {
     pub label: String,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -26,7 +26,7 @@ pub struct Mesh {
     pub instances: Vec<Instance>,
     pub instance_buffer: Option<wgpu::Buffer>,
     pub _material: Material,
-    pub material_bind_group: wgpu::BindGroup,
+    pub color_bind_group: wgpu::BindGroup,
 }
 
 impl Mesh {
@@ -70,7 +70,7 @@ impl Mesh {
             alpha: material.alpha,
         };
 
-        let material_buffer = device.create_buffer_init(
+        let color_buffer = device.create_buffer_init(
             &(wgpu::util::BufferInitDescriptor {
                 label: Some("Color Buffer"),
                 contents: bytemuck::cast_slice(&[color_uniform]),
@@ -78,7 +78,7 @@ impl Mesh {
             })
         );
 
-        let material_bind_group_layout = device.create_bind_group_layout(
+        let color_bind_group_layout = device.create_bind_group_layout(
             &(wgpu::BindGroupLayoutDescriptor {
                 label: None,
                 entries: &[
@@ -95,14 +95,14 @@ impl Mesh {
                 ],
             })
         );
-        let material_bind_group = device.create_bind_group(
+        let color_bind_group = device.create_bind_group(
             &(wgpu::BindGroupDescriptor {
                 label: None,
-                layout: &material_bind_group_layout,
+                layout: &color_bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
-                        resource: material_buffer.as_entire_binding(),
+                        resource: color_buffer.as_entire_binding(),
                     },
                 ],
             })
@@ -118,7 +118,7 @@ impl Mesh {
             instances,
             instance_buffer,
             _material: material,
-            material_bind_group,
+            color_bind_group,
         }
     }
 

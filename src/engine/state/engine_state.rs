@@ -1,12 +1,14 @@
 use cgmath::{ Deg };
+use wgpu::{ util::DeviceExt };
 use winit::window::Window;
 
 use crate::engine::{
     camera::{ camera::Camera, controller::CameraController },
     instance::InstanceRaw,
+    light::LightUniform,
     model::vertex::{ ModelVertex, Vertex },
     render_pipeline::{ create_render_pipeline, create_wireframe_render_pipeline },
-    state::context::{ GpuContext, RenderContext },
+    state::context::{ CameraContext, GpuContext, RenderContext },
     texture::{ self, Texture },
 };
 
@@ -19,6 +21,9 @@ pub struct EngineState {
     pub camera: Camera,
     pub camera_controller: CameraController,
     pub depth_texture: Texture,
+    pub light_uniform: LightUniform,
+    pub light_buffer: wgpu::Buffer,
+    pub light_bind_group: wgpu::BindGroup,
     pub wireframe_render_pipeline: wgpu::RenderPipeline,
 }
 
@@ -94,8 +99,54 @@ impl EngineState {
             "depth_texture"
         );
 
-        // Standard rendering bind group
-        let render_bind_group_layout = device.create_bind_group_layout(
+        // Global Lighting Setup //
+        let light_uniform = LightUniform {
+            position: [2.0, 2.0, 2.0],
+            _padding: 0,
+            color: [0.443, 0.941, 0.922],
+            __padding: 0,
+        };
+
+        let light_buffer = device.create_buffer_init(
+            &(wgpu::util::BufferInitDescriptor {
+                label: Some("Light Buffer"),
+                contents: bytemuck::cast_slice(&[light_uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            })
+        );
+
+        let light_bind_group_layout = device.create_bind_group_layout(
+            &(wgpu::BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            })
+        );
+
+        let light_bind_group = device.create_bind_group(
+            &(wgpu::BindGroupDescriptor {
+                label: None,
+                layout: &light_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: light_buffer.as_entire_binding(),
+                    },
+                ],
+            })
+        );
+
+        let color_bind_group_layout = device.create_bind_group_layout(
             &(wgpu::BindGroupLayoutDescriptor {
                 label: None,
                 entries: &[
@@ -119,7 +170,8 @@ impl EngineState {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
                     &camera.render_pass_data.bind_group_layout,
-                    &render_bind_group_layout,
+                    &light_bind_group_layout,
+                    &color_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             })
@@ -162,6 +214,9 @@ impl EngineState {
             camera,
             camera_controller,
             depth_texture,
+            light_uniform,
+            light_buffer,
+            light_bind_group,
             wireframe_render_pipeline,
         }
     }
@@ -176,6 +231,9 @@ impl EngineState {
         GpuContext { device: &self.device, queue: &self.queue }
     }
 
+    pub(crate) fn camera_context(&self) -> CameraContext<'_> {
+        CameraContext { queue: &self.queue }
+    }
     pub(crate) fn render_context(&self) -> RenderContext<'_> {
         RenderContext {
             device: &self.device,
@@ -183,6 +241,7 @@ impl EngineState {
             surface: &self.surface,
             depth_texture_view: &self.depth_texture.view,
             camera_bind_group: &self.camera.render_pass_data.bind_group,
+            light_bind_group: &self.light_bind_group,
             render_pipeline: &self.render_pipeline,
             wireframe_render_pipeline: &self.wireframe_render_pipeline,
         }

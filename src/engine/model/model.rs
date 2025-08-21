@@ -40,6 +40,7 @@ pub(in crate::engine) trait DrawModel<'a> {
         mesh: &'a Mesh,
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
         color_bind_group: &'a wgpu::BindGroup,
         use_line_index_buffer: bool
     );
@@ -49,6 +50,7 @@ pub(in crate::engine) trait DrawModel<'a> {
         &mut self,
         model: &'a Model,
         camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
         color_bind_group: &'a wgpu::BindGroup
     );
 
@@ -57,6 +59,7 @@ pub(in crate::engine) trait DrawModel<'a> {
         model: &'a Model,
         instances: Range<u32>,
         camera_bind_group: &'a wgpu::BindGroup,
+        light_bind_group: &'a wgpu::BindGroup,
         color_bind_group: &'a wgpu::BindGroup,
         use_line_index_buffer: bool
     );
