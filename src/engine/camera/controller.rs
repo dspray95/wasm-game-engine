@@ -32,7 +32,7 @@ impl CameraController {
     }
 
     pub fn process_events(&mut self, key_code: KeyCode, key_state: ElementState) -> bool {
-        let is_pressed = key_state == ElementState::Pressed;
+        let _is_pressed = key_state == ElementState::Pressed;
 
         match key_code {
             // KeyCode::KeyW | KeyCode::ArrowUp => {

@@ -1,7 +1,5 @@
 use std::sync::Arc;
 use std::time::Instant;
-use cgmath::Rotation3;
-use wgpu::core::device;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::{ ElementState, KeyEvent, WindowEvent };
@@ -9,7 +7,6 @@ use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::{ KeyCode, PhysicalKey };
 use winit::window::{ Window, WindowId };
 
-use crate::engine::camera;
 use crate::engine::fps_counter::FpsCounter;
 use crate::engine::scene::scene_manager::SceneManager;
 use crate::engine::state::context::GpuContext;
@@ -21,8 +18,8 @@ use super::texture::Texture;
 use wasm_bindgen::prelude::*;
 
 pub struct App<'a> {
-    #[cfg(target_arch = "wasm32")]
-    proxy: Option<winit::event_loop::EventLoopProxy<State>>,
+    // #[cfg(target_arch = "wasm32")]
+    // proxy: Option<winit::event_loop::EventLoopProxy<State>>,
     instance: wgpu::Instance,
     engine_state: Option<EngineState>,
     window: Option<Arc<Window>>,
@@ -48,8 +45,8 @@ impl<'a> App<'a> {
             delta_time: 0.0,
             fps_counter: FpsCounter::new(),
             show_fps: false,
-            #[cfg(target_arch = "wasm32")]
-            proxy: Some(event_loop.create_proxy()),
+            // #[cfg(target_arch = "wasm32")]
+            // proxy: Some(event_loop.create_proxy()),
         }
     }
 
@@ -132,19 +129,19 @@ impl<'a> App<'a> {
 
 impl<'a> ApplicationHandler for App<'a> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        #[cfg(target_arch = "wasm32")]
-        {
-            use wasm_bindgen::JsCast;
-            use winit::platform::web::WindowAttributesExtWebSys;
+        // #[cfg(target_arch = "wasm32")]
+        // {
+        //     use wasm_bindgen::JsCast;
+        //     use winit::platform::web::WindowAttributesExtWebSys;
 
-            const CANVAS_ID: &str = "canvas";
+        //     const CANVAS_ID: &str = "canvas";
 
-            let window = wgpu::web_sys::window().unwrap_throw();
-            let document = window.document().unwrap_throw();
-            let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
-            let html_canvas_element = canvas.unchecked_into();
-            window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
-        }
+        //     let window = wgpu::web_sys::window().unwrap_throw();
+        //     let document = window.document().unwrap_throw();
+        //     let canvas = document.get_element_by_id(CANVAS_ID).unwrap_throw();
+        //     let html_canvas_element = canvas.unchecked_into();
+        //     window_attributes = window_attributes.with_canvas(Some(html_canvas_element));
+        // }
 
         let window: Window = event_loop.create_window(Window::default_attributes()).unwrap();
         #[cfg(not(target_arch = "wasm32"))]
@@ -152,22 +149,22 @@ impl<'a> ApplicationHandler for App<'a> {
             pollster::block_on(self.set_window(window));
         }
 
-        #[cfg(target_arch = "wasm32")]
-        {
-            // Run the future asynchronously and use the
-            // proxy to send the results to the event loop
-            if let Some(proxy) = self.proxy.take() {
-                wasm_bindgen_futures::spawn_local(async move {
-                    assert!(
-                        proxy
-                            .send_event(
-                                State::new(window).await.expect("Unable to create canvas!!!")
-                            )
-                            .is_ok()
-                    )
-                });
-            }
-        }
+        // #[cfg(target_arch = "wasm32")]
+        // {
+        //     // Run the future asynchronously and use the
+        //     // proxy to send the results to the event loop
+        //     if let Some(proxy) = self.proxy.take() {
+        //         wasm_bindgen_futures::spawn_local(async move {
+        //             assert!(
+        //                 proxy
+        //                     .send_event(
+        //                         State::new(window).await.expect("Unable to create canvas!!!")
+        //                     )
+        //                     .is_ok()
+        //             )
+        //         });
+        //     }
+        // }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
@@ -207,7 +204,7 @@ impl<'a> ApplicationHandler for App<'a> {
                     .camera_controller.process_events(key_code, state);
 
                 self.scene_manager.as_mut().unwrap().player_control_event(key_code, state);
-                let is_pressed = state == ElementState::Pressed;
+
                 if state == ElementState::Pressed {
                     match key_code {
                         KeyCode::Home => {
@@ -221,14 +218,14 @@ impl<'a> ApplicationHandler for App<'a> {
         }
     }
 
-    #[allow(unused_mut)]
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: State) {
-        // This is where proxy.send_event() ends up
-        #[cfg(target_arch = "wasm32")]
-        {
-            event.window.request_redraw();
-            event.resize(event.window.inner_size().width, event.window.inner_size().height);
-        }
-        self.state = Some(event);
-    }
+    // #[allow(unused_mut)]
+    // fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: State) {
+    //     // This is where proxy.send_event() ends up
+    //     #[cfg(target_arch = "wasm32")]
+    //     {
+    //         event.window.request_redraw();
+    //         event.resize(event.window.inner_size().width, event.window.inner_size().height);
+    //     }
+    //     self.state = Some(event);
+    // }
 }

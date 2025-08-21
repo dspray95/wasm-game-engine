@@ -1,8 +1,6 @@
-use std::time::{ SystemTime, UNIX_EPOCH };
-
 use cgmath::Vector2;
 use noise::Perlin;
-use rand::{ thread_rng, Rng, SeedableRng };
+use rand::{ Rng, SeedableRng };
 
 use crate::{
     engine::{ model::{ material::Material, model::Model }, resources, state::context::GpuContext },
@@ -61,8 +59,7 @@ impl Terrain {
 
         let canyon_color = {
             if RAINBOW_ROAD {
-                let mut thread_rng = thread_rng();
-                VIBRANT_COLORS[thread_rng.gen_range(0..VIBRANT_COLORS.len())]
+                VIBRANT_COLORS[rng.random_range(0..VIBRANT_COLORS.len())]
             } else {
                 [236, 95, 255]
             }

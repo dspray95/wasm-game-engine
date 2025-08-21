@@ -1,4 +1,4 @@
-use cgmath::{ vec2, Point3, Vector3 };
+use cgmath::vec2;
 
 use crate::{ engine::{ model::model::Model, state::context::GpuContext }, game::terrain::Terrain };
 

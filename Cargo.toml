@@ -1,8 +1,9 @@
 [lib]
+name = "wasm_game_engine" 
 crate-type = ["cdylib", "rlib"]
 
 [package]
-name = "wasm_game_engine"
+name = "wasm-game-engine"
 version = "0.1.0"
 edition = "2021"
 
@@ -23,6 +24,7 @@ tobj = { version = "3.2", default-features = false, features = ["async"]}
 noise = "0.9.0"
 rand = "0.9.1"
 wgpu_text = "=0.9.2"
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
 
 [build-dependencies]
 anyhow = "1.0"
@@ -46,6 +48,9 @@ web-sys = { version = "0.3", features = [
     "Element",
 ]}
 
- 
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"'] 
 
- 
+[[bin]]
+name = "canyon_runner"  
+path = "src/main.rs"
