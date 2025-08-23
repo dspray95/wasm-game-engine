@@ -15,12 +15,12 @@ pub struct RenderState<'a> {
 impl<'a> RenderState<'a> {
     pub fn new(render_context: RenderContext, surface_config: &wgpu::SurfaceConfiguration) -> Self {
         let font_data = include_bytes!("../../../res/DS-DIGI.TTF");
-        println!("Font file size: {} bytes", font_data.len());
 
         match FontRef::try_from_slice(font_data) {
-            Ok(_) => println!("Font loaded successfully"),
+            Ok(_) => (),
             Err(e) => println!("Font loading error: {:?}", e),
         }
+
         RenderState {
             clear_color: wgpu::Color {
                 r: 0.011,

@@ -8,10 +8,12 @@ fn main() {
 async fn run() {
     #[cfg(not(target_arch = "wasm32"))]
     {
+        println!("loading non-wasm...");
         env_logger::init();
     }
     #[cfg(target_arch = "wasm32")]
     {
+        println!("loading wasm...");
         console_log::init_with_level(log::Level::Info).unwrap_throw();
     }
 

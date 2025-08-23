@@ -15,7 +15,3 @@ pub struct RenderContext<'a> {
     pub render_pipeline: &'a wgpu::RenderPipeline,
     pub wireframe_render_pipeline: &'a wgpu::RenderPipeline,
 }
-
-pub struct CameraContext<'a> {
-    pub queue: &'a wgpu::Queue,
-}

@@ -6,7 +6,6 @@ pub struct Starfighter {
     lower_limit: f32,
     left_limit: f32,
     right_limit: f32,
-    called: bool,
 }
 
 impl Starfighter {
@@ -17,7 +16,6 @@ impl Starfighter {
             lower_limit: -0.55,
             left_limit: start_position.x + 1.0,
             right_limit: start_position.x - 1.0,
-            called: false,
         }
     }
 

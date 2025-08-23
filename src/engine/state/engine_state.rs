@@ -8,7 +8,7 @@ use crate::engine::{
     light::LightUniform,
     model::vertex::{ ModelVertex, Vertex },
     render_pipeline::{ create_render_pipeline, create_wireframe_render_pipeline },
-    state::context::{ CameraContext, GpuContext, RenderContext },
+    state::context::{ GpuContext, RenderContext },
     texture::{ self, Texture },
 };
 
@@ -231,9 +231,6 @@ impl EngineState {
         GpuContext { device: &self.device, queue: &self.queue }
     }
 
-    pub(crate) fn camera_context(&self) -> CameraContext<'_> {
-        CameraContext { queue: &self.queue }
-    }
     pub(crate) fn render_context(&self) -> RenderContext<'_> {
         RenderContext {
             device: &self.device,

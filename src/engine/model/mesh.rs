@@ -16,7 +16,7 @@ pub struct ColorUniform {
     pub alpha: f32,
 }
 
-pub(crate) struct Mesh {
+pub struct Mesh {
     pub label: String,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,

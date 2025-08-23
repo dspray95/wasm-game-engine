@@ -28,13 +28,7 @@ impl TerrainGeneration {
             self.next_breakpoint = self.next_breakpoint + (self.terrain_length as f32);
             self.n_chunks_generated += 1;
             let z_offset = self.terrain_length * self.n_chunks_generated;
-            println!(
-                "Generated new terrain chunk at {}. Current position: {}. Total chunks generated: {}. Next breakpoint: {}.",
-                z_offset,
-                current_z_position,
-                self.n_chunks_generated,
-                self.next_breakpoint
-            );
+
             Some(
                 Terrain::new(
                     self.terrain_width,
@@ -61,8 +55,6 @@ impl TerrainGeneration {
 
         self.n_chunks_generated = 2;
         self.next_breakpoint = self.terrain_length as f32;
-        println!("next bp: {:#}", self.next_breakpoint);
-        println!("terrain_length: {:#}", self.terrain_length);
         return terrain;
     }
 

@@ -102,7 +102,7 @@ impl SceneManager {
         const TERRAIN_LENGTH: u32 = 150;
 
         // Terrain setup
-        let mut terrain_models: Vec<Model> = vec![];
+        let terrain_models: Vec<Model> = vec![];
         let mut terrain_generation = TerrainGeneration::new(TERRAIN_WIDTH, TERRAIN_LENGTH);
         let terrain_models = terrain_generation.get_initial_terrain(&gpu_context);
         // let mut i = 0;

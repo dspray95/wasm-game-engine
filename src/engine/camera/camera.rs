@@ -1,7 +1,7 @@
 use cgmath::{ point3, Deg, InnerSpace, Point3, Rad, Vector3 };
 use wgpu::util::DeviceExt;
 
-use crate::engine::state::context::{ CameraContext, GpuContext };
+use crate::engine::state::context::GpuContext;
 
 use super::{ projection::Projection, uniform::CameraUniformBuffer };
 
