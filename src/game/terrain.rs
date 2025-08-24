@@ -1,5 +1,3 @@
-use std::time::{ SystemTime, UNIX_EPOCH };
-
 use cgmath::Vector2;
 use noise::Perlin;
 use rand::{ thread_rng, Rng, SeedableRng };

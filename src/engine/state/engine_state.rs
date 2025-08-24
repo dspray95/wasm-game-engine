@@ -1,3 +1,4 @@
+use anyhow::Error;
 use cgmath::{ Deg };
 use wgpu::{ util::DeviceExt };
 use winit::window::Window;
@@ -34,7 +35,7 @@ impl EngineState {
         _window: &Window,
         width: u32,
         height: u32
-    ) -> Self {
+    ) -> std::result::Result<EngineState, Error> {
         // Device and adapter setup //
         let power_preference = wgpu::PowerPreference::default();
         let adapter = instance
@@ -62,19 +63,23 @@ impl EngineState {
 
         // Surface Setup //
         let swapchain_capabilities = surface.get_capabilities(&adapter);
-        let selected_format = wgpu::TextureFormat::Bgra8UnormSrgb;
         let swapchain_format = swapchain_capabilities.formats
             .iter()
-            .find(|d| **d == selected_format)
-            .expect("failed to select proper surface texture format!");
+            .find(|f| f.is_srgb()) // Prefer sRGB formats
+            .or_else(|| swapchain_capabilities.formats.first()) // Fallback to any format
+            .expect("No surface formats available!");
 
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: *swapchain_format,
             width,
             height,
-            present_mode: wgpu::PresentMode::Immediate,
-            desired_maximum_frame_latency: 0,
+            present_mode: swapchain_capabilities.present_modes
+                .iter()
+                .find(|&&mode| mode == wgpu::PresentMode::Fifo)
+                .copied()
+                .unwrap_or(swapchain_capabilities.present_modes[0]),
+            desired_maximum_frame_latency: 2, // 2 for better WebGL compatibility
             alpha_mode: swapchain_capabilities.alpha_modes[0],
             view_formats: vec![],
         };
@@ -205,7 +210,7 @@ impl EngineState {
             wireframe_shader
         );
 
-        Self {
+        Ok(Self {
             device,
             queue,
             surface,
@@ -218,7 +223,7 @@ impl EngineState {
             light_buffer,
             light_bind_group,
             wireframe_render_pipeline,
-        }
+        })
     }
 
     pub fn resize_surface(&mut self, width: u32, height: u32) {

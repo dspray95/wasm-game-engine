@@ -1,5 +1,5 @@
 use wgpu::{ SurfaceConfiguration, TextureFormat };
-use wgpu_text::glyph_brush::ab_glyph::FontRef;
+use wgpu_text::glyph_brush::ab_glyph::{ FontRef, FontVec };
 use wgpu_text::glyph_brush::{ Section, Text };
 use wgpu_text::{ BrushBuilder, TextBrush };
 
@@ -7,12 +7,12 @@ use crate::engine::state::context::RenderContext;
 use crate::engine::{ model::model::Model };
 use crate::engine::model::model::DrawModel;
 
-pub struct RenderState<'a> {
+pub struct RenderState {
     clear_color: wgpu::Color,
-    text_brush: TextBrush<FontRef<'a>>,
+    text_brush: TextBrush<FontVec>,
 }
 
-impl<'a> RenderState<'a> {
+impl RenderState {
     pub fn new(render_context: RenderContext, surface_config: &wgpu::SurfaceConfiguration) -> Self {
         let font_data = include_bytes!("../../../res/DS-DIGI.TTF");
 
@@ -21,6 +21,8 @@ impl<'a> RenderState<'a> {
             Err(e) => println!("Font loading error: {:?}", e),
         }
 
+        let font = FontVec::try_from_vec(font_data.into()).expect("Failed to load font");
+
         RenderState {
             clear_color: wgpu::Color {
                 r: 0.011,
@@ -28,14 +30,12 @@ impl<'a> RenderState<'a> {
                 b: 0.03,
                 a: 1.0,
             },
-            text_brush: BrushBuilder::using_font_bytes(font_data)
-                .unwrap()
-                .build(
-                    render_context.device,
-                    surface_config.width,
-                    surface_config.height,
-                    surface_config.format
-                ),
+            text_brush: BrushBuilder::using_font(font).build(
+                render_context.device,
+                surface_config.width,
+                surface_config.height,
+                surface_config.format
+            ),
         }
     }
 

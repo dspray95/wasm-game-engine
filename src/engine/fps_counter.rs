@@ -1,5 +1,4 @@
-use core::time;
-use std::time::Instant;
+use web_time::Instant;
 
 pub struct FpsCounter {
     frame_count: u32,
