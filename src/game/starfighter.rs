@@ -12,8 +12,8 @@ impl Starfighter {
     pub fn new(start_position: Vector3<f32>) -> Starfighter {
         Starfighter {
             current_direction: "up".to_string(),
-            upper_limit: -0.45,
-            lower_limit: -0.55,
+            upper_limit: -0.9,
+            lower_limit: -1.0,
             left_limit: start_position.x + 1.0,
             right_limit: start_position.x - 1.0,
         }

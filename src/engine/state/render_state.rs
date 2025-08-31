@@ -1,4 +1,3 @@
-use wgpu::{ SurfaceConfiguration, TextureFormat };
 use wgpu_text::glyph_brush::ab_glyph::{ FontRef, FontVec };
 use wgpu_text::glyph_brush::{ Section, Text };
 use wgpu_text::{ BrushBuilder, TextBrush };
@@ -64,8 +63,8 @@ impl RenderState {
                     label: Some("Render Pass"),
                     color_attachments: &[
                         Some(wgpu::RenderPassColorAttachment {
-                            view: &surface_view,
-                            resolve_target: None,
+                            view: &render_context.msaa_texture_view, // render into MSAA texture
+                            resolve_target: Some(&surface_view), // resolve to swap chain
                             ops: wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(self.clear_color),
                                 store: wgpu::StoreOp::Store,
@@ -73,7 +72,7 @@ impl RenderState {
                         }),
                     ],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: render_context.depth_texture_view,
+                        view: &render_context.msaa_depth_texture_view,
                         depth_ops: Some(wgpu::Operations {
                             load: wgpu::LoadOp::Clear(1.0),
                             store: wgpu::StoreOp::Store,
@@ -208,5 +207,20 @@ impl RenderState {
 
         render_context.queue.submit(Some(encoder.finish()));
         surface_texture.present();
+    }
+
+    pub fn resize(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+        format: wgpu::TextureFormat
+    ) {
+        // We need to make sure the text brush is rebuild on re-size
+        // let font_data = include_bytes!("../../../res/DS-DIGI.TTF");
+        // let font = FontVec::try_from_vec(font_data.into()).expect("Failed to load font");
+        self.text_brush.resize_view(width as f32, height as f32, queue);
+        // self.text_brush = BrushBuilder::using_font(font).build(device, width, height, format);
     }
 }

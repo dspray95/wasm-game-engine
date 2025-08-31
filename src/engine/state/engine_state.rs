@@ -26,6 +26,10 @@ pub struct EngineState {
     pub light_buffer: wgpu::Buffer,
     pub light_bind_group: wgpu::BindGroup,
     pub wireframe_render_pipeline: wgpu::RenderPipeline,
+    pub msaa_texture: wgpu::Texture,
+    pub msaa_texture_view: wgpu::TextureView,
+    pub msaa_depth_texture: wgpu::Texture,
+    pub msaa_depth_texture_view: wgpu::TextureView,
 }
 
 impl EngineState {
@@ -60,7 +64,11 @@ impl EngineState {
                 None
             ).await
             .expect("Failed to create device");
-
+        device.on_uncaptured_error(
+            Box::new(|error| {
+                log::error!("Uncaptured WebGPU device error: {:?}", error);
+            })
+        );
         // Surface Setup //
         let swapchain_capabilities = surface.get_capabilities(&adapter);
         let swapchain_format = swapchain_capabilities.formats
@@ -88,7 +96,7 @@ impl EngineState {
 
         // Camera + Controller //
         let camera = Camera::new(
-            [24.5, 1.0, 1.0],
+            [24.5, -0.25, 1.0],
             Deg(90.0),
             Deg(0.0),
             surface_config.width,
@@ -210,6 +218,46 @@ impl EngineState {
             wireframe_shader
         );
 
+        // MSAA setup -
+        let msaa_texture = device.create_texture(
+            &(wgpu::TextureDescriptor {
+                label: Some("MSAA Framebuffer"),
+                size: wgpu::Extent3d {
+                    width: surface_config.width,
+                    height: surface_config.height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 4,
+                dimension: wgpu::TextureDimension::D2,
+                format: surface_config.format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[], // Add an empty slice for view_formats
+            })
+        );
+        let msaa_texture_view = msaa_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let depth_format = wgpu::TextureFormat::Depth32Float;
+
+        let msaa_depth_texture = device.create_texture(
+            &(wgpu::TextureDescriptor {
+                label: Some("MSAA Depth Texture"),
+                size: wgpu::Extent3d {
+                    width: surface_config.width,
+                    height: surface_config.height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 4, // match MSAA color
+                dimension: wgpu::TextureDimension::D2,
+                format: depth_format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            })
+        );
+        let msaa_depth_texture_view = msaa_depth_texture.create_view(
+            &wgpu::TextureViewDescriptor::default()
+        );
+
         Ok(Self {
             device,
             queue,
@@ -223,13 +271,63 @@ impl EngineState {
             light_buffer,
             light_bind_group,
             wireframe_render_pipeline,
+            msaa_texture,
+            msaa_texture_view,
+            msaa_depth_texture,
+            msaa_depth_texture_view,
         })
     }
 
     pub fn resize_surface(&mut self, width: u32, height: u32) {
+        // Update the surface
         self.surface_config.width = width;
         self.surface_config.height = height;
         self.surface.configure(&self.device, &self.surface_config);
+
+        // Recreate MSAA color texture and view, we need to do this
+        // since the mssaa texture will error if we try to draw it to
+        // our resized surface without first changing their width and height
+        self.msaa_texture = self.device.create_texture(
+            &(wgpu::TextureDescriptor {
+                label: Some("MSAA Framebuffer"),
+                size: wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 4,
+                dimension: wgpu::TextureDimension::D2,
+                format: self.surface_config.format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            })
+        );
+        self.msaa_texture_view = self.msaa_texture.create_view(
+            &wgpu::TextureViewDescriptor::default()
+        );
+
+        // Recreate MSAA depth texture and view
+        let depth_format = wgpu::TextureFormat::Depth32Float;
+        self.msaa_depth_texture = self.device.create_texture(
+            &(wgpu::TextureDescriptor {
+                label: Some("MSAA Depth Texture"),
+                size: wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 4,
+                dimension: wgpu::TextureDimension::D2,
+                format: depth_format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                view_formats: &[],
+            })
+        );
+        self.msaa_depth_texture_view = self.msaa_depth_texture.create_view(
+            &wgpu::TextureViewDescriptor::default()
+        );
     }
 
     pub(crate) fn gpu_context(&self) -> GpuContext<'_> {
@@ -241,11 +339,14 @@ impl EngineState {
             device: &self.device,
             queue: &self.queue,
             surface: &self.surface,
+            surface_config: &self.surface_config,
             depth_texture_view: &self.depth_texture.view,
             camera_bind_group: &self.camera.render_pass_data.bind_group,
             light_bind_group: &self.light_bind_group,
             render_pipeline: &self.render_pipeline,
             wireframe_render_pipeline: &self.wireframe_render_pipeline,
+            msaa_texture_view: &self.msaa_texture_view,
+            msaa_depth_texture_view: &self.msaa_depth_texture_view,
         }
     }
 }

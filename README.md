@@ -7,3 +7,6 @@
 `npm install -g http-server`
 
 `http-server -p 8000`
+
+# Run natively
+This isnt working at the moment

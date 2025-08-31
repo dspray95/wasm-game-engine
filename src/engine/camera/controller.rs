@@ -14,6 +14,8 @@ pub struct CameraController {
     is_rotate_right_pressed: bool,
     is_up_pressed: bool,
     is_down_pressed: bool,
+    is_p_pressed: bool,
+    movement_enabled: bool,
 }
 
 impl CameraController {
@@ -28,85 +30,99 @@ impl CameraController {
             is_down_pressed: false,
             is_rotate_left_pressed: false,
             is_rotate_right_pressed: false,
+            is_p_pressed: false,
+            movement_enabled: false,
         }
     }
 
     pub fn process_events(&mut self, key_code: KeyCode, key_state: ElementState) -> bool {
-        let _is_pressed = key_state == ElementState::Pressed;
+        let is_pressed = key_state == ElementState::Pressed;
 
         match key_code {
-            // KeyCode::KeyW | KeyCode::ArrowUp => {
-            //     self.is_forward_pressed = is_pressed;
-            //     true
-            // }
-            // KeyCode::KeyA | KeyCode::ArrowLeft => {
-            //     self.is_left_pressed = is_pressed;
-            //     true
-            // }
-            // KeyCode::KeyS | KeyCode::ArrowDown => {
-            //     self.is_backward_pressed = is_pressed;
-            //     true
-            // }
-            // KeyCode::KeyD | KeyCode::ArrowRight => {
-            //     self.is_right_pressed = is_pressed;
-            //     true
-            // }
-            // KeyCode::KeyQ => {
-            //     self.is_rotate_left_pressed = is_pressed;
-            //     true
-            // }
-            // KeyCode::KeyE => {
-            //     self.is_rotate_right_pressed = is_pressed;
-            //     true
-            // }
-            // KeyCode::Space => {
-            //     self.is_up_pressed = is_pressed;
-            //     true
-            // }
-            // KeyCode::ControlLeft => {
-            //     self.is_down_pressed = is_pressed;
-            //     true
-            // }
+            KeyCode::KeyW | KeyCode::ArrowUp => {
+                self.is_forward_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyA | KeyCode::ArrowLeft => {
+                self.is_left_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyS | KeyCode::ArrowDown => {
+                self.is_backward_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyD | KeyCode::ArrowRight => {
+                self.is_right_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyQ => {
+                self.is_rotate_left_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyE => {
+                self.is_rotate_right_pressed = is_pressed;
+                true
+            }
+            KeyCode::Space => {
+                self.is_up_pressed = is_pressed;
+                true
+            }
+            KeyCode::ControlLeft => {
+                self.is_down_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyP => {
+                self.is_p_pressed = is_pressed;
+                true
+            }
             _ => false,
         }
     }
 
-    pub fn update_camera(&self, camera: &mut Camera) {
+    pub fn update_camera(&mut self, camera: &mut Camera) {
         use cgmath::InnerSpace;
 
-        let (yaw_sin, yaw_cos) = camera.yaw.0.sin_cos();
-        // forward + backward
-        let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
-        if self.is_forward_pressed {
-            camera.position -= forward * self.speed;
-        }
-        if self.is_backward_pressed {
-            camera.position += forward * self.speed;
-        }
+        if self.movement_enabled {
+            let (yaw_sin, yaw_cos) = camera.yaw.0.sin_cos();
+            // forward + backward
+            let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
+            if self.is_forward_pressed {
+                camera.position -= forward * self.speed;
+            }
+            if self.is_backward_pressed {
+                camera.position += forward * self.speed;
+            }
 
-        // left + right
-        let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
-        if self.is_left_pressed {
-            camera.position += right * self.speed;
-        }
-        if self.is_right_pressed {
-            camera.position -= right * self.speed;
-        }
+            // left + right
+            let right = Vector3::new(-yaw_sin, 0.0, yaw_cos).normalize();
+            if self.is_left_pressed {
+                camera.position += right * self.speed;
+            }
+            if self.is_right_pressed {
+                camera.position -= right * self.speed;
+            }
 
-        let up = forward.cross(right);
-        if self.is_up_pressed {
-            camera.position += up * self.speed;
-        }
-        if self.is_down_pressed {
-            camera.position -= up * self.speed;
-        }
+            let up = forward.cross(right);
+            if self.is_up_pressed {
+                camera.position += up * self.speed;
+            }
+            if self.is_down_pressed {
+                camera.position -= up * self.speed;
+            }
 
-        // rotate
-        if self.is_rotate_left_pressed {
-            camera.yaw -= Rad(0.025);
-        }
-        if self.is_rotate_right_pressed {
-            camera.yaw += Rad(0.025);
+            // rotate
+            if self.is_rotate_left_pressed {
+                camera.yaw -= Rad(0.025);
+            }
+            if self.is_rotate_right_pressed {
+                camera.yaw += Rad(0.025);
+            }
+
+            if self.is_down_pressed && self.is_p_pressed {
+                self.movement_enabled = false;
+            }
+        } else if self.is_down_pressed && self.is_p_pressed {
+            self.movement_enabled = true;
         }
     }
 }

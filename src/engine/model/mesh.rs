@@ -3,7 +3,11 @@ use std::{ collections::HashSet, ops::{ Add, Sub }, vec };
 use cgmath::{ vec3, InnerSpace, Vector3 };
 use wgpu::{ core::instance, util::DeviceExt };
 
-use crate::engine::{ instance::Instance, model::material::Material, state::context::GpuContext };
+use crate::engine::{
+    instance::Instance,
+    model::{ material::Material, vertex::ModelVertex },
+    state::context::GpuContext,
+};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -51,7 +55,7 @@ impl Mesh {
                     &(wgpu::util::BufferInitDescriptor {
                         label: Some(&format!("{}__instance_buffer", label)),
                         contents: bytemuck::cast_slice(&instance_data),
-                        usage: wgpu::BufferUsages::VERTEX,
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     })
                 )
             );
@@ -159,22 +163,22 @@ impl Mesh {
     }
 
     fn update_instance_buffer(&mut self, gpu_context: &GpuContext) {
-        let instance_buffer: Option<wgpu::Buffer>;
-        if self.instances.len() > 0 {
+        if let Some(instance_buffer) = &self.instance_buffer {
             let instances = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-            instance_buffer = Some(
+            // Use write_buffer to update the existing buffer
+            gpu_context.queue.write_buffer(instance_buffer, 0, bytemuck::cast_slice(&instances));
+        } else {
+            let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+            self.instance_buffer = Some(
                 gpu_context.device.create_buffer_init(
                     &(wgpu::util::BufferInitDescriptor {
                         label: Some(&format!("{}__instance_buffer", self.label)),
-                        contents: bytemuck::cast_slice(&instances),
-                        usage: wgpu::BufferUsages::VERTEX,
+                        contents: bytemuck::cast_slice(&instance_data),
+                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                     })
                 )
             );
-        } else {
-            instance_buffer = None;
         }
-        self.instance_buffer = instance_buffer;
     }
 
     pub(crate) fn _add_instance(
@@ -202,6 +206,44 @@ impl Mesh {
                 })
             )
         );
+    }
+
+    pub fn update_buffers(
+        &mut self,
+        gpu_context: &GpuContext,
+        vertices: &[ModelVertex],
+        indices: &[u32]
+    ) {
+        if
+            self.vertex_buffer.size() !=
+            ((vertices.len() * std::mem::size_of::<ModelVertex>()) as u64)
+        {
+            log::warn!(
+                "mesh.update_buffers(): New vertex buffer size does not match the current buffer size, not updating buffers"
+            );
+            return;
+        }
+        if self.index_buffer.size() != ((indices.len() * std::mem::size_of::<u32>()) as u64) {
+            log::warn!(
+                "mesh.update_buffers(): New index buffer size does not match the current buffer size, not updating buffers"
+            );
+            return;
+        }
+
+        gpu_context.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(vertices));
+        gpu_context.queue.write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(indices));
+
+        // Update mesh element counts
+        self.num_elements = indices.len() as u32;
+
+        // Recalculate wireframe indices and update that buffer too
+        let wireframe_indices = triangles_to_lines(indices);
+        gpu_context.queue.write_buffer(
+            &self.wireframe_index_buffer,
+            0,
+            bytemuck::cast_slice(&wireframe_indices)
+        );
+        self.wireframe_index_count = wireframe_indices.len() as u32;
     }
 
     pub(crate) fn _remove_instance() {

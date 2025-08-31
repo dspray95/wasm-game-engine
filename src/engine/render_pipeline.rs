@@ -35,7 +35,7 @@ pub(super) fn create_render_pipeline(
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState {
-                count: 1,
+                count: 4, // or surface_caps.sample_count
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
@@ -102,8 +102,9 @@ pub(in crate::engine) fn create_wireframe_render_pipeline(
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState {
-                count: 1,
-                ..Default::default()
+                count: 4, // or surface_caps.sample_count
+                mask: !0,
+                alpha_to_coverage_enabled: false,
             },
             multiview: None,
             cache: None,

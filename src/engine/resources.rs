@@ -99,7 +99,7 @@ pub fn load_mesh_from_arrays(
         &(wgpu::util::BufferInitDescriptor {
             label: Some(&format!("{:?} Vertex Buffer", label)),
             contents: bytemuck::cast_slice(&model_vertices),
-            usage: wgpu::BufferUsages::VERTEX,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         })
     );
 
@@ -107,7 +107,7 @@ pub fn load_mesh_from_arrays(
         &(wgpu::util::BufferInitDescriptor {
             label: Some(&format!("{:?} Index Buffer", label)),
             contents: bytemuck::cast_slice(&triangle_indices),
-            usage: wgpu::BufferUsages::INDEX,
+            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
         })
     );
 
@@ -116,7 +116,7 @@ pub fn load_mesh_from_arrays(
         &(wgpu::util::BufferInitDescriptor {
             label: Some(&format!("{:?} Line Index Buffer", label)),
             contents: bytemuck::cast_slice(&wireframe_indices),
-            usage: wgpu::BufferUsages::INDEX,
+            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
         })
     );
 

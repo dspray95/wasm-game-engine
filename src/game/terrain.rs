@@ -1,75 +1,112 @@
-use cgmath::Vector2;
-use noise::Perlin;
+// src/game/terrain_generation.rs
+
+use cgmath::{ vec2, Point3, Vector2, Vector3 };
+use noise::{ NoiseFn, Perlin };
 use rand::{ thread_rng, Rng, SeedableRng };
+use std::collections::HashSet;
 
 use crate::{
-    engine::{ model::{ material::Material, model::Model }, resources, state::context::GpuContext },
+    engine::{
+        model::{ material::Material, mesh, model::Model, vertex::ModelVertex },
+        resources,
+        state::context::GpuContext,
+    },
     game::procedural_generation,
 };
 
-const RAINBOW_ROAD: bool = false; // useful for debugging chunks
+const RAINBOW_ROAD: bool = true; // useful for debugging chunks
 
 const VIBRANT_COLORS: [[u32; 3]; 10] = [
-    [255, 50, 50], // Bright Red
-    [50, 255, 50], // Bright Green
-    [50, 50, 255], // Bright Blue
-    [255, 255, 50], // Bright Yellow
-    [255, 50, 255], // Bright Magenta/Pink
-    [50, 255, 255], // Bright Cyan
-    [255, 128, 0], // Bright Orange
-    [128, 50, 255], // Bright Purple
-    [50, 255, 128], // Bright Lime Green
-    [255, 50, 128], // Bright Hot Pink
+    [255, 50, 50],
+    [50, 255, 50],
+    [50, 50, 255],
+    [255, 255, 50],
+    [255, 50, 255],
+    [50, 255, 255],
+    [255, 128, 0],
+    [128, 50, 255],
+    [50, 255, 128],
+    [255, 50, 128],
 ];
 
-pub struct Terrain {
-    pub n_vertices: u32,
-    pub vertices: Vec<[f32; 3]>,
-    pub triangles: Vec<u32>,
-    pub n_canyon_vertices: u32,
+pub struct TerrainGeneration {
+    pub terrain_width: u32,
+    pub terrain_length: u32,
+    pub n_chunks_generated: u32,
+    pub next_breakpoint: f32,
+}
+
+pub struct TerrainMeshData {
+    pub terrain_vertices: Vec<[f32; 3]>,
+    pub terrain_triangles: Vec<u32>,
     pub canyon_vertices: Vec<[f32; 3]>,
     pub canyon_triangles: Vec<u32>,
 }
 
-impl Terrain {
-    pub fn new(
+impl TerrainGeneration {
+    pub fn new(terrain_width: u32, terrain_length: u32) -> Self {
+        Self {
+            terrain_length,
+            terrain_width,
+            n_chunks_generated: 0,
+            next_breakpoint: 0.0,
+        }
+    }
+
+    /// Generates new terrain mesh data for a chunk based on the player's position.
+    /// Returns `Some(TerrainMeshData)` when a new chunk needs to be generated.
+    pub fn terrain_update(&mut self, current_z_position: f32) -> Option<TerrainMeshData> {
+        if current_z_position >= self.next_breakpoint {
+            self.next_breakpoint += self.terrain_length as f32;
+            self.n_chunks_generated += 1;
+            let z_offset = self.terrain_length * self.n_chunks_generated;
+
+            Some(
+                Self::generate_mesh_data(
+                    self.terrain_width,
+                    self.terrain_length,
+                    vec2(0, z_offset as i32)
+                )
+            )
+        } else {
+            None
+        }
+    }
+
+    /// Generates the initial set of terrain models for the scene.
+    pub fn get_initial_terrain(&mut self, gpu_context: &GpuContext) -> [Model; 3] {
+        let terrain: [Model; 3] = std::array::from_fn(|i| {
+            let z_offset = self.terrain_length * (i as u32);
+            let mesh_data = Self::generate_mesh_data(
+                self.terrain_width,
+                self.terrain_length,
+                vec2(0, z_offset as i32)
+            );
+            Self::create_model_from_data(mesh_data, gpu_context)
+        });
+
+        self.n_chunks_generated = 2;
+        self.next_breakpoint = self.terrain_length as f32;
+        terrain
+    }
+
+    /// Generates raw vertex and triangle data for a terrain chunk and its canyon.
+    pub fn generate_mesh_data(
         width: u32,
         length: u32,
-        chunk_offset: Vector2<i32>,
-        gpu_context: &GpuContext
-    ) -> Model {
-        let n_total_vertices = width * length;
-
-        let canyon_width = width / 2 + 1 - (width / 2 - 1) + 1; // path_right_edge - path_left_edge + 1
-        let n_canyon_vertices = canyon_width * length;
-        let n_vertices = n_total_vertices - n_canyon_vertices;
-
-        let mut terrain_vertices: Vec<[f32; 3]> = Vec::with_capacity(n_vertices as usize);
-        let mut terrain_triangles: Vec<u32> = Vec::with_capacity(
-            ((width - 1) * (length - 1) * 6) as usize
-        );
-        let mut canyon_vertices: Vec<[f32; 3]> = Vec::with_capacity(n_canyon_vertices as usize);
-        let mut canyon_triangles: Vec<u32> = Vec::with_capacity(
-            ((width - 1) * (length - 1) * 6) as usize
-        );
+        chunk_offset: Vector2<i32>
+    ) -> TerrainMeshData {
+        let mut terrain_vertices: Vec<[f32; 3]> = Vec::new();
+        let mut terrain_triangles: Vec<u32> = Vec::new();
+        let mut canyon_vertices: Vec<[f32; 3]> = Vec::new();
+        let mut canyon_triangles: Vec<u32> = Vec::new();
 
         let seed = 500;
-        let mut rng: rand::prelude::StdRng = rand::rngs::StdRng::seed_from_u64(seed);
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
         let perlin = Perlin::new(seed as u32);
 
-        let canyon_color = {
-            if RAINBOW_ROAD {
-                let mut thread_rng = thread_rng();
-                VIBRANT_COLORS[thread_rng.gen_range(0..VIBRANT_COLORS.len())]
-            } else {
-                [236, 95, 255]
-            }
-        };
-
-        // This drops the canyon into the terrain, roughly to
-        // where the lowest bits of terrain should be
+        // This drops the canyon into the terrain
         let canyon_y_offset: f32 = -1.0;
-
         let path_left_edge = width / 2 - 2;
         let path_right_edge = width / 2 + 1;
 
@@ -83,10 +120,9 @@ impl Terrain {
             &mut terrain_vertices,
             &mut terrain_triangles,
             &mut rng,
-            chunk_offset // chunk_y(aka z)_offset
+            chunk_offset
         );
-
-        Terrain::generate_canyon(
+        Self::generate_canyon_mesh(
             length,
             canyon_y_offset,
             path_left_edge,
@@ -96,21 +132,33 @@ impl Terrain {
             chunk_offset
         );
 
+        TerrainMeshData { terrain_vertices, terrain_triangles, canyon_vertices, canyon_triangles }
+    }
+
+    /// Creates a `Model` object from the generated terrain data.
+    pub fn create_model_from_data(data: TerrainMeshData, gpu_context: &GpuContext) -> Model {
+        let canyon_color = if RAINBOW_ROAD {
+            let mut thread_rng = thread_rng();
+            VIBRANT_COLORS[thread_rng.gen_range(0..VIBRANT_COLORS.len())]
+        } else {
+            [236, 95, 255]
+        };
+
         Model {
             meshes: vec![
                 resources::load_mesh_from_arrays(
                     "terrain landscape",
-                    terrain_vertices,
+                    data.terrain_vertices,
                     vec![],
-                    terrain_triangles,
+                    data.terrain_triangles,
                     gpu_context,
                     Material::new([60, 66, 98], 0.5)
                 ),
                 resources::load_mesh_from_arrays(
                     "terrain canyon floor",
-                    canyon_vertices,
+                    data.canyon_vertices,
                     vec![],
-                    canyon_triangles,
+                    data.canyon_triangles,
                     gpu_context,
                     Material::new(canyon_color, 1.0)
                 )
@@ -118,7 +166,7 @@ impl Terrain {
         }
     }
 
-    fn generate_canyon(
+    fn generate_canyon_mesh(
         length: u32,
         y_offset: f32,
         path_left_edge: u32,
@@ -153,5 +201,64 @@ impl Terrain {
                 canyon_triangles.extend_from_slice(&[b, a, d]);
             }
         }
+    }
+
+    pub fn replace_terrain_model_buffers(
+        terrain_mesh_data: TerrainMeshData,
+        old_terrain_model: &mut Model,
+        gpu_context: &GpuContext
+    ) {
+        let (terrain_mesh, canyon_mesh) = old_terrain_model.meshes.split_at_mut(1);
+        let terrain_mesh = &mut terrain_mesh[0];
+        let canyon_mesh = &mut canyon_mesh[0];
+
+        let terrain_normals = mesh::calculate_normals(
+            &terrain_mesh_data.terrain_vertices,
+            &terrain_mesh_data.terrain_triangles
+        );
+
+        let canyon_normals = mesh::calculate_normals(
+            &terrain_mesh_data.canyon_vertices,
+            &terrain_mesh_data.canyon_triangles
+        );
+
+        let terrain_vertices = (0..terrain_mesh_data.terrain_vertices.len())
+            .map(|i| {
+                ModelVertex {
+                    position: [
+                        terrain_mesh_data.terrain_vertices[i][0],
+                        terrain_mesh_data.terrain_vertices[i][1],
+                        terrain_mesh_data.terrain_vertices[i][2],
+                    ],
+                    tex_coords: [0.0, 0.0],
+                    normal: terrain_normals[i],
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let canyon_vertices = (0..terrain_mesh_data.canyon_vertices.len())
+            .map(|i| {
+                ModelVertex {
+                    position: [
+                        terrain_mesh_data.canyon_vertices[i][0],
+                        terrain_mesh_data.canyon_vertices[i][1],
+                        terrain_mesh_data.canyon_vertices[i][2],
+                    ],
+                    tex_coords: [0.0, 0.0],
+                    normal: canyon_normals[i],
+                }
+            })
+            .collect::<Vec<_>>();
+
+        terrain_mesh.update_buffers(
+            gpu_context,
+            &terrain_vertices,
+            &terrain_mesh_data.terrain_triangles
+        );
+        canyon_mesh.update_buffers(
+            gpu_context,
+            &canyon_vertices,
+            &terrain_mesh_data.canyon_triangles
+        );
     }
 }

@@ -47,40 +47,6 @@ impl AppState {
         }
     }
 
-    // pub async fn build_window_state(
-    //     instance: &wgpu::Instance,
-    //     window: Window
-    // ) -> Result<(Arc<Window>, EngineState, RenderState, SceneManager), anyhow::Error> {
-    //     let window = Arc::new(window);
-
-    //     // Request inner size, canvas may not be painted yet so just fall back
-    //     let window_size = window
-    //         .request_inner_size(PhysicalSize::new(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT))
-    //         .unwrap_or_else(|| {
-    //             log::warn!("request_inner_size returned None, using default size fallback");
-    //             PhysicalSize::new(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT)
-    //         });
-
-    //     log::info!("created window size: {} x {}", window_size.width, window_size.height);
-    //     let surface = instance.create_surface(window.clone()).expect("Failed to create surface!");
-    //     log::info!("created surface");
-    //     let engine_state = EngineState::new(
-    //         instance,
-    //         surface,
-    //         &window,
-    //         INITIAL_WINDOW_WIDTH,
-    //         INITIAL_WINDOW_HEIGHT
-    //     ).await;
-    //     log::info!("Created engine state");
-
-    //     let render_context = engine_state.render_context();
-    //     let render_state = RenderState::new(render_context, &engine_state.surface_config);
-
-    //     let scene_manager = SceneManager::new(engine_state.gpu_context()).await;
-
-    //     Ok((window, engine_state, render_state, scene_manager))
-    // }
-
     // Sync setter that only mutably borrows for a moment
     pub fn install_window_state(
         &mut self,
@@ -95,28 +61,6 @@ impl AppState {
         self.scene_manager = Some(scene_manager);
     }
 
-    // pub async fn set_window(&mut self, window: Window) {
-    //     let window: Arc<Window> = Arc::new(window);
-
-    //     let window_size = window
-    //         .request_inner_size(PhysicalSize::new(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT))
-    //         .unwrap();
-
-    //     log::info!("created window size: {} x {}", window_size.width, window_size.height);
-    //     let surface = self.instance
-    //         .create_surface(window.clone())
-    //         .expect("Failed to create surface!");
-    //     log::info!("created surface");
-
-    //     let render_context = engine_state.render_context();
-    //     let render_state = RenderState::new(render_context, &engine_state.surface_config);
-    //     log::info!("Created render state");
-    //     self.scene_manager = Some(SceneManager::new(engine_state.gpu_context()).await);
-    //     self.window = Some(window);
-    //     self.engine_state = Some(engine_state);
-    //     self.render_state = Some(render_state);
-    // }
-
     pub fn handle_resized(&mut self, width: u32, height: u32) {
         if let Some(engine_state) = self.engine_state.as_mut() {
             engine_state.resize_surface(width, height);
@@ -125,6 +69,21 @@ impl AppState {
                 &engine_state.surface_config,
                 "depth_texture"
             );
+            if let Some(render_state) = self.render_state.as_mut() {
+                log::info!("resizing text brush");
+                let width = engine_state.surface_config.width;
+                let height = engine_state.surface_config.height;
+                let format = engine_state.surface_config.format;
+                render_state.resize(
+                    &engine_state.device,
+                    &engine_state.queue,
+                    width,
+                    height,
+                    format
+                );
+            } else {
+                log::warn!("handle_resized called but render_state is not ready yet")
+            }
         } else {
             log::warn!("handle_resized called but engine_state is not ready yet");
         }
@@ -180,7 +139,11 @@ impl AppState {
         if self.engine_state.is_none() {
             return;
         }
-
+        // In AppState::handle_redraw_requested or a similar loop function
+        if let Some(engine_state) = self.engine_state.as_ref() {
+            // Poll the device queue
+            engine_state.device.poll(wgpu::Maintain::Wait); // Or wgpu::Maintain::Poll
+        }
         self.handle_camera_update();
         self.update();
 

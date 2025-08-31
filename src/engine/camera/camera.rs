@@ -5,7 +5,7 @@ use crate::engine::state::context::GpuContext;
 
 use super::{ projection::Projection, uniform::CameraUniformBuffer };
 
-const _DEFAULT_FOV: f32 = 75.0;
+const _DEFAULT_FOV: f32 = 90.0;
 const _DEAFAULT_NEAR: f32 = 0.1;
 const _DEFAULT_FAR: f32 = 100.0;
 
