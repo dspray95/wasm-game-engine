@@ -4,20 +4,15 @@ use cgmath::{ vec3, Rotation3 };
 use winit::{ event::ElementState, keyboard::KeyCode };
 
 use crate::{
-    engine::{
-        camera::camera::Camera,
-        model::{ material::Material, model::Model },
-        resources,
-        state::context::GpuContext,
-    },
-    game::{ starfighter::Starfighter, terrain::TerrainGeneration },
+    engine::{ camera::camera::Camera, model::model::Model, state::context::GpuContext },
+    game::{ starfighter::Starfighter, terrain_generation::TerrainGeneration },
 };
 
 const TERRAIN_WIDTH: u32 = 50;
 const TERRAIN_LENGTH: u32 = 150;
 
 pub struct SceneManager {
-    pub models: Vec<Model>, // 0-5 are terrain, 6 is the player
+    pub models: Vec<Model>, // 0-2 are terrain, 3 is the player
     pub starfighter: Starfighter,
     pub terrain_generation: TerrainGeneration,
     pub is_left_pressed: bool,
@@ -128,9 +123,7 @@ impl SceneManager {
         let terrain_models = terrain_generation.get_initial_terrain(&gpu_context);
 
         // Player model
-        let mut starfighter_model = resources
-            ::load_model_from_file("starfighter.obj", &gpu_context.device).await
-            .unwrap();
+        let mut starfighter_model = Starfighter::load_model(&gpu_context);
         starfighter_model.position(24.5, -1.0, 3.0, &gpu_context);
         starfighter_model.scale(0.3, 0.3, 0.3, &gpu_context);
         starfighter_model.rotate(

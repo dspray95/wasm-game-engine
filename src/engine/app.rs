@@ -63,7 +63,6 @@ impl ApplicationHandler for App {
             }
             #[cfg(target_arch = "wasm32")]
             WindowEvent::Resized(_) => {
-                // Clone the Rcs for the closure
                 use wasm_bindgen::{ prelude::Closure, JsCast };
                 use web_sys::{ window, HtmlCanvasElement };
                 let app_state_clone = Rc::clone(&self.app_state);

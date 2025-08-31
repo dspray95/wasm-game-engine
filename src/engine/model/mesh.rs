@@ -9,6 +9,14 @@ use crate::engine::{
     state::context::GpuContext,
 };
 
+/* Holds data for a mesh before its loaded into the gpu buffers */
+pub struct MeshData {
+    pub vertices: Vec<[f32; 3]>,
+    pub normals: Vec<[f32; 3]>,
+    pub triangles: Vec<u32>,
+    pub material: Material,
+}
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ColorUniform {

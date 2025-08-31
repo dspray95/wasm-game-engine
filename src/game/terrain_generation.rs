@@ -1,9 +1,8 @@
 // src/game/terrain_generation.rs
 
-use cgmath::{ vec2, Point3, Vector2, Vector3 };
-use noise::{ NoiseFn, Perlin };
+use cgmath::{ vec2, Vector2 };
+use noise::Perlin;
 use rand::{ thread_rng, Rng, SeedableRng };
-use std::collections::HashSet;
 
 use crate::{
     engine::{
@@ -14,7 +13,7 @@ use crate::{
     game::procedural_generation,
 };
 
-const RAINBOW_ROAD: bool = true; // useful for debugging chunks
+const RAINBOW_ROAD: bool = false; // useful for debugging chunks
 
 const VIBRANT_COLORS: [[u32; 3]; 10] = [
     [255, 50, 50],
