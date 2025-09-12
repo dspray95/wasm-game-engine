@@ -1,19 +1,19 @@
-use std::vec;
-
 use cgmath::{ vec3, Rotation3 };
 use winit::{ event::ElementState, keyboard::KeyCode };
 
 use crate::{
     engine::{ camera::camera::Camera, model::model::Model, state::context::GpuContext },
-    game::{ starfighter::Starfighter, terrain_generation::TerrainGeneration },
+    game::{ laser::LaserManager, starfighter::Starfighter, terrain_generation::TerrainGeneration },
 };
 
 const TERRAIN_WIDTH: u32 = 50;
 const TERRAIN_LENGTH: u32 = 150;
+const MOVEMENT_SPEED: f32 = 10.0;
 
 pub struct SceneManager {
     pub models: Vec<Model>, // 0-2 are terrain, 3 is the player
     pub starfighter: Starfighter,
+    pub laser_gun: LaserManager,
     pub terrain_generation: TerrainGeneration,
     pub is_left_pressed: bool,
     pub is_right_pressed: bool,
@@ -30,6 +30,7 @@ impl SceneManager {
     }
 
     pub fn update(&mut self, delta_time: f32, gpu_context: GpuContext, camera: &mut Camera) {
+        // Player control and update
         if self.movement_enabled {
             self.move_player(delta_time, &gpu_context, camera);
             if self.is_control_pressed && self.is_p_pressed {
@@ -39,11 +40,17 @@ impl SceneManager {
             self.movement_enabled = true;
         }
 
+        if self.is_space_pressed {
+            let current_position = self.models[3].meshes[0].instances[0].position.clone();
+            let laser_mesh: &mut crate::engine::model::mesh::Mesh = &mut self.models[4].meshes[0];
+
+            self.laser_gun.fire(laser_mesh, current_position, &gpu_context);
+        }
+
+        // Terrain update
         let terrain_result = self.terrain_generation.terrain_update(camera.position.z);
 
         if let Some(new_terrain_mesh_data) = terrain_result {
-            log::info!("Replacing terrain at index: {}", self.oldest_terrain_index);
-
             let model_to_replace = &mut self.models[self.oldest_terrain_index as usize];
             TerrainGeneration::replace_terrain_model_buffers(
                 new_terrain_mesh_data,
@@ -52,6 +59,10 @@ impl SceneManager {
             );
             self.oldest_terrain_index = (self.oldest_terrain_index + 1) % 3;
         }
+
+        // Laser update
+        let laser_mesh: &mut crate::engine::model::mesh::Mesh = &mut self.models[4].meshes[0];
+        self.laser_gun.update(laser_mesh, delta_time, MOVEMENT_SPEED, &gpu_context);
     }
 
     fn move_player(&mut self, delta_time: f32, gpu_context: &GpuContext, camera: &mut Camera) {
@@ -60,13 +71,13 @@ impl SceneManager {
     }
 
     fn move_camera(&mut self, delta_time: f32, gpu_context: &GpuContext, camera: &mut Camera) {
-        camera.translate(0.0, 0.0, 20.0 * delta_time, gpu_context.queue);
+        camera.translate(0.0, 0.0, MOVEMENT_SPEED * delta_time, gpu_context.queue);
     }
 
     fn move_starfighter(&mut self, delta_time: f32, gpu_context: &GpuContext) {
         // Move forward
         let starfighter_model = &mut self.models[3];
-        starfighter_model.translate(0.0, 0.0, 20.0 * delta_time, &gpu_context);
+        starfighter_model.translate(0.0, 0.0, MOVEMENT_SPEED * delta_time, &gpu_context);
         // Hover animation
         let new_position = self.starfighter.animate(
             starfighter_model.meshes[0].instances[0].position,
@@ -134,12 +145,17 @@ impl SceneManager {
             &gpu_context
         );
 
+        //laser model
+        let mut laser_model = LaserManager::load_model(&gpu_context);
+
         let mut models: Vec<Model> = terrain_models.into();
         models.push(starfighter_model);
+        models.push(laser_model);
 
         Ok(SceneManager {
             models,
             starfighter: Starfighter::new(vec3(24.5, -0.5, 5.0)),
+            laser_gun: LaserManager::new(),
             terrain_generation,
             is_left_pressed: false,
             is_right_pressed: false,

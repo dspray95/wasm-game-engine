@@ -20,7 +20,7 @@ impl Starfighter {
         Starfighter {
             current_direction: "up".to_string(),
             upper_limit: -0.9,
-            lower_limit: -1.0,
+            lower_limit: -0.99,
             left_limit: start_position.x + 1.0,
             right_limit: start_position.x - 1.0,
         }
@@ -150,7 +150,8 @@ impl Starfighter {
             fuselage_mesh_data.normals,
             fuselage_mesh_data.triangles,
             &gpu_context,
-            fuselage_mesh_data.material
+            fuselage_mesh_data.material,
+            None
         );
 
         let cockpit_mesh = resources::load_mesh_from_arrays(
@@ -159,7 +160,8 @@ impl Starfighter {
             cockpit_mesh_data.normals,
             cockpit_mesh_data.triangles,
             gpu_context,
-            cockpit_mesh_data.material
+            cockpit_mesh_data.material,
+            None
         );
 
         Model {

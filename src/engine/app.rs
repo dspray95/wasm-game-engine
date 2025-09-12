@@ -29,6 +29,11 @@ impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(target_arch = "wasm32")]
         {
+            if self.app_state.borrow().window.is_some() {
+                // skip reinitialization if the app already exists
+                return;
+            }
+
             use wasm_bindgen::JsCast;
             use winit::platform::web::WindowAttributesExtWebSys;
 
@@ -92,16 +97,26 @@ impl ApplicationHandler for App {
                 let closure = Closure::once_into_js({
                     let resize_timer_id_clone_for_closure = Rc::clone(&resize_timer_id_clone);
                     move || {
-                        if let Ok(mut state) = app_state_clone.try_borrow_mut() {
-                            state.handle_resized(current_width, current_height);
-                            // After handling, request a redraw to render with new dimensions
-                            if let Some(window_arc) = state.window.as_ref() {
-                                window_arc.request_redraw();
+                        if
+                            let Some(canvas) = window()
+                                .and_then(|w| w.document())
+                                .and_then(|d| d.get_element_by_id("wgpu-canvas"))
+                                .and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok())
+                        {
+                            let final_width = canvas.client_width() as u32;
+                            let final_height = canvas.client_height() as u32;
+
+                            if let Ok(mut state) = app_state_clone.try_borrow_mut() {
+                                state.handle_resized(final_width, final_height);
+                                if let Some(window_arc) = state.window.as_ref() {
+                                    window_arc.request_redraw();
+                                }
+                            } else {
+                                log::warn!(
+                                    "Could not process debounced resize - AppState is borrowed"
+                                );
                             }
-                        } else {
-                            log::warn!("Could not process debounced resize - AppState is borrowed");
                         }
-                        // Clear the timer ID after it fires
                         *resize_timer_id_clone_for_closure.borrow_mut() = None;
                     }
                 });
@@ -166,7 +181,6 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
 
     if let Ok(mut state) = app_state.try_borrow_mut() {
         state.install_window_state(window.clone(), engine_state, render_state, scene_manager);
-        log::info!("AppState GPU initialization complete");
 
         // First redraw to start render loop
         window.request_redraw();

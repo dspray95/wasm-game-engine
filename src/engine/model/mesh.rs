@@ -54,7 +54,6 @@ impl Mesh {
         material: Material
     ) -> Mesh {
         let instances = instances.unwrap_or(vec![]);
-
         let instance_buffer: Option<wgpu::Buffer>;
         if instances.len() > 0 {
             let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
@@ -68,6 +67,7 @@ impl Mesh {
                 )
             );
         } else {
+            // This will have to be created later so we can actually draw things
             instance_buffer = None;
         }
 
@@ -176,6 +176,10 @@ impl Mesh {
             // Use write_buffer to update the existing buffer
             gpu_context.queue.write_buffer(instance_buffer, 0, bytemuck::cast_slice(&instances));
         } else {
+            log::warn!(
+                "LEAK WARNING: Re-creating instance buffer for mesh '{}'. This should only happen once per mesh!",
+                self.label
+            );
             let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
             self.instance_buffer = Some(
                 gpu_context.device.create_buffer_init(
@@ -189,17 +193,19 @@ impl Mesh {
         }
     }
 
-    pub(crate) fn _add_instance(
+    pub fn create_instance(
         &mut self,
         position: cgmath::Vector3<f32>,
         rotation: cgmath::Quaternion<f32>,
-        scale: cgmath::Vector3<f32>
+        scale: cgmath::Vector3<f32>,
+        gpu_context: &GpuContext
     ) {
         self.instances.push(Instance {
             position,
             rotation,
             scale,
         });
+        self.update_instance_buffer(gpu_context);
     }
 
     pub(crate) fn _update_instances(&mut self, device: &wgpu::Device) {

@@ -16,12 +16,10 @@ async fn run() -> anyhow::Result<()> {
     }
     #[cfg(target_arch = "wasm32")]
     {
-        println!("loading wasm...");
         console_log::init_with_level(log::Level::Info).expect("Failed to init logger");
         console_error_panic_hook::set_once();
     }
 
-    println!("creating event loop");
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Poll);
 
@@ -29,7 +27,6 @@ async fn run() -> anyhow::Result<()> {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        println!("running app");
         event_loop.run_app(&mut app).expect("Failed to run app");
     }
     #[cfg(target_arch = "wasm32")]

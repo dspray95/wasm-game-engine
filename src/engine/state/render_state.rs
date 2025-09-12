@@ -8,7 +8,7 @@ use crate::engine::model::model::DrawModel;
 
 pub struct RenderState {
     clear_color: wgpu::Color,
-    text_brush: TextBrush<FontVec>,
+    // text_brush: TextBrush<FontVec>,
 }
 
 impl RenderState {
@@ -29,12 +29,12 @@ impl RenderState {
                 b: 0.03,
                 a: 1.0,
             },
-            text_brush: BrushBuilder::using_font(font).build(
-                render_context.device,
-                surface_config.width,
-                surface_config.height,
-                surface_config.format
-            ),
+            // text_brush: BrushBuilder::using_font(font).build(
+            //     render_context.device,
+            //     surface_config.width,
+            //     surface_config.height,
+            //     surface_config.format
+            // ),
         }
     }
 
@@ -161,49 +161,49 @@ impl RenderState {
             }
         }
         // Some setup for text rendering
-        match
-            self.text_brush.queue(render_context.device, render_context.queue, [
-                Section::default()
-                    .add_text(
-                        Text::new(&((fps.ceil() as u32).to_string() + " fps"))
-                            .with_scale(18.0)
-                            .with_color([0.0, 1.0, 0.0, 1.0])
-                    )
-                    .with_screen_position((10.0, 10.0)),
-            ])
-        {
-            Ok(_) => (),
-            Err(err) => {
-                panic!("{err}");
-            }
-        }
+        // match
+        //     self.text_brush.queue(render_context.device, render_context.queue, [
+        //         Section::default()
+        //             .add_text(
+        //                 Text::new(&((fps.ceil() as u32).to_string() + " fps"))
+        //                     .with_scale(18.0)
+        //                     .with_color([0.0, 1.0, 0.0, 1.0])
+        //             )
+        //             .with_screen_position((10.0, 10.0)),
+        //     ])
+        // {
+        //     Ok(_) => (),
+        //     Err(err) => {
+        //         panic!("{err}");
+        //     }
+        // }
 
         // Text render pass
-        if fps != -1.0 {
-            {
-                let mut text_render_pass = encoder.begin_render_pass(
-                    &(wgpu::RenderPassDescriptor {
-                        label: Some("Text Render Pass"),
-                        color_attachments: &[
-                            Some(wgpu::RenderPassColorAttachment {
-                                view: &surface_view,
-                                resolve_target: None,
-                                ops: wgpu::Operations {
-                                    load: wgpu::LoadOp::Load, // Don't clear - keep the 3D scene
-                                    store: wgpu::StoreOp::Store,
-                                },
-                            }),
-                        ],
-                        depth_stencil_attachment: None, // No depth buffer for text
-                        occlusion_query_set: None,
-                        timestamp_writes: None,
-                    })
-                );
+        // if fps != -1.0 {
+        //     {
+        //         let mut text_render_pass = encoder.begin_render_pass(
+        //             &(wgpu::RenderPassDescriptor {
+        //                 label: Some("Text Render Pass"),
+        //                 color_attachments: &[
+        //                     Some(wgpu::RenderPassColorAttachment {
+        //                         view: &surface_view,
+        //                         resolve_target: None,
+        //                         ops: wgpu::Operations {
+        //                             load: wgpu::LoadOp::Load, // Don't clear - keep the 3D scene
+        //                             store: wgpu::StoreOp::Store,
+        //                         },
+        //                     }),
+        //                 ],
+        //                 depth_stencil_attachment: None, // No depth buffer for text
+        //                 occlusion_query_set: None,
+        //                 timestamp_writes: None,
+        //             })
+        //         );
 
-                // Draw text
-                self.text_brush.draw(&mut text_render_pass);
-            } // text_render_pass is dropped here
-        }
+        //         // Draw text
+        //         self.text_brush.draw(&mut text_render_pass);
+        //     } // text_render_pass is dropped here
+        // }
 
         render_context.queue.submit(Some(encoder.finish()));
         surface_texture.present();
@@ -220,7 +220,7 @@ impl RenderState {
         // We need to make sure the text brush is rebuild on re-size
         // let font_data = include_bytes!("../../../res/DS-DIGI.TTF");
         // let font = FontVec::try_from_vec(font_data.into()).expect("Failed to load font");
-        self.text_brush.resize_view(width as f32, height as f32, queue);
+        // self.text_brush.resize_view(width as f32, height as f32, queue);
         // self.text_brush = BrushBuilder::using_font(font).build(device, width, height, format);
     }
 }

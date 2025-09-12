@@ -4,7 +4,7 @@ pub mod model;
 pub mod resources;
 pub mod camera;
 pub mod state;
-mod instance;
+pub mod instance;
 mod texture;
 mod render_pipeline;
 mod draw;

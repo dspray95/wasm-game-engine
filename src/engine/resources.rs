@@ -67,7 +67,8 @@ pub fn load_mesh_from_arrays(
     normals: Vec<[f32; 3]>,
     triangle_indices: Vec<u32>,
     gpu_context: &GpuContext<'_>,
-    material: Material
+    material: Material,
+    instances: Option<Vec<Instance>>
 ) -> Mesh {
     let device = gpu_context.device;
     let model_vertices: Vec<ModelVertex>;
@@ -120,13 +121,7 @@ pub fn load_mesh_from_arrays(
         })
     );
 
-    let mesh = Mesh::new(
-        label.to_string(),
-        vertex_buffer,
-        index_buffer,
-        line_index_buffer,
-        wireframe_indices.len() as u32,
-        triangle_indices.len() as u32,
+    let initial_instances = if instances.is_none() {
         Some(
             vec![Instance {
                 position: cgmath::Vector3 { x: 0.0, y: 0.0, z: 0.0 },
@@ -136,7 +131,19 @@ pub fn load_mesh_from_arrays(
                 ),
                 scale: cgmath::Vector3 { x: 1.0, y: 1.0, z: 1.0 },
             }]
-        ),
+        )
+    } else {
+        instances
+    };
+
+    let mesh = Mesh::new(
+        label.to_string(),
+        vertex_buffer,
+        index_buffer,
+        line_index_buffer,
+        wireframe_indices.len() as u32,
+        triangle_indices.len() as u32,
+        initial_instances,
         device,
         material
     );

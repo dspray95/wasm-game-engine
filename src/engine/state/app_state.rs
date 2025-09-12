@@ -30,9 +30,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        log::info!("Creating instance...");
         let instance: wgpu::Instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
-        log::info!("Returning App...");
 
         Self {
             instance,
@@ -63,6 +61,14 @@ impl AppState {
 
     pub fn handle_resized(&mut self, width: u32, height: u32) {
         if let Some(engine_state) = self.engine_state.as_mut() {
+            if
+                engine_state.surface_config.width == width &&
+                engine_state.surface_config.height == height
+            {
+                // Skip resize calls if the dimensions are the same
+                return;
+            }
+
             engine_state.resize_surface(width, height);
             engine_state.depth_texture = Texture::create_depth_texture(
                 &engine_state.device,
@@ -70,7 +76,6 @@ impl AppState {
                 "depth_texture"
             );
             if let Some(render_state) = self.render_state.as_mut() {
-                log::info!("resizing text brush");
                 let width = engine_state.surface_config.width;
                 let height = engine_state.surface_config.height;
                 let format = engine_state.surface_config.format;
@@ -81,11 +86,7 @@ impl AppState {
                     height,
                     format
                 );
-            } else {
-                log::warn!("handle_resized called but render_state is not ready yet")
             }
-        } else {
-            log::warn!("handle_resized called but engine_state is not ready yet");
         }
     }
 
@@ -99,8 +100,6 @@ impl AppState {
                 0,
                 bytemuck::cast_slice(&[engine_state.camera.render_pass_data.uniform_buffer])
             );
-        } else {
-            log::warn!("handle_camera_update called but engine state is not ready yet")
         }
     }
 
@@ -130,8 +129,6 @@ impl AppState {
             };
 
             self.scene_manager.as_mut().unwrap().update(self.delta_time, gpu_context, camera);
-        } else {
-            log::warn!("update called but engine state is not ready yet")
         }
     }
 
@@ -177,8 +174,6 @@ impl AppState {
                     _ => {}
                 }
             }
-        } else {
-            log::warn!("handle_keyboard_input called but engine state is not ready yet")
         }
     }
 }
