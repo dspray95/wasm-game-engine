@@ -5,6 +5,7 @@ use winit::event::{ ElementState };
 use winit::keyboard::{ KeyCode };
 use winit::window::{ Window };
 
+use crate::engine::camera::projection::Projection;
 use crate::engine::fps_counter::FpsCounter;
 use crate::engine::scene::scene_manager::SceneManager;
 use crate::engine::state::context::GpuContext;
@@ -75,6 +76,7 @@ impl AppState {
                 &engine_state.surface_config,
                 "depth_texture"
             );
+            engine_state.camera.handle_resized(width, height);
             if let Some(render_state) = self.render_state.as_mut() {
                 let width = engine_state.surface_config.width;
                 let height = engine_state.surface_config.height;

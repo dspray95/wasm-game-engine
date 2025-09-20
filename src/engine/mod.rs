@@ -10,3 +10,4 @@ mod render_pipeline;
 mod draw;
 mod scene;
 mod fps_counter;
+mod color;

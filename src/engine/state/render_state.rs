@@ -24,9 +24,9 @@ impl RenderState {
 
         RenderState {
             clear_color: wgpu::Color {
-                r: 0.011,
-                g: 0.014,
-                b: 0.03,
+                r: 0.081,
+                g: 0.084,
+                b: 0.14,
                 a: 1.0,
             },
             // text_brush: BrushBuilder::using_font(font).build(

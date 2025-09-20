@@ -5,9 +5,9 @@ use crate::engine::state::context::GpuContext;
 
 use super::{ projection::Projection, uniform::CameraUniformBuffer };
 
-const _DEFAULT_FOV: f32 = 90.0;
-const _DEAFAULT_NEAR: f32 = 0.1;
-const _DEFAULT_FAR: f32 = 100.0;
+const DEFAULT_FOV: f32 = 45.0;
+const DEAFAULT_NEAR: f32 = 0.1;
+const DEFAULT_FAR: f32 = 100.0;
 
 // This is used to convert the cgmath crate coordinate system to the wgpu system which
 // uses normalised device coordinates
@@ -87,7 +87,13 @@ impl Camera {
             position: position.into(),
             yaw: yaw.into(),
             pitch: pitch.into(),
-            projection: Projection::new(surface_width, surface_height, Deg(45.0), 0.1, 100.0),
+            projection: Projection::new(
+                surface_width,
+                surface_height,
+                Deg(DEFAULT_FOV),
+                DEAFAULT_NEAR,
+                DEFAULT_FAR
+            ),
             render_pass_data: CameraRenderPassData {
                 buffer,
                 uniform_buffer,
@@ -95,6 +101,16 @@ impl Camera {
                 bind_group_layout,
             },
         }
+    }
+
+    pub fn handle_resized(&mut self, width: u32, height: u32) {
+        self.projection = Projection::new(
+            width,
+            height,
+            Deg(DEFAULT_FOV),
+            DEAFAULT_NEAR,
+            DEFAULT_FAR
+        );
     }
 
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {

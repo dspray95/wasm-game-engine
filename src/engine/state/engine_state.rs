@@ -230,7 +230,7 @@ impl EngineState {
                 mip_level_count: 1,
                 sample_count: 4,
                 dimension: wgpu::TextureDimension::D2,
-                format: surface_config.format,
+                format: surface_config.format.remove_srgb_suffix(),
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 view_formats: &[], // Add an empty slice for view_formats
             })
