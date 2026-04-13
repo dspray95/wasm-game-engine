@@ -96,7 +96,7 @@ impl RenderState {
                                 render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                                 render_pass.draw_mesh_instanced(
                                     mesh,
-                                    0..mesh.instances.len() as u32,
+                                    0..mesh.instance_count,
                                     render_context.camera_bind_group,
                                     render_context.light_bind_group,
                                     &mesh.color_bind_group,
@@ -121,7 +121,7 @@ impl RenderState {
                             render_pass.draw_mesh_instanced(
                                 // Changed this line
                                 mesh, // Pass mesh instead of model
-                                0..mesh.instances.len() as u32,
+                                0..mesh.instance_count,
                                 render_context.camera_bind_group,
                                 render_context.light_bind_group,
                                 &mesh.color_bind_group,
@@ -145,7 +145,7 @@ impl RenderState {
                                 render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
                                 render_pass.draw_mesh_instanced(
                                     mesh,
-                                    0..mesh.instances.len() as u32,
+                                    0..mesh.instance_count,
                                     render_context.camera_bind_group,
                                     render_context.light_bind_group,
                                     &mesh.color_bind_group,

@@ -82,7 +82,8 @@ impl LaserManager {
                 diffuse_color: [200, 255, 255],
                 alpha: 1.0,
             },
-            Some(initial_mesh_instances)
+            Some(initial_mesh_instances),
+            MAX_ALIVE_LASERS as usize
         );
         mesh.scale(10.0, 10.0, 10.0, gpu_context);
 

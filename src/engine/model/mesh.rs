@@ -4,7 +4,7 @@ use cgmath::{ vec3, InnerSpace, Vector3 };
 use wgpu::{ core::instance, util::DeviceExt };
 
 use crate::engine::{
-    instance::Instance,
+    instance::{ Instance, InstanceRaw },
     model::{ material::Material, vertex::ModelVertex },
     state::context::GpuContext,
 };
@@ -36,9 +36,11 @@ pub struct Mesh {
     pub wireframe_index_count: u32,
     pub num_elements: u32,
     pub instances: Vec<Instance>,
+    pub instance_count: u32,
     pub instance_buffer: Option<wgpu::Buffer>,
     pub _material: Material,
     pub color_bind_group: wgpu::BindGroup,
+    max_instances: usize,
 }
 
 impl Mesh {
@@ -50,26 +52,38 @@ impl Mesh {
         wireframe_index_count: u32,
         num_elements: u32,
         instances: Option<Vec<Instance>>,
+        max_instances: usize,
         device: &wgpu::Device,
+        queue: &wgpu::Queue,
         material: Material
     ) -> Mesh {
         let instances = instances.unwrap_or(vec![]);
-        let instance_buffer: Option<wgpu::Buffer>;
-        if instances.len() > 0 {
-            let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-            instance_buffer = Some(
-                device.create_buffer_init(
-                    &(wgpu::util::BufferInitDescriptor {
-                        label: Some(&format!("{}__instance_buffer", label)),
-                        contents: bytemuck::cast_slice(&instance_data),
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    })
-                )
+        let instance_count = instances.len() as u32;
+
+        debug_assert!(
+            instances.len() <= max_instances,
+            "Initial instance count {} exceeds max_instances {}",
+            instances.len(),
+            max_instances
+        );
+
+        let instance_buffer = if max_instances > 0 {
+            let buffer = device.create_buffer(
+                &(wgpu::BufferDescriptor {
+                    label: Some(&format!("{}__instance_buffer", label)),
+                    size: (max_instances * std::mem::size_of::<InstanceRaw>()) as u64,
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                })
             );
+            if !instances.is_empty() {
+                let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+                queue.write_buffer(&buffer, 0, bytemuck::cast_slice(&instance_data));
+            }
+            Some(buffer)
         } else {
-            // This will have to be created later so we can actually draw things
-            instance_buffer = None;
-        }
+            None
+        };
 
         // Flat color rendering setup //
         // Convert from 0-255 sRGB to linear
@@ -128,9 +142,11 @@ impl Mesh {
             wireframe_index_count,
             num_elements,
             instances,
+            instance_count,
             instance_buffer,
             _material: material,
             color_bind_group,
+            max_instances,
         }
     }
 
@@ -171,25 +187,17 @@ impl Mesh {
     }
 
     fn update_instance_buffer(&mut self, gpu_context: &GpuContext) {
+        debug_assert!(
+            self.instances.len() <= self.max_instances,
+            "Instance count {} exceeds max_instances {} for mesh '{}'",
+            self.instances.len(),
+            self.max_instances,
+            self.label
+        );
         if let Some(instance_buffer) = &self.instance_buffer {
-            let instances = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-            // Use write_buffer to update the existing buffer
-            gpu_context.queue.write_buffer(instance_buffer, 0, bytemuck::cast_slice(&instances));
-        } else {
-            log::warn!(
-                "LEAK WARNING: Re-creating instance buffer for mesh '{}'. This should only happen once per mesh!",
-                self.label
-            );
             let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-            self.instance_buffer = Some(
-                gpu_context.device.create_buffer_init(
-                    &(wgpu::util::BufferInitDescriptor {
-                        label: Some(&format!("{}__instance_buffer", self.label)),
-                        contents: bytemuck::cast_slice(&instance_data),
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    })
-                )
-            );
+            gpu_context.queue.write_buffer(instance_buffer, 0, bytemuck::cast_slice(&instance_data));
+            self.instance_count = self.instances.len() as u32;
         }
     }
 
@@ -315,6 +323,7 @@ fn calculate_traingle_normals(a: &[f32; 3], b: &[f32; 3], c: &[f32; 3]) -> Vecto
     cgmath::Vector3::cross(ab, ac)
 }
 
+/// Converts triangle indices into unique edge pairs for wireframe rendering.
 pub fn triangles_to_lines(triangles: &[u32]) -> Vec<u32> {
     let mut edges = HashSet::new();
     let mut lines = vec![];
@@ -340,4 +349,73 @@ pub fn triangles_to_lines(triangles: &[u32]) -> Vec<u32> {
     }
 
     lines
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- triangles_to_lines ---
+
+    #[test]
+    fn single_triangle_produces_three_edges() {
+        let lines = triangles_to_lines(&[0, 1, 2]);
+        assert_eq!(lines.len(), 6, "one triangle = 3 edges = 6 indices");
+    }
+
+    #[test]
+    fn shared_edge_is_not_duplicated() {
+        // Two triangles sharing edge (1,2): [0,1,2] and [2,1,3]
+        // Triangle 1 contributes edges: (0,1), (1,2), (0,2)
+        // Triangle 2 contributes edges: (1,2) [shared], (1,3), (2,3)
+        // Unique edges: (0,1), (1,2), (0,2), (1,3), (2,3) = 5 edges = 10 indices
+        let lines = triangles_to_lines(&[0, 1, 2, 2, 1, 3]);
+        assert_eq!(lines.len(), 10, "two triangles sharing one edge = 5 unique edges = 10 indices");
+    }
+
+    #[test]
+    fn empty_input_produces_no_lines() {
+        assert!(triangles_to_lines(&[]).is_empty());
+    }
+
+    #[test]
+    fn all_edges_are_pairs() {
+        let lines = triangles_to_lines(&[0, 1, 2, 3, 4, 5]);
+        assert_eq!(lines.len() % 2, 0, "output must always have an even number of indices");
+    }
+
+    // --- calculate_normals ---
+
+    #[test]
+    fn flat_xz_triangle_has_vertical_normal() {
+        // Triangle flat on the XZ plane — normal should point along Y axis
+        let vertices = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]];
+        let indices = vec![0, 1, 2];
+        let normals = calculate_normals(&vertices, &indices);
+        assert_eq!(normals.len(), 3);
+        for n in &normals {
+            assert!(n[0].abs() < 1e-5, "X component should be ~0");
+            assert!(n[2].abs() < 1e-5, "Z component should be ~0");
+            assert!(n[1].abs() > 0.99, "Y component should be ~±1");
+        }
+    }
+
+    #[test]
+    fn normals_are_unit_length() {
+        let vertices = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.5]];
+        let indices = vec![0, 1, 2];
+        let normals = calculate_normals(&vertices, &indices);
+        for n in &normals {
+            let len = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+            assert!((len - 1.0).abs() < 1e-5, "normal should be unit length, got {len}");
+        }
+    }
+
+    #[test]
+    fn normal_count_matches_vertex_count() {
+        let vertices = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0, 0.0]];
+        let indices = vec![0, 1, 2, 1, 3, 2];
+        let normals = calculate_normals(&vertices, &indices);
+        assert_eq!(normals.len(), vertices.len());
+    }
 }

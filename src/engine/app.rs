@@ -27,6 +27,55 @@ impl App {
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if self.app_state.borrow().window.is_some() {
+                return;
+            }
+
+            use std::sync::Arc;
+            use crate::engine::state::{ engine_state::EngineState, render_state::RenderState };
+            use crate::engine::scene::scene_manager::SceneManager;
+
+            let window = Arc::new(
+                event_loop
+                    .create_window(Window::default_attributes())
+                    .expect("Failed to create window")
+            );
+
+            let instance = self.app_state.borrow().instance.clone();
+            let surface = instance
+                .create_surface(window.clone())
+                .expect("Failed to create surface");
+
+            let size = window.inner_size();
+
+            let (engine_state, render_state, scene_manager) = pollster::block_on(async {
+                let engine_state = EngineState::new(
+                    &instance,
+                    surface,
+                    &window,
+                    size.width,
+                    size.height
+                ).await.expect("Failed to create engine state");
+
+                let render_state = RenderState::new(
+                    engine_state.render_context(),
+                    &engine_state.surface_config
+                );
+
+                let scene_manager = SceneManager::new(engine_state.gpu_context()).await;
+
+                (engine_state, render_state, scene_manager)
+            });
+
+            self.app_state
+                .borrow_mut()
+                .install_window_state(window.clone(), engine_state, render_state, scene_manager);
+
+            window.request_redraw();
+        }
+
         #[cfg(target_arch = "wasm32")]
         {
             if self.app_state.borrow().window.is_some() {

@@ -152,7 +152,8 @@ impl TerrainGeneration {
                     data.terrain_triangles,
                     gpu_context,
                     Material::new([60, 66, 98], 0.5),
-                    None
+                    None,
+                    1
                 ),
                 resources::load_mesh_from_arrays(
                     "terrain canyon floor",
@@ -161,7 +162,8 @@ impl TerrainGeneration {
                     data.canyon_triangles,
                     gpu_context,
                     Material::new(canyon_color, 1.0),
-                    None
+                    None,
+                    1
                 )
             ],
         }

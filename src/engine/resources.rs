@@ -68,7 +68,8 @@ pub fn load_mesh_from_arrays(
     triangle_indices: Vec<u32>,
     gpu_context: &GpuContext<'_>,
     material: Material,
-    instances: Option<Vec<Instance>>
+    instances: Option<Vec<Instance>>,
+    max_instances: usize
 ) -> Mesh {
     let device = gpu_context.device;
     let model_vertices: Vec<ModelVertex>;
@@ -144,14 +145,16 @@ pub fn load_mesh_from_arrays(
         wireframe_indices.len() as u32,
         triangle_indices.len() as u32,
         initial_instances,
+        max_instances,
         device,
+        gpu_context.queue,
         material
     );
 
     mesh
 }
 
-pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> anyhow::Result<Model> {
+pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device, queue: &wgpu::Queue) -> anyhow::Result<Model> {
     let obj_text = load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
@@ -278,7 +281,9 @@ pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device) -> any
                         scale: vec3(1.0, 1.0, 1.0),
                     }]
                 ),
+                1,
                 device,
+                queue,
                 material
             )
         })

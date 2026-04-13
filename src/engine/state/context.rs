@@ -1,5 +1,3 @@
-use crate::engine::camera::camera::Camera;
-
 pub struct GpuContext<'a> {
     pub device: &'a wgpu::Device,
     pub queue: &'a wgpu::Queue,

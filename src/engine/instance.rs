@@ -39,6 +39,10 @@ impl Instance {
     }
 }
 
+/// Size of InstanceRaw in bytes — must match the vertex buffer layout offsets in `desc()`.
+/// model (4×4 f32 = 64 bytes) + normal (3×3 f32 = 36 bytes) = 100 bytes.
+pub const INSTANCE_RAW_SIZE: usize = std::mem::size_of::<InstanceRaw>();
+
 impl InstanceRaw {
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
@@ -85,6 +89,88 @@ impl InstanceRaw {
                     format: wgpu::VertexFormat::Float32x3,
                 },
             ],
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cgmath::{ vec3, Quaternion, Rotation3, SquareMatrix };
+
+    fn identity_instance() -> Instance {
+        Instance {
+            position: vec3(0.0, 0.0, 0.0),
+            rotation: Quaternion::from_axis_angle(vec3(0.0, 1.0, 0.0), cgmath::Deg(0.0)),
+            scale: vec3(1.0, 1.0, 1.0),
+        }
+    }
+
+    #[test]
+    fn instance_raw_size_is_100_bytes() {
+        // model (4×4 f32 = 64) + normal (3×3 f32 = 36) = 100 bytes.
+        // The buffer pre-allocation in Mesh::new() relies on this size being stable.
+        // If this test fails, update the vertex attribute offsets in desc() too.
+        assert_eq!(INSTANCE_RAW_SIZE, 100);
+    }
+
+    #[test]
+    fn identity_instance_produces_identity_model_matrix() {
+        let raw = identity_instance().to_raw();
+        let expected: [[f32; 4]; 4] = cgmath::Matrix4::identity().into();
+        for (r, e) in raw.model.iter().zip(expected.iter()) {
+            for (a, b) in r.iter().zip(e.iter()) {
+                assert!((a - b).abs() < 1e-6, "model matrix mismatch: {a} != {b}");
+            }
+        }
+    }
+
+    #[test]
+    fn translation_appears_in_last_column_of_model_matrix() {
+        let instance = Instance {
+            position: vec3(3.0, 5.0, 7.0),
+            rotation: Quaternion::from_axis_angle(vec3(0.0, 1.0, 0.0), cgmath::Deg(0.0)),
+            scale: vec3(1.0, 1.0, 1.0),
+        };
+        let raw = instance.to_raw();
+        // In a column-major matrix, translation is in the last column (index 3): [tx, ty, tz, 1]
+        assert!((raw.model[3][0] - 3.0).abs() < 1e-6);
+        assert!((raw.model[3][1] - 5.0).abs() < 1e-6);
+        assert!((raw.model[3][2] - 7.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn uniform_scale_appears_on_matrix_diagonal() {
+        let instance = Instance {
+            position: vec3(0.0, 0.0, 0.0),
+            rotation: Quaternion::from_axis_angle(vec3(0.0, 1.0, 0.0), cgmath::Deg(0.0)),
+            scale: vec3(2.0, 2.0, 2.0),
+        };
+        let raw = instance.to_raw();
+        assert!((raw.model[0][0] - 2.0).abs() < 1e-6);
+        assert!((raw.model[1][1] - 2.0).abs() < 1e-6);
+        assert!((raw.model[2][2] - 2.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn normal_matrix_is_rotation_only() {
+        // The normal matrix should not be affected by translation or scale
+        let a = Instance {
+            position: vec3(0.0, 0.0, 0.0),
+            rotation: Quaternion::from_axis_angle(vec3(0.0, 1.0, 0.0), cgmath::Deg(45.0)),
+            scale: vec3(1.0, 1.0, 1.0),
+        };
+        let b = Instance {
+            position: vec3(99.0, 99.0, 99.0),
+            rotation: Quaternion::from_axis_angle(vec3(0.0, 1.0, 0.0), cgmath::Deg(45.0)),
+            scale: vec3(5.0, 5.0, 5.0),
+        };
+        let raw_a = a.to_raw();
+        let raw_b = b.to_raw();
+        for (ra, rb) in raw_a.normal.iter().zip(raw_b.normal.iter()) {
+            for (a, b) in ra.iter().zip(rb.iter()) {
+                assert!((a - b).abs() < 1e-6, "normal matrices should match regardless of position/scale");
+            }
         }
     }
 }

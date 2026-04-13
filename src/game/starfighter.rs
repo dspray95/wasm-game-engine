@@ -151,7 +151,8 @@ impl Starfighter {
             fuselage_mesh_data.triangles,
             &gpu_context,
             fuselage_mesh_data.material,
-            None
+            None,
+            1
         );
 
         let cockpit_mesh = resources::load_mesh_from_arrays(
@@ -161,7 +162,8 @@ impl Starfighter {
             cockpit_mesh_data.triangles,
             gpu_context,
             cockpit_mesh_data.material,
-            None
+            None,
+            1
         );
 
         Model {
