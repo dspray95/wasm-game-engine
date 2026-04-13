@@ -10,8 +10,8 @@ pub struct Instance {
 pub struct InstanceRaw {
     // InstanceRaw is used because there is no Quaternion type
     // object in the shaders
-    model: [[f32; 4]; 4],
-    normal: [[f32; 3]; 3],
+    pub model: [[f32; 4]; 4],
+    pub normal: [[f32; 3]; 3],
 }
 
 // To use instances in wgsl shaders we need to convert them to raw data first, before creating the
@@ -169,7 +169,10 @@ mod tests {
         let raw_b = b.to_raw();
         for (ra, rb) in raw_a.normal.iter().zip(raw_b.normal.iter()) {
             for (a, b) in ra.iter().zip(rb.iter()) {
-                assert!((a - b).abs() < 1e-6, "normal matrices should match regardless of position/scale");
+                assert!(
+                    (a - b).abs() < 1e-6,
+                    "normal matrices should match regardless of position/scale"
+                );
             }
         }
     }
