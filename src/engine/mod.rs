@@ -11,3 +11,4 @@ mod draw;
 pub mod scene;
 mod fps_counter;
 mod color;
+pub mod ecs;
