@@ -32,6 +32,14 @@ impl Model {
             mesh.translate(x, y, z, gpu_context);
         }
     }
+
+    // Called by render_sync_system — applies the same instance transforms to all meshes.
+    // All meshes in a model share transforms (e.g. fuselage and cockpit move together).
+    pub fn update_instances(&mut self, queue: &wgpu::Queue, instances: &[crate::engine::instance::InstanceRaw]) {
+        for mesh in self.meshes.iter_mut() {
+            mesh.update_instances(queue, instances);
+        }
+    }
 }
 
 pub(in crate::engine) trait DrawModel<'a> {

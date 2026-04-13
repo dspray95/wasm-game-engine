@@ -11,6 +11,8 @@ use crate::engine::state::engine_state::EngineState;
 use crate::engine::state::render_state::RenderState;
 use crate::engine::texture::Texture;
 
+const INITIAL_WINDOW_WIDTH: u32 = 1360;
+const INITIAL_WINDOW_HEIGHT: u32 = 768;
 const MINIMUM_DELTA_TIME: f32 = 0.1;
 
 pub struct AppState {
@@ -143,9 +145,7 @@ impl AppState {
         let render_state = self.render_state.as_mut().unwrap();
         let scene = self.scene.as_ref().unwrap();
 
-        render_state.handle_redraw(engine_state.render_context(), scene.models(), if
-            self.show_fps
-        {
+        render_state.handle_redraw(engine_state.render_context(), scene.models(), if self.show_fps {
             self.fps_counter.get_fps()
         } else {
             -1.0

@@ -268,6 +268,22 @@ impl Mesh {
         self.wireframe_index_count = wireframe_indices.len() as u32;
     }
 
+    // Called by render_sync_system each frame with ECS-driven instance data.
+    // Writes into the pre-allocated buffer — no GPU allocation, just a data upload.
+    pub fn update_instances(&mut self, queue: &wgpu::Queue, instances: &[InstanceRaw]) {
+        debug_assert!(
+            instances.len() <= self.max_instances,
+            "Instance count {} exceeds max_instances {} for mesh '{}'",
+            instances.len(),
+            self.max_instances,
+            self.label
+        );
+        if let Some(buffer) = &self.instance_buffer {
+            queue.write_buffer(buffer, 0, bytemuck::cast_slice(instances));
+            self.instance_count = instances.len() as u32;
+        }
+    }
+
     pub(crate) fn _remove_instance() {
         todo!("NO_IMPL")
     }

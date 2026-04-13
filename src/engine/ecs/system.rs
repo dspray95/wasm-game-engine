@@ -1,11 +1,28 @@
-use crate::engine::ecs::world::World;
+use crate::engine::{ ecs::world::World, model::model_registry::ModelRegistry };
 
-pub struct SystemContext {
+pub struct SystemContext<'a> {
     pub delta_time: f32,
-    // more fields added in Phase 2 (gpu context etc)
+    // None for systems that don't need GPU access (most of them)
+    // Only render_sync_system needs these
+    pub queue: Option<&'a wgpu::Queue>,
+    pub model_registry: Option<&'a mut ModelRegistry>,
 }
 
-pub type System = fn(&mut World, &SystemContext);
+impl<'a> SystemContext<'a> {
+    pub fn new(
+        delta_time: f32,
+        queue: &'a wgpu::Queue,
+        model_registry: &'a mut ModelRegistry,
+    ) -> Self {
+        Self {
+            delta_time,
+            queue: Some(queue),
+            model_registry: Some(model_registry),
+        }
+    }
+}
+
+pub type System = fn(&mut World, &mut SystemContext);
 
 pub struct SystemSchedule {
     systems: Vec<System>, // Ordered, e.g. `[input, ai, pathfinding, movement, resource, render_sync etc]`
@@ -22,11 +39,11 @@ impl SystemSchedule {
         self.systems.push(system);
     }
 
-    pub fn run_all(&mut self, world: &mut World, system_context: &SystemContext) {
+    pub fn run_all(&mut self, world: &mut World, system_context: &mut SystemContext) {
         // run_all takes &mut self and &mut World. When you call each system with world,
         // you're passing the same &mut World repeatedly through the loop. Rust will let you
-        // do this because each call completes before the next one starts
-        // the borrow is releasedbetween iterations.
+        // do this because each call completes before the next one starts — the borrow is
+        // released between iterations.
         // We'll need to reconsider this if we want to run systems async
         for system in &self.systems {
             system(world, system_context);
@@ -38,23 +55,26 @@ impl SystemSchedule {
 mod tests {
     use super::*;
 
-    // A counter resource used to observe side effects from test systems
     struct Counter(u32);
 
-    fn increment_system(world: &mut World, _ctx: &SystemContext) {
+    fn increment_system(world: &mut World, _ctx: &mut SystemContext) {
         world.get_resource_mut::<Counter>().unwrap().0 += 1;
     }
 
-    fn double_system(world: &mut World, _ctx: &SystemContext) {
+    fn double_system(world: &mut World, _ctx: &mut SystemContext) {
         world.get_resource_mut::<Counter>().unwrap().0 *= 2;
     }
 
-    fn capture_dt_system(world: &mut World, ctx: &SystemContext) {
+    fn capture_dt_system(world: &mut World, ctx: &mut SystemContext) {
         world.add_resource(ctx.delta_time);
     }
 
-    fn make_ctx() -> SystemContext {
-        SystemContext { delta_time: 0.016 }
+    fn make_ctx() -> SystemContext<'static> {
+        SystemContext {
+            delta_time: 0.016,
+            queue: None,
+            model_registry: None,
+        }
     }
 
     #[test]
@@ -63,7 +83,7 @@ mod tests {
         world.add_resource(Counter(0));
         let mut schedule = SystemSchedule::new();
         schedule.add_system(increment_system);
-        schedule.run_all(&mut world, &make_ctx());
+        schedule.run_all(&mut world, &mut make_ctx());
         assert_eq!(world.get_resource::<Counter>().unwrap().0, 1);
     }
 
@@ -76,7 +96,7 @@ mod tests {
         let mut schedule = SystemSchedule::new();
         schedule.add_system(increment_system);
         schedule.add_system(double_system);
-        schedule.run_all(&mut world, &make_ctx());
+        schedule.run_all(&mut world, &mut make_ctx());
         assert_eq!(world.get_resource::<Counter>().unwrap().0, 2);
     }
 
@@ -86,9 +106,9 @@ mod tests {
         world.add_resource(Counter(0));
         let mut schedule = SystemSchedule::new();
         schedule.add_system(increment_system);
-        schedule.run_all(&mut world, &make_ctx());
-        schedule.run_all(&mut world, &make_ctx());
-        schedule.run_all(&mut world, &make_ctx());
+        schedule.run_all(&mut world, &mut make_ctx());
+        schedule.run_all(&mut world, &mut make_ctx());
+        schedule.run_all(&mut world, &mut make_ctx());
         assert_eq!(world.get_resource::<Counter>().unwrap().0, 3);
     }
 
@@ -96,7 +116,7 @@ mod tests {
     fn empty_schedule_does_not_panic() {
         let mut world = World::new();
         let mut schedule = SystemSchedule::new();
-        schedule.run_all(&mut world, &make_ctx());
+        schedule.run_all(&mut world, &mut make_ctx());
     }
 
     #[test]
@@ -104,7 +124,8 @@ mod tests {
         let mut world = World::new();
         let mut schedule = SystemSchedule::new();
         schedule.add_system(capture_dt_system);
-        schedule.run_all(&mut world, &SystemContext { delta_time: 1.0 / 60.0 });
+        let mut ctx = SystemContext { delta_time: 1.0 / 60.0, queue: None, model_registry: None };
+        schedule.run_all(&mut world, &mut ctx);
         let stored = world.get_resource::<f32>().unwrap();
         assert!((stored - 1.0 / 60.0).abs() < f32::EPSILON);
     }

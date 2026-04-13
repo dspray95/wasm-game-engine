@@ -62,6 +62,10 @@ impl World {
         set.get(entity.id)
     }
 
+    pub fn get_component_by_id<T: 'static>(&self, entity_id: u32) -> Option<&T> {
+        self.get_storage::<T>()?.get(entity_id)
+    }
+
     pub fn get_component_mut<T: 'static>(&mut self, entity: Entity) -> Option<&mut T> {
         let type_id = TypeId::of::<T>();
         let storage = self.components.get_mut(&type_id)?;
@@ -104,13 +108,27 @@ impl World {
     pub fn get_resource_mut<T: 'static>(&mut self) -> Option<&mut T> {
         self.resources.get_mut(&TypeId::of::<T>())?.downcast_mut::<T>()
     }
+
+    fn get_storage<T: 'static>(&self) -> Option<&SparseSet<T>> {
+        self.components.get(&TypeId::of::<T>())?.as_any().downcast_ref()
+    }
+
+    pub fn iter_component<T: 'static>(&self) -> impl Iterator<Item = (u32, &T)> {
+        self.get_storage::<T>()
+            .map(|s| s.iter())
+            .into_iter()
+            .flatten()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    struct Position { x: f32, y: f32 }
+    struct Position {
+        x: f32,
+        y: f32,
+    }
     struct Health(u32);
     struct Speed(f32);
 
@@ -250,5 +268,62 @@ mod tests {
     fn get_missing_resource_returns_none() {
         let world = World::new();
         assert!(world.get_resource::<Speed>().is_none());
+    }
+
+    // --- iter_component ---
+
+    #[test]
+    fn iter_component_yields_all_entities_with_component() {
+        let mut world = World::new();
+        world.register_component::<Health>();
+        let a = world.spawn();
+        let b = world.spawn();
+        let c = world.spawn();
+        world.add_component(a, Health(10));
+        world.add_component(b, Health(20));
+        world.add_component(c, Health(30));
+
+        let mut values: Vec<u32> = world
+            .iter_component::<Health>()
+            .map(|(_, h)| h.0)
+            .collect();
+        values.sort();
+        assert_eq!(values, vec![10, 20, 30]);
+    }
+
+    #[test]
+    fn iter_component_only_yields_entities_that_have_it() {
+        let mut world = World::new();
+        world.register_component::<Position>();
+        world.register_component::<Health>();
+        let a = world.spawn();
+        let b = world.spawn();
+        world.add_component(a, Position { x: 1.0, y: 0.0 });
+        world.add_component(a, Health(100));
+        world.add_component(b, Position { x: 2.0, y: 0.0 });
+        // b has no Health
+
+        let health_ids: Vec<u32> = world
+            .iter_component::<Health>()
+            .map(|(id, _)| id)
+            .collect();
+        assert_eq!(health_ids, vec![a.id]);
+    }
+
+    #[test]
+    fn iter_component_empty_for_unregistered_type() {
+        let world = World::new();
+        let count = world.iter_component::<Health>().count();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn iter_component_empty_after_all_despawned() {
+        let mut world = World::new();
+        world.register_component::<Health>();
+        let e = world.spawn();
+        world.add_component(e, Health(50));
+        world.despawn(e);
+        assert_eq!(world.iter_component::<Health>().count(), 0);
     }
 }
