@@ -1,1 +1,1 @@
-pub(super) mod scene_manager;
+pub mod scene;

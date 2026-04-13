@@ -39,8 +39,6 @@ impl RenderState {
     }
 
     pub fn handle_redraw(&mut self, render_context: RenderContext, models: &[Model], fps: f32) {
-        //0.118, 0.129, 0.192
-
         // Mesh Rendering //
         let surface_texture = render_context.surface
             .get_current_texture()

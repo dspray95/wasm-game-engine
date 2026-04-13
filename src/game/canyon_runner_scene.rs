@@ -1,0 +1,162 @@
+use cgmath::{ vec3, Rotation3 };
+use winit::{ event::ElementState, keyboard::KeyCode };
+
+use crate::{
+    engine::{
+        camera::camera::Camera,
+        model::model::Model,
+        scene::scene::Scene,
+        state::context::GpuContext,
+    },
+    game::{ laser::LaserManager, starfighter::Starfighter, terrain_generation::TerrainGeneration },
+};
+
+const TERRAIN_WIDTH: u32 = 50;
+const TERRAIN_LENGTH: u32 = 150;
+const MOVEMENT_SPEED: f32 = 10.0;
+
+pub struct CanyonRunnerScene {
+    pub models: Vec<Model>, // 0-2 are terrain, 3 is the player, 4 is laser
+    pub starfighter: Starfighter,
+    pub laser_gun: LaserManager,
+    pub terrain_generation: TerrainGeneration,
+    pub is_left_pressed: bool,
+    pub is_right_pressed: bool,
+    pub is_space_pressed: bool,
+    pub oldest_terrain_index: u32,
+    is_control_pressed: bool,
+    is_p_pressed: bool,
+    movement_enabled: bool,
+}
+
+impl CanyonRunnerScene {
+    pub async fn new(gpu_context: GpuContext<'_>) -> Self {
+        // Terrain setup
+        let mut terrain_generation = TerrainGeneration::new(TERRAIN_WIDTH, TERRAIN_LENGTH);
+        let terrain_models = terrain_generation.get_initial_terrain(&gpu_context);
+
+        // Player model
+        let mut starfighter_model = Starfighter::load_model(&gpu_context);
+        starfighter_model.position(24.5, -1.0, 3.0, &gpu_context);
+        starfighter_model.scale(0.3, 0.3, 0.3, &gpu_context);
+        starfighter_model.rotate(
+            cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_y(), cgmath::Deg(180.0)),
+            &gpu_context
+        );
+
+        // Laser model
+        let laser_model = LaserManager::load_model(&gpu_context);
+
+        let mut models: Vec<Model> = terrain_models.into();
+        models.push(starfighter_model);
+        models.push(laser_model);
+
+        CanyonRunnerScene {
+            models,
+            starfighter: Starfighter::new(vec3(24.5, -0.5, 5.0)),
+            laser_gun: LaserManager::new(),
+            terrain_generation,
+            is_left_pressed: false,
+            is_right_pressed: false,
+            is_space_pressed: false,
+            oldest_terrain_index: 0,
+            is_control_pressed: false,
+            is_p_pressed: false,
+            movement_enabled: true,
+        }
+    }
+
+    fn move_player(&mut self, delta_time: f32, gpu_context: &GpuContext, camera: &mut Camera) {
+        camera.translate(0.0, 0.0, MOVEMENT_SPEED * delta_time, gpu_context.queue);
+
+        // Move forward
+        let starfighter_model = &mut self.models[3];
+        starfighter_model.translate(0.0, 0.0, MOVEMENT_SPEED * delta_time, gpu_context);
+        // Hover animation
+        let new_position = self.starfighter.animate(
+            starfighter_model.meshes[0].instances[0].position,
+            delta_time
+        );
+        starfighter_model.position(new_position.x, new_position.y, new_position.z, gpu_context);
+        // Player controlled movement
+        let pos_after_movement = self.starfighter.player_control(
+            self.is_left_pressed,
+            self.is_right_pressed,
+            starfighter_model.meshes[0].instances[0].position,
+            delta_time
+        );
+        starfighter_model.position(
+            pos_after_movement.x,
+            pos_after_movement.y,
+            pos_after_movement.z,
+            gpu_context
+        );
+    }
+}
+
+impl Scene for CanyonRunnerScene {
+    fn update(&mut self, delta_time: f32, gpu_context: GpuContext, camera: &mut Camera) {
+        // Player control and update
+        if self.movement_enabled {
+            self.move_player(delta_time, &gpu_context, camera);
+            if self.is_control_pressed && self.is_p_pressed {
+                self.movement_enabled = false;
+            }
+        } else if self.is_control_pressed && self.is_p_pressed {
+            self.movement_enabled = true;
+        }
+
+        if self.is_space_pressed {
+            let current_position = self.models[3].meshes[0].instances[0].position.clone();
+            let laser_mesh = &mut self.models[4].meshes[0];
+            self.laser_gun.fire(laser_mesh, current_position, &gpu_context);
+        }
+
+        // Terrain update
+        let terrain_result = self.terrain_generation.terrain_update(camera.position.z);
+        if let Some(new_terrain_mesh_data) = terrain_result {
+            let model_to_replace = &mut self.models[self.oldest_terrain_index as usize];
+            TerrainGeneration::replace_terrain_model_buffers(
+                new_terrain_mesh_data,
+                model_to_replace,
+                &gpu_context
+            );
+            self.oldest_terrain_index = (self.oldest_terrain_index + 1) % 3;
+        }
+
+        // Laser update
+        let laser_mesh = &mut self.models[4].meshes[0];
+        self.laser_gun.update(laser_mesh, delta_time, MOVEMENT_SPEED, &gpu_context);
+    }
+
+    fn handle_key_event(&mut self, key_code: KeyCode, state: ElementState) -> bool {
+        let is_pressed = state == ElementState::Pressed;
+        match key_code {
+            KeyCode::KeyA | KeyCode::ArrowLeft => {
+                self.is_left_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyD | KeyCode::ArrowRight => {
+                self.is_right_pressed = is_pressed;
+                true
+            }
+            KeyCode::Space => {
+                self.is_space_pressed = is_pressed;
+                true
+            }
+            KeyCode::ControlLeft => {
+                self.is_control_pressed = is_pressed;
+                true
+            }
+            KeyCode::KeyP => {
+                self.is_p_pressed = is_pressed;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn models(&self) -> &Vec<Model> {
+        &self.models
+    }
+}

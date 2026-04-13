@@ -1,27 +1,23 @@
 use std::sync::Arc;
 use web_time::Instant;
-use winit::dpi::PhysicalSize;
 use winit::event::{ ElementState };
 use winit::keyboard::{ KeyCode };
 use winit::window::{ Window };
 
-use crate::engine::camera::projection::Projection;
 use crate::engine::fps_counter::FpsCounter;
-use crate::engine::scene::scene_manager::SceneManager;
+use crate::engine::scene::scene::Scene;
 use crate::engine::state::context::GpuContext;
 use crate::engine::state::engine_state::EngineState;
 use crate::engine::state::render_state::RenderState;
 use crate::engine::texture::Texture;
 
-const INITIAL_WINDOW_WIDTH: u32 = 1360;
-const INITIAL_WINDOW_HEIGHT: u32 = 768;
 const MINIMUM_DELTA_TIME: f32 = 0.1;
 
 pub struct AppState {
     pub instance: wgpu::Instance,
     engine_state: Option<EngineState>,
     pub window: Option<Arc<Window>>,
-    scene_manager: Option<SceneManager>,
+    scene: Option<Box<dyn Scene>>,
     render_state: Option<RenderState>,
     last_frame_time: Instant,
     delta_time: f32,
@@ -37,7 +33,7 @@ impl AppState {
             instance,
             engine_state: None,
             window: None,
-            scene_manager: None,
+            scene: None,
             render_state: None,
             last_frame_time: Instant::now(),
             delta_time: 0.0,
@@ -46,18 +42,17 @@ impl AppState {
         }
     }
 
-    // Sync setter that only mutably borrows for a moment
     pub fn install_window_state(
         &mut self,
         window: Arc<Window>,
         engine_state: EngineState,
         render_state: RenderState,
-        scene_manager: SceneManager
+        scene: Box<dyn Scene>
     ) {
         self.window = Some(window);
         self.engine_state = Some(engine_state);
         self.render_state = Some(render_state);
-        self.scene_manager = Some(scene_manager);
+        self.scene = Some(scene);
     }
 
     pub fn handle_resized(&mut self, width: u32, height: u32) {
@@ -130,7 +125,7 @@ impl AppState {
                 queue,
             };
 
-            self.scene_manager.as_mut().unwrap().update(self.delta_time, gpu_context, camera);
+            self.scene.as_mut().unwrap().update(self.delta_time, gpu_context, camera);
         }
     }
 
@@ -138,19 +133,17 @@ impl AppState {
         if self.engine_state.is_none() {
             return;
         }
-        // In AppState::handle_redraw_requested or a similar loop function
         if let Some(engine_state) = self.engine_state.as_ref() {
-            // Poll the device queue
-            engine_state.device.poll(wgpu::Maintain::Wait); // Or wgpu::Maintain::Poll
+            engine_state.device.poll(wgpu::Maintain::Wait);
         }
         self.handle_camera_update();
         self.update();
 
         let engine_state = self.engine_state.as_ref().unwrap();
         let render_state = self.render_state.as_mut().unwrap();
-        let scene_manager = self.scene_manager.as_ref().unwrap();
+        let scene = self.scene.as_ref().unwrap();
 
-        render_state.handle_redraw(engine_state.render_context(), &scene_manager.models, if
+        render_state.handle_redraw(engine_state.render_context(), scene.models(), if
             self.show_fps
         {
             self.fps_counter.get_fps()
@@ -166,8 +159,7 @@ impl AppState {
         if let Some(engine_state) = self.engine_state.as_mut() {
             engine_state.camera_controller.process_events(key_code, state);
 
-            self.scene_manager.as_mut().unwrap().player_control_event(key_code, state);
-            let is_pressed = state == ElementState::Pressed;
+            self.scene.as_mut().unwrap().handle_key_event(key_code, state);
             if state == ElementState::Pressed {
                 match key_code {
                     KeyCode::Home => {

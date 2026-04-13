@@ -9,6 +9,9 @@ use winit::window::{ Window, WindowId };
 use winit::platform::web::WindowExtWebSys;
 use crate::engine::state::app_state::AppState;
 
+const INITIAL_WINDOW_WIDTH: u32 = 1920;
+const INITIAL_WINDOW_HEIGHT: u32 = 1080;
+
 pub struct App {
     app_state: Rc<RefCell<AppState>>,
     #[cfg(target_arch = "wasm32")]
@@ -35,11 +38,18 @@ impl ApplicationHandler for App {
 
             use std::sync::Arc;
             use crate::engine::state::{ engine_state::EngineState, render_state::RenderState };
-            use crate::engine::scene::scene_manager::SceneManager;
+            use crate::game::canyon_runner_scene::CanyonRunnerScene;
 
             let window = Arc::new(
                 event_loop
-                    .create_window(Window::default_attributes())
+                    .create_window(
+                        Window::default_attributes().with_inner_size(
+                            winit::dpi::LogicalSize::new(
+                                INITIAL_WINDOW_WIDTH,
+                                INITIAL_WINDOW_HEIGHT
+                            )
+                        )
+                    )
                     .expect("Failed to create window")
             );
 
@@ -50,7 +60,7 @@ impl ApplicationHandler for App {
 
             let size = window.inner_size();
 
-            let (engine_state, render_state, scene_manager) = pollster::block_on(async {
+            let (engine_state, render_state, scene) = pollster::block_on(async {
                 let engine_state = EngineState::new(
                     &instance,
                     surface,
@@ -64,14 +74,16 @@ impl ApplicationHandler for App {
                     &engine_state.surface_config
                 );
 
-                let scene_manager = SceneManager::new(engine_state.gpu_context()).await;
+                let scene: Box<CanyonRunnerScene> = Box::new(
+                    CanyonRunnerScene::new(engine_state.gpu_context()).await
+                );
 
-                (engine_state, render_state, scene_manager)
+                (engine_state, render_state, scene)
             });
 
             self.app_state
                 .borrow_mut()
-                .install_window_state(window.clone(), engine_state, render_state, scene_manager);
+                .install_window_state(window.clone(), engine_state, render_state, scene);
 
             window.request_redraw();
         }
@@ -224,12 +236,12 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
         &engine_state.surface_config
     );
 
-    let scene_manager = crate::engine::scene::scene_manager::SceneManager::new(
-        engine_state.gpu_context()
-    ).await;
+    let scene = Box::new(
+        crate::game::canyon_runner_scene::CanyonRunnerScene::new(engine_state.gpu_context()).await
+    );
 
     if let Ok(mut state) = app_state.try_borrow_mut() {
-        state.install_window_state(window.clone(), engine_state, render_state, scene_manager);
+        state.install_window_state(window.clone(), engine_state, render_state, scene);
 
         // First redraw to start render loop
         window.request_redraw();

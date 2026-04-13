@@ -1,3 +1,4 @@
+pub mod canyon_runner_scene;
 pub mod cube;
 pub mod terrain_generation;
 pub mod procedural_generation;
