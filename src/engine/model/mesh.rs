@@ -196,7 +196,11 @@ impl Mesh {
         );
         if let Some(instance_buffer) = &self.instance_buffer {
             let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-            gpu_context.queue.write_buffer(instance_buffer, 0, bytemuck::cast_slice(&instance_data));
+            gpu_context.queue.write_buffer(
+                instance_buffer,
+                0,
+                bytemuck::cast_slice(&instance_data)
+            );
             self.instance_count = self.instances.len() as u32;
         }
     }

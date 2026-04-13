@@ -38,7 +38,13 @@ impl RenderState {
         }
     }
 
-    pub fn handle_redraw(&mut self, render_context: RenderContext, models: &[Model], fps: f32) {
+    pub fn handle_redraw(
+        &mut self,
+        render_context: RenderContext,
+        scene_models: &[Model],
+        ecs_models: &[Model],
+        fps: f32
+    ) {
         // Mesh Rendering //
         let surface_texture = render_context.surface
             .get_current_texture()
@@ -85,7 +91,30 @@ impl RenderState {
             // Render pass
             // 1. Render wireframes that should be behind transparent objects
             render_pass.set_pipeline(render_context.wireframe_render_pipeline);
-            for model in models {
+            for model in scene_models {
+                for mesh in &model.meshes {
+                    // Only render if this mesh is transparent (has alpha < 1.0)
+                    if mesh._material.alpha < 1.0 {
+                        match &mesh.instance_buffer {
+                            Some(instance_buffer) => {
+                                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                                render_pass.draw_mesh_instanced(
+                                    mesh,
+                                    0..mesh.instance_count,
+                                    render_context.camera_bind_group,
+                                    render_context.light_bind_group,
+                                    &mesh.color_bind_group,
+                                    true
+                                );
+                            }
+                            None => {
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+            for model in ecs_models {
                 for mesh in &model.meshes {
                     // Only render if this mesh is transparent (has alpha < 1.0)
                     if mesh._material.alpha < 1.0 {
@@ -111,7 +140,7 @@ impl RenderState {
 
             // 2. Transparent terrain
             render_pass.set_pipeline(render_context.render_pipeline);
-            for model in models {
+            for model in scene_models {
                 for mesh in &model.meshes {
                     match &mesh.instance_buffer {
                         Some(instance_buffer) => {
@@ -132,10 +161,52 @@ impl RenderState {
                     }
                 }
             }
-
+            for model in ecs_models {
+                for mesh in &model.meshes {
+                    match &mesh.instance_buffer {
+                        Some(instance_buffer) => {
+                            render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                            render_pass.draw_mesh_instanced(
+                                // Changed this line
+                                mesh, // Pass mesh instead of model
+                                0..mesh.instance_count,
+                                render_context.camera_bind_group,
+                                render_context.light_bind_group,
+                                &mesh.color_bind_group,
+                                false
+                            );
+                        }
+                        None => {
+                            continue;
+                        }
+                    }
+                }
+            }
             // 3. Render wireframes on top
             render_pass.set_pipeline(render_context.wireframe_render_pipeline);
-            for model in models {
+            for model in scene_models {
+                for mesh in &model.meshes {
+                    if mesh._material.alpha < 1.0 {
+                        match &mesh.instance_buffer {
+                            Some(instance_buffer) => {
+                                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                                render_pass.draw_mesh_instanced(
+                                    mesh,
+                                    0..mesh.instance_count,
+                                    render_context.camera_bind_group,
+                                    render_context.light_bind_group,
+                                    &mesh.color_bind_group,
+                                    false
+                                );
+                            }
+                            None => {
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+            for model in ecs_models {
                 for mesh in &model.meshes {
                     if mesh._material.alpha < 1.0 {
                         match &mesh.instance_buffer {

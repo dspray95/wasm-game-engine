@@ -4,15 +4,16 @@ use winit::event::{ ElementState };
 use winit::keyboard::{ KeyCode };
 use winit::window::{ Window };
 
+use crate::engine::ecs::system::{ SystemContext, SystemSchedule };
+use crate::engine::ecs::world::World;
 use crate::engine::fps_counter::FpsCounter;
+use crate::engine::model::model_registry::ModelRegistry;
 use crate::engine::scene::scene::Scene;
 use crate::engine::state::context::GpuContext;
 use crate::engine::state::engine_state::EngineState;
 use crate::engine::state::render_state::RenderState;
 use crate::engine::texture::Texture;
 
-const INITIAL_WINDOW_WIDTH: u32 = 1360;
-const INITIAL_WINDOW_HEIGHT: u32 = 768;
 const MINIMUM_DELTA_TIME: f32 = 0.1;
 
 pub struct AppState {
@@ -25,6 +26,9 @@ pub struct AppState {
     delta_time: f32,
     fps_counter: FpsCounter,
     show_fps: bool,
+    world: Option<World>,
+    model_registry: Option<ModelRegistry>,
+    system_schedule: Option<SystemSchedule>,
 }
 
 impl AppState {
@@ -41,6 +45,9 @@ impl AppState {
             delta_time: 0.0,
             fps_counter: FpsCounter::new(),
             show_fps: false,
+            world: None,
+            model_registry: None,
+            system_schedule: None,
         }
     }
 
@@ -51,10 +58,23 @@ impl AppState {
         render_state: RenderState,
         scene: Box<dyn Scene>
     ) {
+        let mut world = World::new();
+        let mut model_registry = ModelRegistry::new();
+        let mut system_schedule = SystemSchedule::new();
+
+        let gpu_context = GpuContext {
+            device: &engine_state.device,
+            queue: &engine_state.queue,
+        };
+        scene.setup_ecs(&mut world, &mut model_registry, &mut system_schedule, &gpu_context);
+
         self.window = Some(window);
         self.engine_state = Some(engine_state);
         self.render_state = Some(render_state);
         self.scene = Some(scene);
+        self.world = Some(world);
+        self.model_registry = Some(model_registry);
+        self.system_schedule = Some(system_schedule);
     }
 
     pub fn handle_resized(&mut self, width: u32, height: u32) {
@@ -128,6 +148,13 @@ impl AppState {
             };
 
             self.scene.as_mut().unwrap().update(self.delta_time, gpu_context, camera);
+
+            // ECS
+            let queue = &engine_state.queue;
+            let model_registry = self.model_registry.as_mut().unwrap();
+            let world = self.world.as_mut().unwrap();
+            let mut system_context = SystemContext::new(self.delta_time, queue, model_registry);
+            self.system_schedule.as_mut().unwrap().run_all(world, &mut system_context);
         }
     }
 
@@ -144,12 +171,10 @@ impl AppState {
         let engine_state = self.engine_state.as_ref().unwrap();
         let render_state = self.render_state.as_mut().unwrap();
         let scene = self.scene.as_ref().unwrap();
+        let ecs_models = self.model_registry.as_ref().unwrap().models();
+        let fps = if self.show_fps { self.fps_counter.get_fps() } else { -1.0 };
 
-        render_state.handle_redraw(engine_state.render_context(), scene.models(), if self.show_fps {
-            self.fps_counter.get_fps()
-        } else {
-            -1.0
-        });
+        render_state.handle_redraw(engine_state.render_context(), scene.models(), ecs_models, fps);
 
         // Schedule next frame (browser-friendly)
         self.window.as_ref().unwrap().request_redraw();

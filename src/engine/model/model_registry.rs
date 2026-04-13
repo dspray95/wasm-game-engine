@@ -11,6 +11,10 @@ impl ModelRegistry {
         }
     }
 
+    pub fn models(&self) -> &[Model] {
+        &self.models
+    }
+
     // Does not suport remove/un-register for now
     pub fn register(&mut self, model: Model) -> usize {
         // Register the model, return the index as ID for ue in Renderable component
@@ -40,14 +44,22 @@ mod tests {
     }
 
     impl FakeRegistry {
-        fn new() -> Self { Self { items: Vec::new() } }
+        fn new() -> Self {
+            Self { items: Vec::new() }
+        }
         fn register(&mut self, item: u32) -> usize {
             self.items.push(item);
             self.items.len() - 1
         }
-        fn get(&self, id: usize) -> Option<&u32> { self.items.get(id) }
-        fn get_mut(&mut self, id: usize) -> Option<&mut u32> { self.items.get_mut(id) }
-        fn len(&self) -> usize { self.items.len() }
+        fn get(&self, id: usize) -> Option<&u32> {
+            self.items.get(id)
+        }
+        fn get_mut(&mut self, id: usize) -> Option<&mut u32> {
+            self.items.get_mut(id)
+        }
+        fn len(&self) -> usize {
+            self.items.len()
+        }
     }
 
     #[test]
