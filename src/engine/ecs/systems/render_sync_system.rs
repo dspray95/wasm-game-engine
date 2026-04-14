@@ -72,7 +72,7 @@ mod tests {
     #[test]
     fn entity_without_transform_is_excluded() {
         let mut world = world_with_components();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.add_component(e, Renderable { model_id: 0 });
         // No Transform added — should not appear in groups
         assert!(collect_instance_groups(&world).is_empty());
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn entity_without_renderable_is_excluded() {
         let mut world = world_with_components();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.add_component(e, Transform::new());
         // No Renderable added — should not appear in groups
         assert!(collect_instance_groups(&world).is_empty());
@@ -90,7 +90,7 @@ mod tests {
     #[test]
     fn single_entity_produces_one_group_with_one_instance() {
         let mut world = world_with_components();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.add_component(e, Transform::new().with_position(1.0, 2.0, 3.0));
         world.add_component(e, Renderable { model_id: 0 });
 
@@ -103,7 +103,7 @@ mod tests {
     fn entities_with_same_model_id_are_grouped_together() {
         let mut world = world_with_components();
         for _ in 0..3 {
-            let e = world.spawn();
+            let e = world.spawn_entity_only();
             world.add_component(e, Transform::new());
             world.add_component(e, Renderable { model_id: 0 });
         }
@@ -115,7 +115,7 @@ mod tests {
     fn entities_with_different_model_ids_go_to_separate_groups() {
         let mut world = world_with_components();
         for model_id in [0, 1, 2] {
-            let e = world.spawn();
+            let e = world.spawn_entity_only();
             world.add_component(e, Transform::new());
             world.add_component(e, Renderable { model_id });
         }
@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn despawned_entity_is_not_included() {
         let mut world = world_with_components();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.add_component(e, Transform::new());
         world.add_component(e, Renderable { model_id: 0 });
         world.despawn(e);

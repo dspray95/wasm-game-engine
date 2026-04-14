@@ -6,11 +6,11 @@ use crate::{
         camera::camera::Camera,
         ecs::{
             components::{ renderable::Renderable, transform::Transform },
-            system::{ SystemSchedule },
+            system::{ SystemContext, SystemSchedule },
             systems::render_sync_system::render_sync_system,
             world::World,
         },
-        model::{ model::Model, model_registry::ModelRegistry },
+        model::model::Model,
         scene::scene::Scene,
         state::context::GpuContext,
     },
@@ -100,6 +100,33 @@ impl CanyonRunnerScene {
     }
 }
 
+fn canyon_runner_startup(world: &mut World, ctx: &mut SystemContext) {
+    let gpu = GpuContext {
+        device: ctx.device.unwrap(),
+        queue: ctx.queue.unwrap(),
+    };
+    let model_registry = ctx.model_registry.as_mut().unwrap();
+
+    let starfighter_model = Starfighter::load_model(&gpu);
+    let model_id = model_registry.register(starfighter_model);
+
+    world
+        .spawn()
+        .with(
+            Transform::new()
+                .with_position(24.5, -1.0, 3.0)
+                .with_scale(0.3, 0.3, 0.3)
+                .with_rotation(
+                    cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_y(),
+                        cgmath::Deg(180.0)
+                    )
+                )
+        )
+        .with(Renderable { model_id })
+        .build();
+}
+
 impl Scene for CanyonRunnerScene {
     fn update(&mut self, delta_time: f32, gpu_context: GpuContext, camera: &mut Camera) {
         // Player control and update
@@ -166,34 +193,8 @@ impl Scene for CanyonRunnerScene {
         &self.models
     }
 
-    fn setup_ecs(
-        &self,
-        world: &mut World,
-        registry: &mut ModelRegistry,
-        schedule: &mut SystemSchedule,
-        gpu: &GpuContext
-    ) {
-        world.register_component::<Transform>();
-        world.register_component::<Renderable>();
-
-        let starfighter_model = Starfighter::load_model(gpu);
-        let model_id = registry.register(starfighter_model);
-
-        let entity = world.spawn();
-        world.add_component(
-            entity,
-            Transform::new()
-                .with_position(24.5, -1.0, 3.0)
-                .with_scale(0.3, 0.3, 0.3)
-                .with_rotation(
-                    cgmath::Quaternion::from_axis_angle(
-                        cgmath::Vector3::unit_y(),
-                        cgmath::Deg(180.0)
-                    )
-                )
-        );
-        world.add_component(entity, Renderable { model_id });
-
+    fn setup_ecs(&self, schedule: &mut SystemSchedule) {
+        schedule.add_startup(canyon_runner_startup);
         schedule.add_system(render_sync_system);
     }
 }

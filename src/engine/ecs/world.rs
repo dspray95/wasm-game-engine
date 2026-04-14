@@ -1,6 +1,6 @@
 use std::{ any::{ Any, TypeId }, collections::HashMap };
 
-use crate::engine::ecs::{ entity::{ Entity, EntityAllocator }, sparse_set::SparseSet };
+use crate::engine::ecs::{ entity::{ self, Entity, EntityAllocator }, sparse_set::SparseSet };
 
 // Trait that lets World call remove() on a type-erased SparseSet without knowing T.
 // as_any / as_any_mut allow downcasting back to SparseSet<T> when T is known.
@@ -50,7 +50,8 @@ impl World {
 
     pub fn add_component<T: 'static>(&mut self, entity: Entity, value: T) {
         let type_id = TypeId::of::<T>();
-        let storage = self.components.get_mut(&type_id).expect("component type not registered");
+        self.components.entry(type_id).or_insert_with(|| Box::new(SparseSet::<T>::new()));
+        let storage = self.components.get_mut(&type_id).unwrap();
         let set = storage.as_any_mut().downcast_mut::<SparseSet<T>>().unwrap();
         set.insert(entity.id, value);
     }
@@ -82,8 +83,13 @@ impl World {
         set.remove(entity.id);
     }
 
-    pub fn spawn(&mut self) -> Entity {
+    pub fn spawn_entity_only(&mut self) -> Entity {
         self.entities.spawn()
+    }
+
+    pub fn spawn(&mut self) -> EntityBuilder {
+        let entity = self.spawn_entity_only();
+        EntityBuilder { world: self, entity }
     }
 
     pub fn is_alive(&self, entity: Entity) -> bool {
@@ -121,6 +127,22 @@ impl World {
     }
 }
 
+pub struct EntityBuilder<'w> {
+    world: &'w mut World,
+    entity: Entity,
+}
+
+impl<'w> EntityBuilder<'w> {
+    pub fn with<T: 'static>(self, component: T) -> Self {
+        self.world.add_component(self.entity, component);
+        self
+    }
+
+    pub fn build(self) -> Entity {
+        self.entity
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,19 +165,19 @@ mod tests {
     #[test]
     fn spawned_entities_are_unique() {
         let mut world = World::new();
-        let a = world.spawn();
-        let b = world.spawn();
+        let a = world.spawn_entity_only();
+        let b = world.spawn_entity_only();
         assert_ne!(a, b);
     }
 
     #[test]
     fn despawned_entity_is_no_longer_alive_and_slot_is_recycled() {
         let mut world = World::new();
-        let a = world.spawn();
+        let a = world.spawn_entity_only();
         assert!(world.is_alive(a));
         world.despawn(a);
         assert!(!world.is_alive(a));
-        let b = world.spawn();
+        let b = world.spawn_entity_only();
         // new entity is alive, old stale handle is not
         assert!(world.is_alive(b));
         assert!(!world.is_alive(a));
@@ -166,7 +188,7 @@ mod tests {
     #[test]
     fn add_and_get_component() {
         let mut world = world_with_position();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.add_component(e, Position { x: 1.0, y: 2.0 });
         let pos = world.get_component::<Position>(e).unwrap();
         assert_eq!(pos.x, 1.0);
@@ -176,14 +198,14 @@ mod tests {
     #[test]
     fn get_component_returns_none_when_not_added() {
         let mut world = world_with_position();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         assert!(world.get_component::<Position>(e).is_none());
     }
 
     #[test]
     fn get_component_mut_allows_mutation() {
         let mut world = world_with_position();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.add_component(e, Position { x: 0.0, y: 0.0 });
         world.get_component_mut::<Position>(e).unwrap().x = 99.0;
         assert_eq!(world.get_component::<Position>(e).unwrap().x, 99.0);
@@ -194,7 +216,7 @@ mod tests {
     #[test]
     fn removed_component_is_no_longer_present() {
         let mut world = world_with_position();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.add_component(e, Position { x: 1.0, y: 1.0 });
         world.remove_component::<Position>(e);
         assert!(world.get_component::<Position>(e).is_none());
@@ -203,7 +225,7 @@ mod tests {
     #[test]
     fn remove_unregistered_component_does_not_panic() {
         let mut world = World::new();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.remove_component::<Position>(e); // no-op
     }
 
@@ -214,7 +236,7 @@ mod tests {
         let mut world = World::new();
         world.register_component::<Position>();
         world.register_component::<Health>();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.add_component(e, Position { x: 1.0, y: 1.0 });
         world.add_component(e, Health(100));
         world.despawn(e);
@@ -225,12 +247,42 @@ mod tests {
     #[test]
     fn stale_handle_cannot_access_recycled_entity_components() {
         let mut world = world_with_position();
-        let old = world.spawn();
+        let old = world.spawn_entity_only();
         world.add_component(old, Position { x: 5.0, y: 5.0 });
         world.despawn(old);
-        let _new = world.spawn(); // reuses same id slot
+        let _new = world.spawn_entity_only(); // reuses same id slot
         // old handle's generation is stale — component was removed on despawn
         assert!(world.get_component::<Position>(old).is_none());
+    }
+
+    // --- EntityBuilder ---
+
+    #[test]
+    fn builder_attaches_all_components_to_same_entity() {
+        let mut world = World::new();
+        let e = world.spawn()
+            .with(Position { x: 1.0, y: 2.0 })
+            .with(Health(42))
+            .build();
+        assert_eq!(world.get_component::<Position>(e).unwrap().x, 1.0);
+        assert_eq!(world.get_component::<Health>(e).unwrap().0, 42);
+    }
+
+    #[test]
+    fn builder_with_no_components_produces_live_entity() {
+        let mut world = World::new();
+        let e = world.spawn().build();
+        assert!(world.is_alive(e));
+    }
+
+    #[test]
+    fn two_builders_produce_distinct_entities() {
+        let mut world = World::new();
+        let a = world.spawn().with(Health(1)).build();
+        let b = world.spawn().with(Health(2)).build();
+        assert_ne!(a, b);
+        assert_eq!(world.get_component::<Health>(a).unwrap().0, 1);
+        assert_eq!(world.get_component::<Health>(b).unwrap().0, 2);
     }
 
     // --- multiple components on one entity ---
@@ -240,7 +292,7 @@ mod tests {
         let mut world = World::new();
         world.register_component::<Position>();
         world.register_component::<Health>();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.add_component(e, Position { x: 3.0, y: 4.0 });
         world.add_component(e, Health(50));
         assert_eq!(world.get_component::<Position>(e).unwrap().x, 3.0);
@@ -276,9 +328,9 @@ mod tests {
     fn iter_component_yields_all_entities_with_component() {
         let mut world = World::new();
         world.register_component::<Health>();
-        let a = world.spawn();
-        let b = world.spawn();
-        let c = world.spawn();
+        let a = world.spawn_entity_only();
+        let b = world.spawn_entity_only();
+        let c = world.spawn_entity_only();
         world.add_component(a, Health(10));
         world.add_component(b, Health(20));
         world.add_component(c, Health(30));
@@ -296,8 +348,8 @@ mod tests {
         let mut world = World::new();
         world.register_component::<Position>();
         world.register_component::<Health>();
-        let a = world.spawn();
-        let b = world.spawn();
+        let a = world.spawn_entity_only();
+        let b = world.spawn_entity_only();
         world.add_component(a, Position { x: 1.0, y: 0.0 });
         world.add_component(a, Health(100));
         world.add_component(b, Position { x: 2.0, y: 0.0 });
@@ -321,7 +373,7 @@ mod tests {
     fn iter_component_empty_after_all_despawned() {
         let mut world = World::new();
         world.register_component::<Health>();
-        let e = world.spawn();
+        let e = world.spawn_entity_only();
         world.add_component(e, Health(50));
         world.despawn(e);
         assert_eq!(world.iter_component::<Health>().count(), 0);

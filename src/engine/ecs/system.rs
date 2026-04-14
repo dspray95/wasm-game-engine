@@ -3,7 +3,7 @@ use crate::engine::{ ecs::world::World, model::model_registry::ModelRegistry };
 pub struct SystemContext<'a> {
     pub delta_time: f32,
     // None for systems that don't need GPU access (most of them)
-    // Only render_sync_system needs these
+    pub device: Option<&'a wgpu::Device>,
     pub queue: Option<&'a wgpu::Queue>,
     pub model_registry: Option<&'a mut ModelRegistry>,
 }
@@ -11,11 +11,13 @@ pub struct SystemContext<'a> {
 impl<'a> SystemContext<'a> {
     pub fn new(
         delta_time: f32,
+        device: &'a wgpu::Device,
         queue: &'a wgpu::Queue,
         model_registry: &'a mut ModelRegistry,
     ) -> Self {
         Self {
             delta_time,
+            device: Some(device),
             queue: Some(queue),
             model_registry: Some(model_registry),
         }
@@ -25,14 +27,22 @@ impl<'a> SystemContext<'a> {
 pub type System = fn(&mut World, &mut SystemContext);
 
 pub struct SystemSchedule {
+    startup_systems: Vec<System>,
     systems: Vec<System>, // Ordered, e.g. `[input, ai, pathfinding, movement, resource, render_sync etc]`
+    started: bool,
 }
 
 impl SystemSchedule {
     pub fn new() -> Self {
         Self {
+            startup_systems: Vec::new(),
             systems: Vec::new(),
+            started: false,
         }
+    }
+
+    pub fn add_startup(&mut self, system: System) {
+        self.startup_systems.push(system);
     }
 
     pub fn add_system(&mut self, system: System) {
@@ -40,6 +50,12 @@ impl SystemSchedule {
     }
 
     pub fn run_all(&mut self, world: &mut World, system_context: &mut SystemContext) {
+        if !self.started {
+            for system in &self.startup_systems {
+                system(world, system_context);
+            }
+            self.started = true;
+        }
         // run_all takes &mut self and &mut World. When you call each system with world,
         // you're passing the same &mut World repeatedly through the loop. Rust will let you
         // do this because each call completes before the next one starts — the borrow is
@@ -72,6 +88,7 @@ mod tests {
     fn make_ctx() -> SystemContext<'static> {
         SystemContext {
             delta_time: 0.016,
+            device: None,
             queue: None,
             model_registry: None,
         }
@@ -124,7 +141,7 @@ mod tests {
         let mut world = World::new();
         let mut schedule = SystemSchedule::new();
         schedule.add_system(capture_dt_system);
-        let mut ctx = SystemContext { delta_time: 1.0 / 60.0, queue: None, model_registry: None };
+        let mut ctx = SystemContext { delta_time: 1.0 / 60.0, device: None, queue: None, model_registry: None };
         schedule.run_all(&mut world, &mut ctx);
         let stored = world.get_resource::<f32>().unwrap();
         assert!((stored - 1.0 / 60.0).abs() < f32::EPSILON);

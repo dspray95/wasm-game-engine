@@ -4,6 +4,7 @@ use winit::event::{ ElementState };
 use winit::keyboard::{ KeyCode };
 use winit::window::{ Window };
 
+use crate::engine::ecs::resources::input_state::InputState;
 use crate::engine::ecs::system::{ SystemContext, SystemSchedule };
 use crate::engine::ecs::world::World;
 use crate::engine::fps_counter::FpsCounter;
@@ -58,15 +59,11 @@ impl AppState {
         render_state: RenderState,
         scene: Box<dyn Scene>
     ) {
-        let mut world = World::new();
-        let mut model_registry = ModelRegistry::new();
+        let world = World::new();
+        let model_registry = ModelRegistry::new();
         let mut system_schedule = SystemSchedule::new();
 
-        let gpu_context = GpuContext {
-            device: &engine_state.device,
-            queue: &engine_state.queue,
-        };
-        scene.setup_ecs(&mut world, &mut model_registry, &mut system_schedule, &gpu_context);
+        scene.setup_ecs(&mut system_schedule);
 
         self.window = Some(window);
         self.engine_state = Some(engine_state);
@@ -150,10 +147,11 @@ impl AppState {
             self.scene.as_mut().unwrap().update(self.delta_time, gpu_context, camera);
 
             // ECS
+            let device = &engine_state.device;
             let queue = &engine_state.queue;
             let model_registry = self.model_registry.as_mut().unwrap();
             let world = self.world.as_mut().unwrap();
-            let mut system_context = SystemContext::new(self.delta_time, queue, model_registry);
+            let mut system_context = SystemContext::new(self.delta_time, device, queue, model_registry);
             self.system_schedule.as_mut().unwrap().run_all(world, &mut system_context);
         }
     }
