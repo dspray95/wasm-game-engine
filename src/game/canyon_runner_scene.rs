@@ -1,11 +1,12 @@
 use cgmath::{ vec3, Rotation3 };
-use winit::{ event::ElementState, keyboard::KeyCode };
+use winit::keyboard::KeyCode;
 
 use crate::{
     engine::{
         camera::camera::Camera,
         ecs::{
             components::{ renderable::Renderable, transform::Transform },
+            resources::input_state::InputState,
             system::{ SystemContext, SystemSchedule },
             systems::render_sync_system::render_sync_system,
             world::World,
@@ -14,7 +15,12 @@ use crate::{
         scene::scene::Scene,
         state::context::GpuContext,
     },
-    game::{ laser::LaserManager, starfighter::Starfighter, terrain_generation::TerrainGeneration },
+    game::{
+        laser::LaserManager,
+        starfighter::Starfighter,
+        systems::camera_control_system::camera_control_system,
+        terrain_generation::TerrainGeneration,
+    },
 };
 
 const TERRAIN_WIDTH: u32 = 50;
@@ -26,12 +32,7 @@ pub struct CanyonRunnerScene {
     pub starfighter: Starfighter,
     pub laser_gun: LaserManager,
     pub terrain_generation: TerrainGeneration,
-    pub is_left_pressed: bool,
-    pub is_right_pressed: bool,
-    pub is_space_pressed: bool,
     pub oldest_terrain_index: u32,
-    is_control_pressed: bool,
-    is_p_pressed: bool,
     movement_enabled: bool,
 }
 
@@ -62,17 +63,18 @@ impl CanyonRunnerScene {
             starfighter: Starfighter::new(vec3(24.5, -0.5, 5.0)),
             laser_gun: LaserManager::new(),
             terrain_generation,
-            is_left_pressed: false,
-            is_right_pressed: false,
-            is_space_pressed: false,
             oldest_terrain_index: 0,
-            is_control_pressed: false,
-            is_p_pressed: false,
             movement_enabled: false,
         }
     }
 
-    fn move_player(&mut self, delta_time: f32, gpu_context: &GpuContext, camera: &mut Camera) {
+    fn move_player(
+        &mut self,
+        delta_time: f32,
+        gpu_context: &GpuContext,
+        camera: &mut Camera,
+        input: &InputState
+    ) {
         camera.translate(0.0, 0.0, MOVEMENT_SPEED * delta_time, gpu_context.queue);
 
         // Move forward
@@ -86,8 +88,8 @@ impl CanyonRunnerScene {
         starfighter_model.position(new_position.x, new_position.y, new_position.z, gpu_context);
         // Player controlled movement
         let pos_after_movement = self.starfighter.player_control(
-            self.is_left_pressed,
-            self.is_right_pressed,
+            input.is_pressed(KeyCode::KeyA) || input.is_pressed(KeyCode::ArrowLeft),
+            input.is_pressed(KeyCode::KeyD) || input.is_pressed(KeyCode::ArrowRight),
             starfighter_model.meshes[0].instances[0].position,
             delta_time
         );
@@ -105,6 +107,9 @@ fn canyon_runner_startup(world: &mut World, ctx: &mut SystemContext) {
         device: ctx.device.unwrap(),
         queue: ctx.queue.unwrap(),
     };
+
+    world.add_resource(FreeCameraEnabled(false));
+
     let model_registry = ctx.model_registry.as_mut().unwrap();
 
     let starfighter_model = Starfighter::load_model(&gpu);
@@ -128,18 +133,23 @@ fn canyon_runner_startup(world: &mut World, ctx: &mut SystemContext) {
 }
 
 impl Scene for CanyonRunnerScene {
-    fn update(&mut self, delta_time: f32, gpu_context: GpuContext, camera: &mut Camera) {
-        // Player control and update
-        if self.movement_enabled {
-            self.move_player(delta_time, &gpu_context, camera);
-            if self.is_control_pressed && self.is_p_pressed {
-                self.movement_enabled = false;
-            }
-        } else if self.is_control_pressed && self.is_p_pressed {
-            self.movement_enabled = true;
+    fn update(
+        &mut self,
+        delta_time: f32,
+        gpu_context: GpuContext,
+        camera: &mut Camera,
+        input: &InputState
+    ) {
+        // Ctrl+P toggles player movement (just_pressed prevents re-triggering every frame)
+        if input.just_pressed(KeyCode::KeyP) && input.is_pressed(KeyCode::ControlLeft) {
+            self.movement_enabled = !self.movement_enabled;
         }
 
-        if self.is_space_pressed {
+        if self.movement_enabled {
+            self.move_player(delta_time, &gpu_context, camera, input);
+        }
+
+        if input.is_pressed(KeyCode::Space) {
             let current_position = self.models[3].meshes[0].instances[0].position.clone();
             let laser_mesh = &mut self.models[4].meshes[0];
             self.laser_gun.fire(laser_mesh, current_position, &gpu_context);
@@ -162,33 +172,6 @@ impl Scene for CanyonRunnerScene {
         self.laser_gun.update(laser_mesh, delta_time, MOVEMENT_SPEED, &gpu_context);
     }
 
-    fn handle_key_event(&mut self, key_code: KeyCode, state: ElementState) -> bool {
-        let is_pressed = state == ElementState::Pressed;
-        match key_code {
-            KeyCode::KeyA | KeyCode::ArrowLeft => {
-                self.is_left_pressed = is_pressed;
-                true
-            }
-            KeyCode::KeyD | KeyCode::ArrowRight => {
-                self.is_right_pressed = is_pressed;
-                true
-            }
-            KeyCode::Space => {
-                self.is_space_pressed = is_pressed;
-                true
-            }
-            KeyCode::ControlLeft => {
-                self.is_control_pressed = is_pressed;
-                true
-            }
-            KeyCode::KeyP => {
-                self.is_p_pressed = is_pressed;
-                true
-            }
-            _ => false,
-        }
-    }
-
     fn models(&self) -> &Vec<Model> {
         &self.models
     }
@@ -196,5 +179,8 @@ impl Scene for CanyonRunnerScene {
     fn setup_ecs(&self, schedule: &mut SystemSchedule) {
         schedule.add_startup(canyon_runner_startup);
         schedule.add_system(render_sync_system);
+        schedule.add_system(camera_control_system);
     }
 }
+
+pub struct FreeCameraEnabled(pub bool);

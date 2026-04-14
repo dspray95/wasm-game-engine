@@ -28,8 +28,8 @@ pub struct CameraRenderPassData {
 
 pub struct Camera {
     pub position: Point3<f32>,
-    pub(super) yaw: Rad<f32>,
-    pub(super) pitch: Rad<f32>,
+    pub yaw: Rad<f32>,
+    pub pitch: Rad<f32>,
     pub projection: Projection,
     pub render_pass_data: CameraRenderPassData,
 }

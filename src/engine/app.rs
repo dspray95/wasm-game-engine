@@ -60,8 +60,8 @@ impl ApplicationHandler for App {
 
             let size = window.inner_size();
 
-            let (engine_state, render_state, scene) = pollster::block_on(async {
-                let engine_state = EngineState::new(
+            let (engine_state, render_state, scene, camera) = pollster::block_on(async {
+                let (engine_state, camera) = EngineState::new(
                     &instance,
                     surface,
                     &window,
@@ -70,7 +70,7 @@ impl ApplicationHandler for App {
                 ).await.expect("Failed to create engine state");
 
                 let render_state = RenderState::new(
-                    engine_state.render_context(),
+                    engine_state.render_context(&camera.render_pass_data.bind_group),
                     &engine_state.surface_config
                 );
 
@@ -78,12 +78,12 @@ impl ApplicationHandler for App {
                     CanyonRunnerScene::new(engine_state.gpu_context()).await
                 );
 
-                (engine_state, render_state, scene)
+                (engine_state, render_state, scene, camera)
             });
 
             self.app_state
                 .borrow_mut()
-                .install_window_state(window.clone(), engine_state, render_state, scene);
+                .install_window_state(window.clone(), engine_state, render_state, scene, camera);
 
             window.request_redraw();
         }

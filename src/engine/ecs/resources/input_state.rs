@@ -2,11 +2,11 @@ use std::collections::HashSet;
 use winit::event::ElementState;
 use winit::keyboard::KeyCode;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct InputState {
-    pressed: HashSet<KeyCode>,
-    just_pressed: HashSet<KeyCode>,
-    just_released: HashSet<KeyCode>,
+    pressed: HashSet<KeyCode>, // Keys that are being held down
+    just_pressed: HashSet<KeyCode>, // Keys that went DOWN this frame
+    just_released: HashSet<KeyCode>, // Keys that went UP this frame
 }
 
 impl InputState {
@@ -40,6 +40,7 @@ impl InputState {
     }
 
     pub fn clear_transient(&mut self) {
+        // Called by app state before the ECS systems run
         self.just_pressed.clear();
         self.just_released.clear();
     }

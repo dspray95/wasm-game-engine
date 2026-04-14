@@ -1,10 +1,10 @@
 use anyhow::Error;
 use cgmath::{ Deg };
-use wgpu::{ util::DeviceExt };
+use wgpu::util::DeviceExt;
 use winit::window::Window;
 
 use crate::engine::{
-    camera::{ camera::Camera, controller::CameraController },
+    camera::camera::Camera,
     instance::InstanceRaw,
     light::LightUniform,
     model::vertex::{ ModelVertex, Vertex },
@@ -19,8 +19,6 @@ pub struct EngineState {
     pub surface_config: wgpu::SurfaceConfiguration,
     pub surface: wgpu::Surface<'static>,
     pub render_pipeline: wgpu::RenderPipeline,
-    pub camera: Camera,
-    pub camera_controller: CameraController,
     pub depth_texture: Texture,
     pub light_uniform: LightUniform,
     pub light_buffer: wgpu::Buffer,
@@ -39,7 +37,7 @@ impl EngineState {
         _window: &Window,
         width: u32,
         height: u32
-    ) -> std::result::Result<EngineState, Error> {
+    ) -> std::result::Result<(EngineState, Camera), Error> {
         // Device and adapter setup //
         let power_preference = wgpu::PowerPreference::default();
         let adapter = instance
@@ -94,7 +92,7 @@ impl EngineState {
 
         surface.configure(&device, &surface_config);
 
-        // Camera + Controller //
+        // Camera //
         let camera = Camera::new(
             [24.5, -0.25, 1.0],
             Deg(90.0),
@@ -103,7 +101,6 @@ impl EngineState {
             surface_config.height,
             &device
         );
-        let camera_controller = CameraController::new();
 
         // Depth texture //
         let depth_texture = Texture::create_depth_texture(
@@ -258,24 +255,25 @@ impl EngineState {
             &wgpu::TextureViewDescriptor::default()
         );
 
-        Ok(Self {
-            device,
-            queue,
-            surface,
-            surface_config,
-            render_pipeline,
+        Ok((
+            Self {
+                device,
+                queue,
+                surface,
+                surface_config,
+                render_pipeline,
+                depth_texture,
+                light_uniform,
+                light_buffer,
+                light_bind_group,
+                wireframe_render_pipeline,
+                msaa_texture,
+                msaa_texture_view,
+                msaa_depth_texture,
+                msaa_depth_texture_view,
+            },
             camera,
-            camera_controller,
-            depth_texture,
-            light_uniform,
-            light_buffer,
-            light_bind_group,
-            wireframe_render_pipeline,
-            msaa_texture,
-            msaa_texture_view,
-            msaa_depth_texture,
-            msaa_depth_texture_view,
-        })
+        ))
     }
 
     pub fn resize_surface(&mut self, width: u32, height: u32) {
@@ -334,14 +332,17 @@ impl EngineState {
         GpuContext { device: &self.device, queue: &self.queue }
     }
 
-    pub(crate) fn render_context(&self) -> RenderContext<'_> {
+    pub(crate) fn render_context<'a>(
+        &'a self,
+        camera_bind_group: &'a wgpu::BindGroup
+    ) -> RenderContext<'a> {
         RenderContext {
             device: &self.device,
             queue: &self.queue,
             surface: &self.surface,
             surface_config: &self.surface_config,
             depth_texture_view: &self.depth_texture.view,
-            camera_bind_group: &self.camera.render_pass_data.bind_group,
+            camera_bind_group: camera_bind_group,
             light_bind_group: &self.light_bind_group,
             render_pipeline: &self.render_pipeline,
             wireframe_render_pipeline: &self.wireframe_render_pipeline,

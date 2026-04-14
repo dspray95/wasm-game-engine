@@ -4,6 +4,7 @@ use winit::event::{ ElementState };
 use winit::keyboard::{ KeyCode };
 use winit::window::{ Window };
 
+use crate::engine::camera::camera::Camera;
 use crate::engine::ecs::resources::input_state::InputState;
 use crate::engine::ecs::system::{ SystemContext, SystemSchedule };
 use crate::engine::ecs::world::World;
@@ -57,21 +58,27 @@ impl AppState {
         window: Arc<Window>,
         engine_state: EngineState,
         render_state: RenderState,
-        scene: Box<dyn Scene>
+        scene: Box<dyn Scene>,
+        camera: Camera
     ) {
-        let world = World::new();
+        let mut world = World::new();
         let model_registry = ModelRegistry::new();
         let mut system_schedule = SystemSchedule::new();
-
-        scene.setup_ecs(&mut system_schedule);
 
         self.window = Some(window);
         self.engine_state = Some(engine_state);
         self.render_state = Some(render_state);
-        self.scene = Some(scene);
-        self.world = Some(world);
+
+        // ECS setup
+        scene.setup_ecs(&mut system_schedule);
         self.model_registry = Some(model_registry);
         self.system_schedule = Some(system_schedule);
+        self.scene = Some(scene);
+
+        // World + Resources
+        world.add_resource(InputState::default());
+        world.add_resource(camera);
+        self.world = Some(world);
     }
 
     pub fn handle_resized(&mut self, width: u32, height: u32) {
@@ -90,7 +97,14 @@ impl AppState {
                 &engine_state.surface_config,
                 "depth_texture"
             );
-            engine_state.camera.handle_resized(width, height);
+
+            self.world
+                .as_mut()
+                .unwrap()
+                .get_resource_mut::<Camera>()
+                .unwrap()
+                .handle_resized(width, height);
+
             if let Some(render_state) = self.render_state.as_mut() {
                 let width = engine_state.surface_config.width;
                 let height = engine_state.surface_config.height;
@@ -103,19 +117,6 @@ impl AppState {
                     format
                 );
             }
-        }
-    }
-
-    fn handle_camera_update(&mut self) {
-        if let Some(engine_state) = self.engine_state.as_mut() {
-            engine_state.camera_controller.update_camera(&mut engine_state.camera);
-            engine_state.camera.update_view_projeciton();
-            engine_state.camera.update_position();
-            engine_state.queue.write_buffer(
-                &engine_state.camera.render_pass_data.buffer,
-                0,
-                bytemuck::cast_slice(&[engine_state.camera.render_pass_data.uniform_buffer])
-            );
         }
     }
 
@@ -137,22 +138,38 @@ impl AppState {
             // engine_state, and so prevents us trying to mutate the camera
             let device = &engine_state.device;
             let queue = &engine_state.queue;
-            let camera = &mut engine_state.camera;
+
+            let world = self.world.as_mut().unwrap();
+            let input = world.get_resource::<InputState>().unwrap().clone();
+            let camera = world.get_resource_mut::<Camera>().unwrap();
 
             let gpu_context = GpuContext {
                 device,
                 queue,
             };
 
-            self.scene.as_mut().unwrap().update(self.delta_time, gpu_context, camera);
+            // world and engine_state are separate fields — borrow checker allows disjoint borrows.
+            self.scene.as_mut().unwrap().update(self.delta_time, gpu_context, camera, &input);
 
             // ECS
             let device = &engine_state.device;
             let queue = &engine_state.queue;
             let model_registry = self.model_registry.as_mut().unwrap();
-            let world = self.world.as_mut().unwrap();
-            let mut system_context = SystemContext::new(self.delta_time, device, queue, model_registry);
+
+            let mut system_context = SystemContext::new(
+                self.delta_time,
+                device,
+                queue,
+                model_registry
+            );
             self.system_schedule.as_mut().unwrap().run_all(world, &mut system_context);
+
+            // Clear just_pressed / just_released after all readers have run this frame.
+            // Must be at the END — keyboard events arrive before RedrawRequested in the
+            // winit event loop, so clearing at the start would wipe them before systems see them.
+            if let Some(input) = world.get_resource_mut::<InputState>() {
+                input.clear_transient();
+            }
         }
     }
 
@@ -163,34 +180,39 @@ impl AppState {
         if let Some(engine_state) = self.engine_state.as_ref() {
             engine_state.device.poll(wgpu::Maintain::Wait);
         }
-        self.handle_camera_update();
+
         self.update();
 
         let engine_state = self.engine_state.as_ref().unwrap();
         let render_state = self.render_state.as_mut().unwrap();
         let scene = self.scene.as_ref().unwrap();
         let ecs_models = self.model_registry.as_ref().unwrap().models();
-        let fps = if self.show_fps { self.fps_counter.get_fps() } else { -1.0 };
+        let fps: f32 = if self.show_fps { self.fps_counter.get_fps() } else { -1.0 };
+        let world = self.world.as_mut().unwrap();
 
-        render_state.handle_redraw(engine_state.render_context(), scene.models(), ecs_models, fps);
+        render_state.handle_redraw(
+            engine_state.render_context(
+                &world.get_resource::<Camera>().unwrap().render_pass_data.bind_group
+            ),
+            scene.models(),
+            ecs_models,
+            fps
+        );
 
         // Schedule next frame (browser-friendly)
         self.window.as_ref().unwrap().request_redraw();
     }
 
     pub fn handle_keyboard_input(&mut self, state: ElementState, key_code: KeyCode) {
-        if let Some(engine_state) = self.engine_state.as_mut() {
-            engine_state.camera_controller.process_events(key_code, state);
-
-            self.scene.as_mut().unwrap().handle_key_event(key_code, state);
-            if state == ElementState::Pressed {
-                match key_code {
-                    KeyCode::Home => {
-                        self.show_fps = !self.show_fps;
-                    }
-                    _ => {}
-                }
+        // AppState is the sole writer of InputState. All game and camera logic reads from it.
+        if let Some(world) = self.world.as_mut() {
+            if let Some(input) = world.get_resource_mut::<InputState>() {
+                input.record(key_code, state);
             }
+        }
+        // Home key is app-level (FPS overlay toggle) — handled here, not in a system.
+        if state == ElementState::Pressed && key_code == KeyCode::Home {
+            self.show_fps = !self.show_fps;
         }
     }
 }
