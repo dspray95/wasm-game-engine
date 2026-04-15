@@ -5,10 +5,10 @@ use crate::{
     engine::{
         camera::camera::Camera,
         ecs::{
-            components::{ renderable::Renderable, transform::Transform },
+            components::{ renderable::Renderable, transform::Transform, velocity::Velocity },
             resources::input_state::InputState,
             system::{ SystemContext, SystemSchedule },
-            systems::render_sync_system::render_sync_system,
+            systems::{ render_sync_system::render_sync_system, velocity_system::velocity_system },
             world::World,
         },
         model::model::Model,
@@ -16,7 +16,9 @@ use crate::{
         state::context::GpuContext,
     },
     game::{
+        components::{ hover_state::{ HoverDirection, HoverState }, player::Player },
         laser::LaserManager,
+        resources::laser_resources::LaserModelId,
         starfighter::Starfighter,
         systems::camera_control_system::camera_control_system,
         terrain_generation::TerrainGeneration,
@@ -81,7 +83,7 @@ impl CanyonRunnerScene {
         let starfighter_model = &mut self.models[3];
         starfighter_model.translate(0.0, 0.0, MOVEMENT_SPEED * delta_time, gpu_context);
         // Hover animation
-        let new_position = self.starfighter.animate(
+        let new_position = self.starfighter.animate_hover(
             starfighter_model.meshes[0].instances[0].position,
             delta_time
         );
@@ -102,18 +104,19 @@ impl CanyonRunnerScene {
     }
 }
 
-fn canyon_runner_startup(world: &mut World, ctx: &mut SystemContext) {
+fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) {
     let gpu = GpuContext {
-        device: ctx.device.unwrap(),
-        queue: ctx.queue.unwrap(),
+        device: system_context.device.unwrap(),
+        queue: system_context.queue.unwrap(),
     };
 
     world.add_resource(FreeCameraEnabled(false));
 
-    let model_registry = ctx.model_registry.as_mut().unwrap();
+    let model_registry = system_context.model_registry.as_mut().unwrap();
 
+    // Load player starfighter
     let starfighter_model = Starfighter::load_model(&gpu);
-    let model_id = model_registry.register(starfighter_model);
+    let starfighter_model_id = model_registry.register(starfighter_model);
 
     world
         .spawn()
@@ -128,8 +131,16 @@ fn canyon_runner_startup(world: &mut World, ctx: &mut SystemContext) {
                     )
                 )
         )
-        .with(Renderable { model_id })
+        .with(Velocity { x: 0.0, y: 0.0, z: 0.0 })
+        .with(Renderable { model_id: starfighter_model_id })
+        .with(HoverState { direction: HoverDirection::Up, upper_limit: -0.9, lower_limit: -0.99 })
+        .with(Player {})
         .build();
+
+    // Laser setup
+    let laser_model = LaserManager::load_model(&gpu);
+    let laser_model_id = model_registry.register(laser_model);
+    world.add_resource(LaserModelId(laser_model_id));
 }
 
 impl Scene for CanyonRunnerScene {
@@ -178,8 +189,9 @@ impl Scene for CanyonRunnerScene {
 
     fn setup_ecs(&self, schedule: &mut SystemSchedule) {
         schedule.add_startup(canyon_runner_startup);
-        schedule.add_system(render_sync_system);
         schedule.add_system(camera_control_system);
+        schedule.add_system(velocity_system);
+        schedule.add_system(render_sync_system);
     }
 }
 

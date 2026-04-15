@@ -160,3 +160,86 @@ Once the canyon runner runs cleanly through ECS, layer in city-builder primitive
 - Phase 2: `cargo run` — starfighter and terrain visible, driven by ECS entities rather than hardcoded `SceneManager` indices
 - Phase 3: fire lasers, see them spawn and despawn correctly; player moves via ECS systems
 - Phase 4+: visual verification of building placement and citizen movement
+---
+
+
+
+  Already done in Phase 3:
+  - Starfighter spawned as an ECS entity in canyon_runner_startup (Transform + Renderable) ✓
+  - camera_control_system migrated ✓
+  - render_sync_system wired up ✓
+
+  Still on the old path:
+  - Scene::update() still drives player movement, laser firing, and terrain directly via LaserManager, Starfighter, and TerrainGeneration
+  - No Player, Velocity, or Laser components exist yet
+  - No player_system, laser_system, or terrain_system exist yet
+  - Camera is not accessible from within systems
+
+  ---
+  Here's the plan, in order:
+
+  1. Add Velocity component
+
+  src/engine/ecs/components/velocity.rs — pub struct Velocity { pub x: f32, pub y: f32, pub z: f32 }. Export it from components/mod.rs.
+
+  2. Add game-specific components
+
+  Create src/game/components.rs:
+  - pub struct Player; — marker, no data
+  - pub struct Laser { pub initial_z: f32 } — enough to know when to despawn
+
+  4. Add a FireCooldown resource
+
+  pub struct FireCooldown { pub last_fired: web_time::Instant }. Add it to the world in canyon_runner_startup. This replaces the cooldown currently living inside LaserManager.
+
+  5. Register the laser model in startup
+
+  In canyon_runner_startup, register the laser model in model_registry the same way the starfighter is registered. Store the resulting model_id as a resource (pub struct LaserModelId(pub usize))
+  so player_system can reference it when spawning laser entities.
+
+  6. Spawn the player with all components in startup
+
+  When spawning the starfighter entity, chain .with(Player).with(Velocity { x: 0.0, y: 0.0, z: 0.0 }) onto the builder.
+
+  7. Write player_system
+
+  src/game/systems/player_system.rs:
+  - Find the entity with Player by iterating iter_component::<Player>()
+  - Read InputState resource for A/D input → update Transform x
+  - Run hover animation (the Starfighter::animate logic, inlined or kept as a free function)
+  - Advance camera z forward by MOVEMENT_SPEED * delta_time via ctx.camera
+  - On Space + cooldown met: spawn a laser entity with Transform (at player position), Renderable { model_id }, and Laser { initial_z: player_z }
+
+  8. Write laser_system
+
+  src/game/systems/laser_system.rs:
+  - Iterate iter_component::<Laser>() to get entity IDs + initial_z
+  - For each, get Transform by entity ID and advance z by (LASER_SPEED + MOVEMENT_SPEED) * delta_time
+  - Collect IDs where transform.position.z > initial_z + MAX_LASER_TRAVEL into a Vec first, then despawn them in a second pass — you can't despawn while iterating because that mutably borrows
+  World twice
+
+  9. Write terrain_system
+
+  src/game/systems/terrain_system.rs:
+  - Store TerrainGeneration and the 3 terrain model IDs as resources on World
+  - Read camera z from ctx.camera, call terrain_generation.terrain_update(camera_z)
+  - If it returns Some(mesh_data), write the new vertex/index buffers directly via ctx.queue — terrain doesn't go through render_sync_system because it replaces geometry, not instances
+
+  10. Register new systems in setup_ecs
+
+  Add to the schedule in this order: player_system, laser_system, terrain_system, then the existing render_sync_system.
+
+  11. Remove the old code
+
+  Once the systems are running and the game looks right:
+  - Delete LaserManager usage and the Starfighter struct usage from the scene
+  - Delete move_player() from CanyonRunnerScene
+  - Gut Scene::update() — it can become a no-op or be removed from the trait entirely
+  - Remove models: Vec<Model> from CanyonRunnerScene (terrain models move to the registry)
+
+  ---
+  The two things most likely to trip you up:
+
+  - Two-component queries — World::iter_component<T>() only gives you one component at a time. When you need both Laser and Transform for the same entity, iterate iter_component::<Laser>() for the
+   IDs, then call world.get_component_mut::<Transform>(entity) per ID. It's O(1) per lookup, just a bit verbose.
+  - Despawn-during-iteration — always collect entity IDs to a Vec<Entity> first, then loop over that vec calling world.despawn(). Trying to do it inline will hit the borrow checker immediately.

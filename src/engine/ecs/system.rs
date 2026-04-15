@@ -81,8 +81,8 @@ mod tests {
         world.get_resource_mut::<Counter>().unwrap().0 *= 2;
     }
 
-    fn capture_dt_system(world: &mut World, ctx: &mut SystemContext) {
-        world.add_resource(ctx.delta_time);
+    fn capture_dt_system(world: &mut World, system_context: &mut SystemContext) {
+        world.add_resource(system_context.delta_time);
     }
 
     fn make_ctx() -> SystemContext<'static> {

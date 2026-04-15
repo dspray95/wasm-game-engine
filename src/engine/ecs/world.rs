@@ -8,6 +8,7 @@ trait ComponentStorage {
     fn remove(&mut self, entity_id: u32);
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn entity_ids(&self) -> Vec<u32>;
 }
 
 impl<T: 'static> ComponentStorage for SparseSet<T> {
@@ -19,6 +20,9 @@ impl<T: 'static> ComponentStorage for SparseSet<T> {
     }
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+    fn entity_ids(&self) -> Vec<u32> {
+        self.iter().map(|(id, _)| id).collect()
     }
 }
 
@@ -65,6 +69,13 @@ impl World {
 
     pub fn get_component_by_id<T: 'static>(&self, entity_id: u32) -> Option<&T> {
         self.get_storage::<T>()?.get(entity_id)
+    }
+
+    pub fn get_component_mut_by_id<T: 'static>(&mut self, entity_id: u32) -> Option<&mut T> {
+        let type_id = TypeId::of::<T>();
+        let storage = self.components.get_mut(&type_id)?;
+        let set = storage.as_any_mut().downcast_mut::<SparseSet<T>>().unwrap();
+        set.get_mut(entity_id)
     }
 
     pub fn get_component_mut<T: 'static>(&mut self, entity: Entity) -> Option<&mut T> {
@@ -119,11 +130,24 @@ impl World {
         self.components.get(&TypeId::of::<T>())?.as_any().downcast_ref()
     }
 
+    pub(crate) fn entity_ids_for(&self, type_id: TypeId) -> Vec<u32> {
+        self.components
+            .get(&type_id)
+            .map(|s| s.entity_ids())
+            .unwrap_or_default()
+    }
+
     pub fn iter_component<T: 'static>(&self) -> impl Iterator<Item = (u32, &T)> {
         self.get_storage::<T>()
             .map(|s| s.iter())
             .into_iter()
             .flatten()
+    }
+
+    pub fn get_entities_with<T: 'static>(&self) -> Vec<u32> {
+        self.iter_component::<T>()
+            .map(|(id, _)| id)
+            .collect()
     }
 }
 
@@ -260,10 +284,7 @@ mod tests {
     #[test]
     fn builder_attaches_all_components_to_same_entity() {
         let mut world = World::new();
-        let e = world.spawn()
-            .with(Position { x: 1.0, y: 2.0 })
-            .with(Health(42))
-            .build();
+        let e = world.spawn().with(Position { x: 1.0, y: 2.0 }).with(Health(42)).build();
         assert_eq!(world.get_component::<Position>(e).unwrap().x, 1.0);
         assert_eq!(world.get_component::<Health>(e).unwrap().0, 42);
     }

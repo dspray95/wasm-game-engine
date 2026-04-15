@@ -12,7 +12,7 @@ use crate::{
 const CAMERA_SPEED: f32 = -0.2;
 
 // TODO: Camera actions layer, rather than directly reading the keycodes
-pub fn camera_control_system(world: &mut World, ctx: &mut SystemContext) {
+pub fn camera_control_system(world: &mut World, system_context: &mut SystemContext) {
     let input = world.get_resource::<InputState>().unwrap().clone();
 
     {
@@ -64,7 +64,7 @@ pub fn camera_control_system(world: &mut World, ctx: &mut SystemContext) {
     // by scene logic (move_player) even when free cam is off, so the buffer must stay current.
     camera.update_view_projeciton();
     camera.update_position();
-    ctx.queue.unwrap().write_buffer(
+    system_context.queue.unwrap().write_buffer(
         &camera.render_pass_data.buffer,
         0,
         bytemuck::cast_slice(&[camera.render_pass_data.uniform_buffer])

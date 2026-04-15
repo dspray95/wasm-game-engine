@@ -52,7 +52,11 @@ impl Starfighter {
         vec3(new_x_pos, current_position.y, current_position.z)
     }
 
-    pub fn animate(&mut self, current_position: Vector3<f32>, delta_time: f32) -> Vector3<f32> {
+    pub fn animate_hover(
+        &mut self,
+        current_position: Vector3<f32>,
+        delta_time: f32
+    ) -> Vector3<f32> {
         let mut new_position = current_position.clone();
         if self.current_direction == "up" {
             new_position.y = current_position.y + 0.2 * delta_time;
