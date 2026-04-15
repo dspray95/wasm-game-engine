@@ -22,7 +22,9 @@ impl<T: 'static> ComponentStorage for SparseSet<T> {
         self
     }
     fn entity_ids(&self) -> Vec<u32> {
-        self.iter().map(|(id, _)| id).collect()
+        self.iter()
+            .map(|(id, _)| id)
+            .collect()
     }
 }
 
@@ -137,6 +139,7 @@ impl World {
             .unwrap_or_default()
     }
 
+    // Use when we only need the entity's ID itself, if you want comoponents user query_iter
     pub fn iter_component<T: 'static>(&self) -> impl Iterator<Item = (u32, &T)> {
         self.get_storage::<T>()
             .map(|s| s.iter())

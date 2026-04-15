@@ -1,26 +1,24 @@
-// use cgmath::Vector3;
+use crate::{
+    engine::ecs::components::{ transform::Transform, velocity::Velocity },
+    game::components::hover_state::{ HoverDirection, HoverState },
+};
 
-// use crate::{
-//     engine::ecs::components::{ transform::Transform, velocity::Velocity },
-//     game::components::hover_state::HoverState,
-// };
+const HOVER_SPEED: f32 = 0.2;
 
-// pub fn animate_hover(
-//     current_velocity: &mut Velocity,
-//     hover_state: &mut HoverState
-// ) -> Vector3<f32> {
-//     let mut new_position = transform.position.clone();
-//     // if current_direction == "up" {
-//     //     new_position.y = current_position.y + 0.2 * delta_time;
-//     //     if new_position.y >= upper_limit {
-//     //         current_direction = "down".to_string();
-//     //     }
-//     // } else {
-//     //     new_position.y = current_position.y - 0.2 * delta_time;
-//     //     if new_position.y <= lower_limit {
-//     //         current_direction = "up".to_string();
-//     //     }
-//     // }
+pub fn animate_hover(
+    transform: &Transform,
+    current_velocity: &mut Velocity,
+    hover_state: &mut HoverState
+) {
+    if transform.position.y > hover_state.upper_limit {
+        hover_state.direction = HoverDirection::Down;
+    } else if transform.position.y < hover_state.lower_limit {
+        hover_state.direction = HoverDirection::Up;
+    }
 
-//     new_position
-// }
+    if hover_state.direction == HoverDirection::Up {
+        current_velocity.y = HOVER_SPEED;
+    } else {
+        current_velocity.y = -HOVER_SPEED;
+    }
+}
