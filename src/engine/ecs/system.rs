@@ -1,4 +1,14 @@
-use crate::engine::{ ecs::world::World, model::model_registry::ModelRegistry };
+use crate::engine::{
+    ecs::{
+        systems::{
+            camera_update_system::camera_update_system,
+            render_sync_system::render_sync_system,
+            velocity_system::velocity_system,
+        },
+        world::World,
+    },
+    model::model_registry::ModelRegistry,
+};
 
 pub struct SystemContext<'a> {
     pub delta_time: f32,
@@ -13,7 +23,7 @@ impl<'a> SystemContext<'a> {
         delta_time: f32,
         device: &'a wgpu::Device,
         queue: &'a wgpu::Queue,
-        model_registry: &'a mut ModelRegistry,
+        model_registry: &'a mut ModelRegistry
     ) -> Self {
         Self {
             delta_time,
@@ -26,9 +36,14 @@ impl<'a> SystemContext<'a> {
 
 pub type System = fn(&mut World, &mut SystemContext);
 
+// Systems execute in order:
+// 1. On Load ONLY - startup_systems (loading models/scene etc),
+// 2. game_systems - systems that handle game specific logic e.g. `[input, ai, pathfinding, movement]`
+// 3. engine_systems - systems that deal directly with the engine e.g. `[velocity, camera_update, render_sync]`
 pub struct SystemSchedule {
     startup_systems: Vec<System>,
-    systems: Vec<System>, // Ordered, e.g. `[input, ai, pathfinding, movement, resource, render_sync etc]`
+    game_systems: Vec<System>,
+    engine_systems: Vec<System>,
     started: bool,
 }
 
@@ -36,7 +51,8 @@ impl SystemSchedule {
     pub fn new() -> Self {
         Self {
             startup_systems: Vec::new(),
-            systems: Vec::new(),
+            game_systems: Vec::new(),
+            engine_systems: vec![velocity_system, camera_update_system, render_sync_system],
             started: false,
         }
     }
@@ -45,10 +61,15 @@ impl SystemSchedule {
         self.startup_systems.push(system);
     }
 
-    pub fn add_system(&mut self, system: System) {
-        self.systems.push(system);
+    pub fn add_game_system(&mut self, system: System) {
+        self.game_systems.push(system);
     }
 
+    // run_all takes &mut self and &mut World. When you call each system with world,
+    // you're passing the same &mut World repeatedly through the loop. Rust will let you
+    // do this because each call completes before the next one starts - the borrow is
+    // released between iterations.
+    // We'll need to reconsider this if we want to run systems async
     pub fn run_all(&mut self, world: &mut World, system_context: &mut SystemContext) {
         if !self.started {
             for system in &self.startup_systems {
@@ -56,13 +77,13 @@ impl SystemSchedule {
             }
             self.started = true;
         }
-        // run_all takes &mut self and &mut World. When you call each system with world,
-        // you're passing the same &mut World repeatedly through the loop. Rust will let you
-        // do this because each call completes before the next one starts — the borrow is
-        // released between iterations.
-        // We'll need to reconsider this if we want to run systems async
-        for system in &self.systems {
-            system(world, system_context);
+
+        for game_system in &self.game_systems {
+            game_system(world, system_context);
+        }
+
+        for engine_system in &self.engine_systems {
+            engine_system(world, system_context);
         }
     }
 }
@@ -99,7 +120,7 @@ mod tests {
         let mut world = World::new();
         world.add_resource(Counter(0));
         let mut schedule = SystemSchedule::new();
-        schedule.add_system(increment_system);
+        schedule.add_game_system(increment_system);
         schedule.run_all(&mut world, &mut make_ctx());
         assert_eq!(world.get_resource::<Counter>().unwrap().0, 1);
     }
@@ -111,8 +132,8 @@ mod tests {
         let mut world = World::new();
         world.add_resource(Counter(0));
         let mut schedule = SystemSchedule::new();
-        schedule.add_system(increment_system);
-        schedule.add_system(double_system);
+        schedule.add_game_system(increment_system);
+        schedule.add_game_system(double_system);
         schedule.run_all(&mut world, &mut make_ctx());
         assert_eq!(world.get_resource::<Counter>().unwrap().0, 2);
     }
@@ -122,7 +143,7 @@ mod tests {
         let mut world = World::new();
         world.add_resource(Counter(0));
         let mut schedule = SystemSchedule::new();
-        schedule.add_system(increment_system);
+        schedule.add_game_system(increment_system);
         schedule.run_all(&mut world, &mut make_ctx());
         schedule.run_all(&mut world, &mut make_ctx());
         schedule.run_all(&mut world, &mut make_ctx());
@@ -140,8 +161,13 @@ mod tests {
     fn delta_time_is_accessible_in_system() {
         let mut world = World::new();
         let mut schedule = SystemSchedule::new();
-        schedule.add_system(capture_dt_system);
-        let mut ctx = SystemContext { delta_time: 1.0 / 60.0, device: None, queue: None, model_registry: None };
+        schedule.add_game_system(capture_dt_system);
+        let mut ctx = SystemContext {
+            delta_time: 1.0 / 60.0,
+            device: None,
+            queue: None,
+            model_registry: None,
+        };
         schedule.run_all(&mut world, &mut ctx);
         let stored = world.get_resource::<f32>().unwrap();
         assert!((stored - 1.0 / 60.0).abs() < f32::EPSILON);

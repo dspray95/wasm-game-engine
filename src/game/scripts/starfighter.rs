@@ -7,7 +7,7 @@ const HOVER_SPEED: f32 = 0.2;
 
 pub fn animate_hover(
     transform: &Transform,
-    current_velocity: &mut Velocity,
+    velocity: &mut Velocity,
     hover_state: &mut HoverState
 ) {
     if transform.position.y > hover_state.upper_limit {
@@ -17,8 +17,8 @@ pub fn animate_hover(
     }
 
     if hover_state.direction == HoverDirection::Up {
-        current_velocity.y = HOVER_SPEED;
+        velocity.y += HOVER_SPEED;
     } else {
-        current_velocity.y = -HOVER_SPEED;
+        velocity.y -= HOVER_SPEED;
     }
 }

@@ -148,11 +148,9 @@ impl Scene for CanyonRunnerScene {
 
     fn setup_ecs(&self, schedule: &mut SystemSchedule) {
         schedule.add_startup(canyon_runner_startup);
-        schedule.add_system(camera_control_system);
-        schedule.add_system(hover_system);
-        schedule.add_system(player_system);
-        schedule.add_system(velocity_system);
-        schedule.add_system(render_sync_system);
+        schedule.add_game_system(camera_control_system);
+        schedule.add_game_system(hover_system);
+        schedule.add_game_system(player_system);
     }
 }
 

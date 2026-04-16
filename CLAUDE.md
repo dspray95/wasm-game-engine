@@ -78,6 +78,27 @@ See `docs/ECS_IMPL.md` for the full design document. Current status:
 - **Phase 3** (player/laser via ECS) — in progress
 - **Phase 4–5** (city-builder foundation) — planned
 
+## Serialisation
+
+### Formats
+- **RON** (Rusty Object Notation) is the preferred format for human-editable data — building templates, terrain configs, entity archetypes, input bindings. It understands Rust types natively (structs, enums, Options) and supports comments.
+- **bincode** is the preferred format for runtime save files (city saves, game state). Compact and fast; players never read it directly.
+- Avoid YAML (indentation-sensitive, subtle type coercion bugs). JSON is acceptable for interop with external tools only.
+
+### City Builder Save System (planned)
+The city-builder will need full world serialisation — every entity and its components at save time. The intended approach:
+
+1. Derive `serde::Serialize`/`Deserialize` on all components
+2. Build a **component registry** on `World` — a `HashMap<TypeId, Box<dyn SerialiseStorage>>` that maps each storage to a type-erased serialise/deserialise function
+3. At save time: iterate all entities, serialise each component storage → write to bincode
+4. At load time: deserialise each storage → respawn entities with their components
+5. Authored data (building definitions, terrain configs) lives in RON files under `assets/`
+
+The hard part is the type-erased component registry — `World` is currently unaware of which types it stores beyond `TypeId`. A proc macro or explicit registration step will be needed. See Bevy's `Reflect` trait for prior art.
+
+### Input Bindings (planned)
+Input action mappings will be stored in `assets/bindings.ron` and loaded at startup into `InputState`. Systems query named actions (`"strafe_left"`, `"fire"`) rather than raw `KeyCode`s directly. Use `include_str!("../assets/bindings.ron")` for WASM compatibility (no filesystem access in browser).
+
 ## Coding Style
 
 - **No abbreviations in variable names.** Use the full descriptive name: `system_context` not `ctx`, `delta_time` not `dt` (except as a short-lived local after extracting from `system_context.delta_time`), `entity_id` not `id` where the meaning isn't obvious from context.
