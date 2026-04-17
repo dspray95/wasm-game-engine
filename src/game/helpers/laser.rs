@@ -1,11 +1,19 @@
 use web_time::Instant;
 use cgmath::{ vec3, Quaternion, Rotation3 };
 
-use crate::engine::{
-    instance::{ Instance, InstanceRaw },
-    model::{ material::Material, mesh::{ calculate_normals, Mesh }, model::Model },
-    resources,
-    state::context::GpuContext,
+use crate::{
+    engine::{
+        instance::{ Instance, InstanceRaw },
+        model::{
+            descriptor::{ self, ModelDescriptor },
+            material::Material,
+            mesh::{ Mesh, calculate_normals },
+            model::Model,
+        },
+        resources::{ self, load_mesh_from_arrays },
+        state::context::GpuContext,
+    },
+    game::assets::LASER_MODEL_RON,
 };
 
 const MAX_ALIVE_LASERS: u8 = 10;
@@ -45,47 +53,39 @@ impl LaserManager {
     }
 
     pub fn load_model(gpu_context: &GpuContext) -> Model {
-        // The laser model is a flat plane
-        let vertices = vec![
-            [-(LASER_WIDTH / 2.0), 0.0, 0.0],
-            [LASER_WIDTH / 2.0, 0.0, 0.0],
-            [-(LASER_WIDTH / 2.0), 0.0, LASER_LENGTH],
-            [LASER_WIDTH / 2.0, 0.0, LASER_LENGTH]
-        ];
+        let descriptor: ModelDescriptor = ron
+            ::from_str(LASER_MODEL_RON)
+            .expect("Failed to parse laser.ron");
+        let mesh_descriptor = &descriptor.meshes[0];
 
-        let triangles: Vec<u32> = vec![0, 2, 1, 2, 3, 1];
-
-        let normals = calculate_normals(&vertices, &triangles);
-
-        // --- NEW: Create initial instances to pass to Mesh::new ---
-        // These are the initial (invisible/far away) instances for all MAX_ALIVE_LASERS.
-        // The Mesh will use these to create its instance_buffer.
-        let mut initial_mesh_instances: Vec<Instance> = Vec::with_capacity(
-            MAX_ALIVE_LASERS as usize
-        );
-        for _ in 0..MAX_ALIVE_LASERS {
-            initial_mesh_instances.push(Instance {
-                position: vec3(0.0, -1000.0, 0.0), // Off-screen initially
+        let initial_instances: Vec<Instance> = (0..MAX_ALIVE_LASERS as usize)
+            .map(|_| Instance {
+                position: vec3(0.0, -1000.0, 0.0),
                 rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
-                scale: vec3(0.0, 0.0, 0.0), // Make them invisible
-            });
-        }
+                scale: vec3(0.0, 0.0, 0.0),
+            })
+            .collect();
 
-        // Load the mesh, passing in the initial instances
-        let mut mesh = resources::load_mesh_from_arrays(
-            "Laser",
-            vertices,
-            normals,
-            triangles,
-            &gpu_context,
+        let mesh = load_mesh_from_arrays(
+            &mesh_descriptor.label,
+            mesh_descriptor.vertices
+                .iter()
+                .map(|(x, y, z)| [*x, *y, *z])
+                .collect(),
+            vec![],
+            mesh_descriptor.triangles.clone(),
+            gpu_context,
             Material {
-                diffuse_color: [200, 255, 255],
-                alpha: 1.0,
+                diffuse_color: [
+                    mesh_descriptor.material.diffuse_color.0,
+                    mesh_descriptor.material.diffuse_color.1,
+                    mesh_descriptor.material.diffuse_color.2,
+                ],
+                alpha: mesh_descriptor.material.alpha,
             },
-            Some(initial_mesh_instances),
-            MAX_ALIVE_LASERS as usize
+            Some(initial_instances),
+            mesh_descriptor.max_instances
         );
-        mesh.scale(10.0, 10.0, 10.0, gpu_context);
 
         Model { meshes: vec![mesh] }
     }
