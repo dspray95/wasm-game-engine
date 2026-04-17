@@ -75,8 +75,17 @@ Each entity with a `Renderable` component (carrying a `model_id`) and a `Transfo
 See `docs/ECS_IMPL.md` for the full design document. Current status:
 - **Phase 1** (ECS core) ✓
 - **Phase 2** (render bridge) ✓
-- **Phase 3** (player/laser via ECS) — in progress
-- **Phase 4–5** (city-builder foundation) — planned
+- **Phase 3** (player/laser via ECS) ✓
+- **Phase 4** (engine foundations) — planned:
+  - **RON asset loading** — `ModelDescriptor` RON schema, `ModelLoader` parses via `include_str!` at compile time, calls `load_mesh_from_arrays`, registers in `ModelRegistry`. Moves all vertex data out of Rust code into `assets/*.ron` files. WASM-safe (no runtime file I/O).
+  - **Camera into ECS** — Camera becomes a component on an entity rather than a singleton resource. Add `CameraFollow` component to express tracking relationships. Enables `velocity_system` to move the camera naturally and supports multiple cameras (minimap, reflections) later.
+  - **egui UI** — integrate `egui` with its `wgpu` backend for in-game UI. Immediate-mode, well-maintained, good fit for debug panels and eventual city-builder HUD. Renders as a separate pass after the main scene.
+  - **Input action layer** — mappings loaded from `assets/bindings.ron` at startup; `InputState` exposes `is_action_pressed("strafe_left")` rather than raw `KeyCode`s. Systems declare intent via action names, letting users rebind keys and decoupling game logic from winit.
+  - **Transform hierarchy** — `Parent(Entity)` component plus a `hierarchy_system` that composes child local transforms with parent world transforms before `render_sync_system` runs. Enables attaching props to the ship, wheels to vehicles, signage to buildings.
+  - **Collision detection** — `Collider` component (AABB/sphere variants) and a `collision_system` that detects overlaps and pushes `CollisionEvent`s to the event system. Broadphase starts naive (O(n²)); swap in a spatial grid once entity counts grow.
+  - **Debug overlay** — egui panel showing FPS, frame time, entity count, active resources, and per-system timings. Togglable via a debug action; essential for diagnosing the city-builder's perf profile later.
+  - **Event system** — generic `Events<T>` resource with double-buffered queues so producers and consumers can live in different systems without ordering constraints. Replaces direct cross-system coupling (e.g. collisions → damage, input → UI).
+- **Phase 5** (city-builder foundation) — planned
 
 ## Serialisation
 

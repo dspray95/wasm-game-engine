@@ -30,16 +30,13 @@ pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
     {
         velocity.z += Z_MOVEMENT_SPEED;
 
-        if
-            (input.is_pressed(KeyCode::KeyA) || input.is_pressed(KeyCode::ArrowLeft)) &&
-            transform.position.x < X_MAX
-        {
+        let moving_left = input.is_pressed(KeyCode::KeyA) || input.is_pressed(KeyCode::ArrowLeft);
+        let moving_right = input.is_pressed(KeyCode::KeyD) || input.is_pressed(KeyCode::ArrowRight);
+
+        if moving_left && !moving_right && transform.position.x < X_MAX {
             velocity.x += STRAFE_SPEED;
         }
-        if
-            (input.is_pressed(KeyCode::KeyD) || input.is_pressed(KeyCode::ArrowRight)) &&
-            transform.position.x > X_MIN
-        {
+        if moving_right && !moving_left && transform.position.x > X_MIN {
             velocity.x -= STRAFE_SPEED;
         }
     }

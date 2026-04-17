@@ -4,7 +4,7 @@ use crate::{
         system::SystemContext,
         world::World,
     },
-    game::{ components::hover_state::HoverState, scripts::starfighter::animate_hover },
+    game::{ components::hover_state::HoverState, helpers::starfighter::animate_hover },
 };
 
 pub fn hover_system(world: &mut World, _system_context: &mut SystemContext) {

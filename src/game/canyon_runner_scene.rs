@@ -1,77 +1,36 @@
-use cgmath::{ vec3, Rotation3 };
-use winit::keyboard::KeyCode;
+use cgmath::Rotation3;
 
 use crate::{
     engine::{
-        camera::camera::Camera,
         ecs::{
             components::{ renderable::Renderable, transform::Transform, velocity::Velocity },
-            resources::input_state::InputState,
             system::{ SystemContext, SystemSchedule },
-            systems::{ render_sync_system::render_sync_system, velocity_system::velocity_system },
             world::World,
         },
-        model::model::Model,
         scene::scene::Scene,
         state::context::GpuContext,
     },
     game::{
         components::{ hover_state::{ HoverDirection, HoverState }, player::Player },
-        laser::LaserManager,
-        resources::laser_resources::LaserModelId,
-        starfighter::Starfighter,
+        helpers::{ laser::LaserManager, starfighter, terrain_generation::get_initial_terrain },
+        resources::{
+            laser_resources::LaserModelId,
+            terrain_resources::{ TerrainGeneration, TerrainModelIds },
+        },
         systems::{
             camera_control_system::camera_control_system,
             hover_system::hover_system,
+            laser_system::laser_system,
             player_system::player_system,
+            terrain_system::terrain_system,
         },
-        terrain_generation::TerrainGeneration,
     },
 };
 
 const TERRAIN_WIDTH: u32 = 50;
 const TERRAIN_LENGTH: u32 = 150;
-const MOVEMENT_SPEED: f32 = 10.0;
 
-pub struct CanyonRunnerScene {
-    pub models: Vec<Model>, // 0-2 are terrain, 3 is the player, 4 is laser
-    pub laser_gun: LaserManager,
-    pub terrain_generation: TerrainGeneration,
-    pub oldest_terrain_index: u32,
-    movement_enabled: bool,
-}
-
-impl CanyonRunnerScene {
-    pub async fn new(gpu_context: GpuContext<'_>) -> Self {
-        // Terrain setup
-        let mut terrain_generation = TerrainGeneration::new(TERRAIN_WIDTH, TERRAIN_LENGTH);
-        let terrain_models = terrain_generation.get_initial_terrain(&gpu_context);
-
-        // Laser model
-        let laser_model = LaserManager::load_model(&gpu_context);
-
-        let mut models: Vec<Model> = terrain_models.into();
-        models.push(laser_model);
-
-        Self {
-            models,
-            laser_gun: LaserManager::new(),
-            terrain_generation,
-            oldest_terrain_index: 0,
-            movement_enabled: false,
-        }
-    }
-
-    fn move_player(
-        &mut self,
-        delta_time: f32,
-        gpu_context: &GpuContext,
-        camera: &mut Camera,
-        input: &InputState
-    ) {
-        // camera.translate(0.0, 0.0, MOVEMENT_SPEED * delta_time, gpu_context.queue);
-    }
-}
+pub struct CanyonRunnerScene;
 
 fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) {
     let gpu = GpuContext {
@@ -83,8 +42,8 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
 
     let model_registry = system_context.model_registry.as_mut().unwrap();
 
-    // Load player starfighter
-    let starfighter_model = Starfighter::load_model(&gpu);
+    // Player setup
+    let starfighter_model = starfighter::load_model(&gpu);
     let starfighter_model_id = model_registry.register(starfighter_model);
 
     world
@@ -110,47 +69,36 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
     let laser_model = LaserManager::load_model(&gpu);
     let laser_model_id = model_registry.register(laser_model);
     world.add_resource(LaserModelId(laser_model_id));
+    world.add_resource(LaserManager::new());
+
+    // Terrain setup
+    let mut terrain_generation = TerrainGeneration {
+        terrain_width: TERRAIN_WIDTH,
+        terrain_length: TERRAIN_LENGTH,
+        n_chunks_generated: 0,
+        next_breakpoint: 0.0,
+        oldest_terrain_index: 0,
+    };
+
+    let [terrain_a, terrain_b, terrain_c] = get_initial_terrain(&mut terrain_generation, &gpu);
+    let terrain_model_ids = [
+        model_registry.register(terrain_a),
+        model_registry.register(terrain_b),
+        model_registry.register(terrain_c),
+    ];
+
+    world.add_resource(terrain_generation);
+    world.add_resource(TerrainModelIds(terrain_model_ids));
 }
 
 impl Scene for CanyonRunnerScene {
-    fn update(
-        &mut self,
-        delta_time: f32,
-        gpu_context: GpuContext,
-        camera: &mut Camera,
-        input: &InputState
-    ) {
-        // Ctrl+P toggles player movement (just_pressed prevents re-triggering every frame)
-        if input.just_pressed(KeyCode::KeyP) && input.is_pressed(KeyCode::ControlLeft) {
-            self.movement_enabled = !self.movement_enabled;
-        }
-
-        if self.movement_enabled {
-            self.move_player(delta_time, &gpu_context, camera, input);
-        }
-
-        // Terrain update
-        let terrain_result = self.terrain_generation.terrain_update(camera.position.z);
-        if let Some(new_terrain_mesh_data) = terrain_result {
-            let model_to_replace = &mut self.models[self.oldest_terrain_index as usize];
-            TerrainGeneration::replace_terrain_model_buffers(
-                new_terrain_mesh_data,
-                model_to_replace,
-                &gpu_context
-            );
-            self.oldest_terrain_index = (self.oldest_terrain_index + 1) % 3;
-        }
-    }
-
-    fn models(&self) -> &Vec<Model> {
-        &self.models
-    }
-
     fn setup_ecs(&self, schedule: &mut SystemSchedule) {
         schedule.add_startup(canyon_runner_startup);
         schedule.add_game_system(camera_control_system);
         schedule.add_game_system(hover_system);
         schedule.add_game_system(player_system);
+        schedule.add_game_system(terrain_system);
+        schedule.add_game_system(laser_system);
     }
 }
 

@@ -74,9 +74,7 @@ impl ApplicationHandler for App {
                     &engine_state.surface_config
                 );
 
-                let scene: Box<CanyonRunnerScene> = Box::new(
-                    CanyonRunnerScene::new(engine_state.gpu_context()).await
-                );
+                let scene: Box<CanyonRunnerScene> = Box::new(CanyonRunnerScene);
 
                 (engine_state, render_state, scene, camera)
             });
