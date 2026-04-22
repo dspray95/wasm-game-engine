@@ -5,13 +5,13 @@ use winit::keyboard::{ KeyCode };
 use winit::window::{ Window };
 
 use crate::engine::assets::server::AssetServer;
-use crate::engine::camera::camera::Camera;
+use crate::engine::ecs::components::camera::camera::{ Camera, SurfaceDimensions };
+use crate::engine::ecs::resources::camera::ActiveCamera;
 use crate::engine::ecs::resources::input_state::InputState;
 use crate::engine::ecs::system::{ SystemContext, SystemSchedule };
 use crate::engine::ecs::world::World;
 use crate::engine::fps_counter::FpsCounter;
 use crate::engine::scene::scene::Scene;
-use crate::engine::state::context::GpuContext;
 use crate::engine::state::engine_state::EngineState;
 use crate::engine::state::render_state::RenderState;
 use crate::engine::texture::Texture;
@@ -22,7 +22,6 @@ pub struct AppState {
     pub instance: wgpu::Instance,
     engine_state: Option<EngineState>,
     pub window: Option<Arc<Window>>,
-    scene: Option<Box<dyn Scene>>,
     render_state: Option<RenderState>,
     last_frame_time: Instant,
     delta_time: f32,
@@ -41,7 +40,6 @@ impl AppState {
             instance,
             engine_state: None,
             window: None,
-            scene: None,
             render_state: None,
             last_frame_time: Instant::now(),
             delta_time: 0.0,
@@ -59,7 +57,7 @@ impl AppState {
         engine_state: EngineState,
         render_state: RenderState,
         scene: Box<dyn Scene>,
-        camera: Camera
+        camera_bind_group_layout: wgpu::BindGroupLayout
     ) {
         let mut world = World::new();
         let asset_server = AssetServer::new();
@@ -73,11 +71,14 @@ impl AppState {
         scene.setup_ecs(&mut system_schedule);
         self.asset_server = Some(asset_server);
         self.system_schedule = Some(system_schedule);
-        self.scene = Some(scene);
 
         // World + Resources
         world.add_resource(InputState::default());
-        world.add_resource(camera);
+        world.add_resource(camera_bind_group_layout);
+        world.add_resource(SurfaceDimensions {
+            width: 1920.0,
+            height: 1080.0,
+        });
         self.world = Some(world);
     }
 
@@ -98,13 +99,21 @@ impl AppState {
                 "depth_texture"
             );
 
-            self.world
-                .as_mut()
-                .unwrap()
-                .get_resource_mut::<Camera>()
-                .unwrap()
-                .handle_resized(width, height);
+            // Apply resize to the active camera if one exists
+            let world = self.world.as_mut().unwrap();
+            if let Some(entity) = world.get_resource::<ActiveCamera>().map(|ac| ac.0) {
+                if let Some(camera) = world.get_component_mut::<Camera>(entity) {
+                    camera.handle_resized(width, height);
+                }
+            }
 
+            // Make sure we update the surfcce dimensions resource as well
+            if let Some(dims) = world.get_resource_mut::<SurfaceDimensions>() {
+                dims.width = width as f32;
+                dims.height = height as f32;
+            }
+
+            // Apply resize to our devices rendering data
             if let Some(render_state) = self.render_state.as_mut() {
                 let width = engine_state.surface_config.width;
                 let height = engine_state.surface_config.height;
@@ -140,20 +149,6 @@ impl AppState {
             let queue = &engine_state.queue;
 
             let world = self.world.as_mut().unwrap();
-            let input = world.get_resource::<InputState>().unwrap().clone();
-            let camera = world.get_resource_mut::<Camera>().unwrap();
-
-            let gpu_context = GpuContext {
-                device,
-                queue,
-            };
-
-            // world and engine_state are separate fields — borrow checker allows disjoint borrows.
-            self.scene.as_mut().unwrap().update(self.delta_time, gpu_context, camera, &input);
-
-            // ECS
-            let device = &engine_state.device;
-            let queue = &engine_state.queue;
             let asset_server = self.asset_server.as_mut().unwrap();
 
             let mut system_context = SystemContext::new(
@@ -185,16 +180,17 @@ impl AppState {
 
         let engine_state = self.engine_state.as_ref().unwrap();
         let render_state = self.render_state.as_mut().unwrap();
-        let scene = self.scene.as_ref().unwrap();
         let ecs_models = self.asset_server.as_ref().unwrap().models();
         let fps: f32 = if self.show_fps { self.fps_counter.get_fps() } else { -1.0 };
-        let world = self.world.as_mut().unwrap();
+        let world = self.world.as_ref().unwrap();
+
+        let camera_bind_group = world
+            .get_resource::<ActiveCamera>()
+            .and_then(|ac| world.get_component::<Camera>(ac.0))
+            .map(|camera| &camera.render_pass_data.bind_group);
 
         render_state.handle_redraw(
-            engine_state.render_context(
-                &world.get_resource::<Camera>().unwrap().render_pass_data.bind_group
-            ),
-            scene.models(),
+            engine_state.render_context(camera_bind_group),
             ecs_models,
             fps
         );

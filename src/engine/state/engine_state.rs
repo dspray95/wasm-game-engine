@@ -1,10 +1,9 @@
 use anyhow::Error;
-use cgmath::{ Deg };
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
 use crate::engine::{
-    camera::camera::Camera,
+    ecs::components::camera::camera::Camera,
     instance::InstanceRaw,
     light::LightUniform,
     model::vertex::{ ModelVertex, Vertex },
@@ -37,7 +36,7 @@ impl EngineState {
         _window: &Window,
         width: u32,
         height: u32
-    ) -> std::result::Result<(EngineState, Camera), Error> {
+    ) -> std::result::Result<(EngineState, wgpu::BindGroupLayout), Error> {
         // Device and adapter setup //
         let power_preference = wgpu::PowerPreference::default();
         let adapter = instance
@@ -91,16 +90,6 @@ impl EngineState {
         };
 
         surface.configure(&device, &surface_config);
-
-        // Camera //
-        let camera = Camera::new(
-            [24.5, -0.25, 1.0],
-            Deg(90.0),
-            Deg(0.0),
-            surface_config.width,
-            surface_config.height,
-            &device
-        );
 
         // Depth texture //
         let depth_texture = Texture::create_depth_texture(
@@ -175,11 +164,12 @@ impl EngineState {
         );
 
         // Render Pipeline Definition //
+        let camera_bind_group_layout = Camera::create_bind_group_layout(&device);
         let render_pipeline_layout = device.create_pipeline_layout(
             &(wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
-                    &camera.render_pass_data.bind_group_layout,
+                    &camera_bind_group_layout,
                     &light_bind_group_layout,
                     &color_bind_group_layout,
                 ],
@@ -272,7 +262,7 @@ impl EngineState {
                 msaa_depth_texture,
                 msaa_depth_texture_view,
             },
-            camera,
+            camera_bind_group_layout,
         ))
     }
 
@@ -334,7 +324,7 @@ impl EngineState {
 
     pub(crate) fn render_context<'a>(
         &'a self,
-        camera_bind_group: &'a wgpu::BindGroup
+        camera_bind_group: Option<&'a wgpu::BindGroup>
     ) -> RenderContext<'a> {
         RenderContext {
             device: &self.device,

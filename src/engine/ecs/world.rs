@@ -1,6 +1,23 @@
 use std::{ any::{ Any, TypeId }, collections::HashMap };
 
-use crate::engine::ecs::{ entity::{ self, Entity, EntityAllocator }, sparse_set::SparseSet };
+use cgmath::{ Deg, Vector3 };
+
+use crate::engine::{
+    ecs::{
+        components::{
+            camera::{
+                camera::{ Camera, SurfaceDimensions },
+                constants::{ DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR },
+                projection::Projection,
+            },
+            transform::Transform,
+        },
+        entity::{ self, Entity, EntityAllocator },
+        resources::camera::ActiveCamera,
+        sparse_set::SparseSet,
+    },
+    state::context::GpuContext,
+};
 
 // Trait that lets World call remove() on a type-erased SparseSet without knowing T.
 // as_any / as_any_mut allow downcasting back to SparseSet<T> when T is known.
@@ -151,6 +168,41 @@ impl World {
         self.iter_component::<T>()
             .map(|(id, _)| id)
             .collect()
+    }
+
+    pub fn create_active_camera(&mut self, device: &wgpu::Device, position: Vector3<f32>) {
+        let Some(camera_bind_group_layout) = self.get_resource::<wgpu::BindGroupLayout>() else {
+            return;
+        };
+        let Some(surface_dimensions) = self.get_resource::<SurfaceDimensions>() else {
+            return;
+        };
+        let (width, height) = (surface_dimensions.width as u32, surface_dimensions.height as u32);
+
+        let projection = Projection::new(
+            width,
+            height,
+            Deg(DEFAULT_FOV),
+            DEFAULT_NEAR,
+            DEFAULT_FAR
+        );
+
+        let render_pass_data = Camera::create_render_pass_data(device);
+
+        let camera_component = Camera::new(
+            Deg(90.0).into(),
+            Deg(0.0).into(),
+            projection,
+            render_pass_data
+        );
+
+        let camera_entity = self
+            .spawn()
+            .with(Transform::new().with_position(position.x, position.y, position.z))
+            .with(camera_component)
+            .build();
+
+        self.add_resource(ActiveCamera(camera_entity));
     }
 }
 

@@ -1,7 +1,11 @@
 use crate::{
     engine::{
-        camera::camera::Camera,
-        ecs::{ system::SystemContext, world::World },
+        ecs::{
+            components::transform::Transform,
+            resources::camera::ActiveCamera,
+            system::SystemContext,
+            world::World,
+        },
         state::context::GpuContext,
     },
     game::{
@@ -11,7 +15,11 @@ use crate::{
 };
 
 pub fn terrain_system(world: &mut World, system_context: &mut SystemContext) {
-    let camera_z = world.get_resource::<Camera>().unwrap().position.z;
+    let camera_z = world
+        .get_resource::<ActiveCamera>()
+        .and_then(|ac| world.get_component::<Transform>(ac.0))
+        .map(|transform| transform.position.z)
+        .unwrap_or(0.0);
 
     let terrain_result = {
         let terrain_generation = world.get_resource_mut::<TerrainGeneration>().unwrap();

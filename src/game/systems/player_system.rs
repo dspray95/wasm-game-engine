@@ -3,10 +3,9 @@ use winit::keyboard::KeyCode;
 
 use crate::{
     engine::{
-        camera::camera::Camera,
         ecs::{
             components::{ transform::Transform, velocity::Velocity },
-            resources::input_state::InputState,
+            resources::{ camera::ActiveCamera, input_state::InputState },
             system::SystemContext,
             world::World,
         },
@@ -41,10 +40,11 @@ pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
         }
     }
 
-    if let Some(camera) = world.get_resource_mut::<Camera>() {
-        // The camera isn't an entity, so velocity_system won't move it for us
-        let (yaw_sin, yaw_cos) = camera.yaw.0.sin_cos();
-        let forward = Vector3::new(yaw_cos, 0.0, yaw_sin).normalize();
-        camera.position += forward * Z_MOVEMENT_SPEED * system_context.delta_time;
+    let camera_entity = world.get_resource::<ActiveCamera>().map(|ac| ac.0);
+    if let Some(entity) = camera_entity {
+        if let Some(camera_transform) = world.get_component_mut::<Transform>(entity) {
+            let forward = Vector3::new(0.0, 0.0, 1.0);
+            camera_transform.position += forward * Z_MOVEMENT_SPEED * system_context.delta_time;
+        }
     }
 }

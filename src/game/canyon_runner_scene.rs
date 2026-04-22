@@ -1,4 +1,4 @@
-use cgmath::Rotation3;
+use cgmath::{ Rotation3, Vector3 };
 
 use crate::{
     engine::{
@@ -38,6 +38,7 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
         queue: system_context.queue.unwrap(),
     };
 
+    world.create_active_camera(gpu.device, Vector3::new(24.5, -0.25, 1.0));
     world.add_resource(FreeCameraEnabled(false));
 
     let asset_server = system_context.asset_server.as_mut().unwrap();

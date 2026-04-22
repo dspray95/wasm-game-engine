@@ -60,28 +60,33 @@ impl ApplicationHandler for App {
 
             let size = window.inner_size();
 
-            let (engine_state, render_state, scene, camera) = pollster::block_on(async {
-                let (engine_state, camera) = EngineState::new(
-                    &instance,
-                    surface,
-                    &window,
-                    size.width,
-                    size.height
-                ).await.expect("Failed to create engine state");
+            let (engine_state, render_state, scene, camera_bind_group_layout) = pollster::block_on(
+                async {
+                    let (engine_state, camera_bind_group_layout) = EngineState::new(
+                        &instance,
+                        surface,
+                        &window,
+                        size.width,
+                        size.height
+                    ).await.expect("Failed to create engine state");
 
-                let render_state = RenderState::new(
-                    engine_state.render_context(&camera.render_pass_data.bind_group),
-                    &engine_state.surface_config
-                );
+                    let render_state = RenderState::new();
 
-                let scene: Box<CanyonRunnerScene> = Box::new(CanyonRunnerScene);
+                    let scene: Box<CanyonRunnerScene> = Box::new(CanyonRunnerScene);
 
-                (engine_state, render_state, scene, camera)
-            });
+                    (engine_state, render_state, scene, camera_bind_group_layout)
+                }
+            );
 
             self.app_state
                 .borrow_mut()
-                .install_window_state(window.clone(), engine_state, render_state, scene, camera);
+                .install_window_state(
+                    window.clone(),
+                    engine_state,
+                    render_state,
+                    scene,
+                    camera_bind_group_layout
+                );
 
             window.request_redraw();
         }

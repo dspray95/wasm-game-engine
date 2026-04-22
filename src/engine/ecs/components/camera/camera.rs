@@ -1,23 +1,13 @@
-use cgmath::{ point3, Deg, InnerSpace, Point3, Rad, Vector3 };
+use cgmath::{ Deg, InnerSpace, Point3, Rad, Vector3, point3 };
 use wgpu::util::DeviceExt;
 
-use crate::engine::state::context::GpuContext;
-
-use super::{ projection::Projection, uniform::CameraUniformBuffer };
-
-const DEFAULT_FOV: f32 = 45.0;
-const DEAFAULT_NEAR: f32 = 0.1;
-const DEFAULT_FAR: f32 = 100.0;
-
-// This is used to convert the cgmath crate coordinate system to the wgpu system which
-// uses normalised device coordinates
-#[rustfmt::skip]
-pub const _OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
-    1.0,  0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0,  0.0, 0.5, 0.5,
-    0.0,  0.0, 0.0, 1.0,
-);
+use crate::engine::{
+    ecs::components::camera::{
+        constants::{ DEFAULT_NEAR, DEFAULT_FAR, DEFAULT_FOV },
+        projection::Projection,
+        uniform::CameraUniformBuffer,
+    },
+};
 
 pub struct CameraRenderPassData {
     pub buffer: wgpu::Buffer,
@@ -27,7 +17,6 @@ pub struct CameraRenderPassData {
 }
 
 pub struct Camera {
-    pub position: Point3<f32>,
     pub yaw: Rad<f32>,
     pub pitch: Rad<f32>,
     pub projection: Projection,
@@ -35,24 +24,17 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new<V: Into<Point3<f32>>, Y: Into<Rad<f32>>, P: Into<Rad<f32>>>(
-        position: V,
-        yaw: Y,
-        pitch: P,
-        surface_width: u32,
-        surface_height: u32,
-        device: &wgpu::Device
+    pub fn new(
+        yaw: Rad<f32>,
+        pitch: Rad<f32>,
+        projection: Projection,
+        render_pass_data: CameraRenderPassData
     ) -> Self {
-        let uniform_buffer: CameraUniformBuffer = CameraUniformBuffer::new();
-        let buffer = device.create_buffer_init(
-            &(wgpu::util::BufferInitDescriptor {
-                label: Some("Camera Buffer"),
-                contents: bytemuck::cast_slice(&[uniform_buffer]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            })
-        );
+        Self { yaw, pitch, projection, render_pass_data }
+    }
 
-        let bind_group_layout = device.create_bind_group_layout(
+    pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+        device.create_bind_group_layout(
             &(wgpu::BindGroupLayoutDescriptor {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
@@ -68,7 +50,20 @@ impl Camera {
                 ],
                 label: Some("camera_bind_group_layout"),
             })
+        )
+    }
+
+    pub fn create_render_pass_data(device: &wgpu::Device) -> CameraRenderPassData {
+        let uniform_buffer: CameraUniformBuffer = CameraUniformBuffer::new();
+        let buffer = device.create_buffer_init(
+            &(wgpu::util::BufferInitDescriptor {
+                label: Some("Camera Buffer"),
+                contents: bytemuck::cast_slice(&[uniform_buffer]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            })
         );
+
+        let bind_group_layout = Self::create_bind_group_layout(device);
 
         let bind_group = device.create_bind_group(
             &(wgpu::BindGroupDescriptor {
@@ -83,23 +78,11 @@ impl Camera {
             })
         );
 
-        Camera {
-            position: position.into(),
-            yaw: yaw.into(),
-            pitch: pitch.into(),
-            projection: Projection::new(
-                surface_width,
-                surface_height,
-                Deg(DEFAULT_FOV),
-                DEAFAULT_NEAR,
-                DEFAULT_FAR
-            ),
-            render_pass_data: CameraRenderPassData {
-                buffer,
-                uniform_buffer,
-                bind_group,
-                bind_group_layout,
-            },
+        CameraRenderPassData {
+            buffer,
+            uniform_buffer,
+            bind_group,
+            bind_group_layout,
         }
     }
 
@@ -108,19 +91,19 @@ impl Camera {
             width,
             height,
             Deg(DEFAULT_FOV),
-            DEAFAULT_NEAR,
+            DEFAULT_NEAR,
             DEFAULT_FAR
         );
     }
 
-    pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+    pub fn build_view_projection_matrix(&self, position: Vector3<f32>) -> cgmath::Matrix4<f32> {
         // Create a vector from camera eye to the view direction,
         // calculated from the pitch and yaw
         let (sin_pitch, cos_pitch) = self.pitch.0.sin_cos();
         let (sin_yaw, cos_yaw) = self.yaw.0.sin_cos();
 
         let view = cgmath::Matrix4::look_to_rh(
-            self.position,
+            cgmath::Point3::new(position.x, position.y, position.z),
             Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize(),
             Vector3::unit_y()
         );
@@ -129,28 +112,29 @@ impl Camera {
         projeciton * view
     }
 
-    pub fn update_position(&mut self) {
-        self.render_pass_data.uniform_buffer.update_position([
-            self.position.x,
-            self.position.y,
-            self.position.z,
-        ]);
+    pub fn update_position(&mut self, position: Vector3<f32>) {
+        self.render_pass_data.uniform_buffer.update_position([position.x, position.y, position.z]);
     }
 
-    pub fn update_view_projeciton(&mut self) {
+    pub fn update_view_projeciton(&mut self, position: Vector3<f32>) {
         self.render_pass_data.uniform_buffer.update_view_projeciton(
-            self.build_view_projection_matrix().into()
+            self.build_view_projection_matrix(position).into()
         );
     }
 
-    pub fn translate(&mut self, x: f32, y: f32, z: f32, queue: &wgpu::Queue) {
-        self.position = point3(self.position.x + x, self.position.y + y, self.position.z + z);
-        self.update_view_projeciton();
-        self.update_position();
+    pub fn translate(&mut self, position: Vector3<f32>, queue: &wgpu::Queue) {
+        // self.position = point3(self.position.x + x, self.position.y + y, self.position.z + z);
+        self.update_view_projeciton(position);
+        self.update_position(position);
         queue.write_buffer(
             &self.render_pass_data.buffer,
             0,
             bytemuck::cast_slice(&[self.render_pass_data.uniform_buffer])
         );
     }
+}
+
+pub struct SurfaceDimensions {
+    pub width: f32,
+    pub height: f32,
 }
