@@ -55,7 +55,12 @@ impl EngineState {
                 &(wgpu::DeviceDescriptor {
                     label: None,
                     required_features: features,
-                    required_limits: Default::default(),
+                    required_limits: if cfg!(target_arch = "wasm32") {
+                        wgpu::Limits::downlevel_webgl2_defaults()
+                            .using_resolution(adapter.limits())
+                    } else {
+                        wgpu::Limits::default()
+                    },
                     memory_hints: Default::default(),
                 }),
                 None
@@ -205,7 +210,7 @@ impl EngineState {
             wireframe_shader
         );
 
-        // MSAA setup -
+        // MSAA setup //
         let msaa_texture = device.create_texture(
             &(wgpu::TextureDescriptor {
                 label: Some("MSAA Framebuffer"),
@@ -217,7 +222,7 @@ impl EngineState {
                 mip_level_count: 1,
                 sample_count: 4,
                 dimension: wgpu::TextureDimension::D2,
-                format: surface_config.format.remove_srgb_suffix(),
+                format: surface_config.format,
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 view_formats: &[], // Add an empty slice for view_formats
             })

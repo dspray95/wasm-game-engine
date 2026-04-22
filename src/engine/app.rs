@@ -222,7 +222,6 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
     use std::sync::Arc;
     let window = Arc::new(window);
 
-    // Determine canvas size
     let canvas = window.canvas().unwrap();
     let width = canvas.client_width() as u32;
     let height = canvas.client_height() as u32;
@@ -230,23 +229,17 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
     let instance = app_state.borrow().instance.clone();
     let surface = instance.create_surface(window.clone()).expect("Failed to create surface");
 
-    let engine_state = crate::engine::state::engine_state::EngineState
+    let (engine_state, camera_bind_group_layout) = crate::engine::state::engine_state::EngineState
         ::new(&instance, surface, &window, width, height).await
         .expect("Failed to create engine state");
 
-    let render_state = crate::engine::state::render_state::RenderState::new(
-        engine_state.render_context(),
-        &engine_state.surface_config
-    );
+    let render_state = crate::engine::state::render_state::RenderState::new();
 
-    let scene = Box::new(
-        crate::game::canyon_runner_scene::CanyonRunnerScene::new(engine_state.gpu_context()).await
-    );
+    let scene: Box<crate::game::canyon_runner_scene::CanyonRunnerScene> =
+        Box::new(crate::game::canyon_runner_scene::CanyonRunnerScene);
 
     if let Ok(mut state) = app_state.try_borrow_mut() {
-        state.install_window_state(window.clone(), engine_state, render_state, scene);
-
-        // First redraw to start render loop
+        state.install_window_state(window.clone(), engine_state, render_state, scene, camera_bind_group_layout);
         window.request_redraw();
     }
 }
