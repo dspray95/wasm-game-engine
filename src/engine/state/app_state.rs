@@ -4,12 +4,12 @@ use winit::event::{ ElementState };
 use winit::keyboard::{ KeyCode };
 use winit::window::{ Window };
 
+use crate::engine::assets::server::AssetServer;
 use crate::engine::camera::camera::Camera;
 use crate::engine::ecs::resources::input_state::InputState;
 use crate::engine::ecs::system::{ SystemContext, SystemSchedule };
 use crate::engine::ecs::world::World;
 use crate::engine::fps_counter::FpsCounter;
-use crate::engine::model::model_registry::ModelRegistry;
 use crate::engine::scene::scene::Scene;
 use crate::engine::state::context::GpuContext;
 use crate::engine::state::engine_state::EngineState;
@@ -29,7 +29,7 @@ pub struct AppState {
     fps_counter: FpsCounter,
     show_fps: bool,
     world: Option<World>,
-    model_registry: Option<ModelRegistry>,
+    asset_server: Option<AssetServer>,
     system_schedule: Option<SystemSchedule>,
 }
 
@@ -48,7 +48,7 @@ impl AppState {
             fps_counter: FpsCounter::new(),
             show_fps: false,
             world: None,
-            model_registry: None,
+            asset_server: None,
             system_schedule: None,
         }
     }
@@ -62,7 +62,7 @@ impl AppState {
         camera: Camera
     ) {
         let mut world = World::new();
-        let model_registry = ModelRegistry::new();
+        let asset_server = AssetServer::new();
         let mut system_schedule = SystemSchedule::new();
 
         self.window = Some(window);
@@ -71,7 +71,7 @@ impl AppState {
 
         // ECS setup
         scene.setup_ecs(&mut system_schedule);
-        self.model_registry = Some(model_registry);
+        self.asset_server = Some(asset_server);
         self.system_schedule = Some(system_schedule);
         self.scene = Some(scene);
 
@@ -154,13 +154,13 @@ impl AppState {
             // ECS
             let device = &engine_state.device;
             let queue = &engine_state.queue;
-            let model_registry = self.model_registry.as_mut().unwrap();
+            let asset_server = self.asset_server.as_mut().unwrap();
 
             let mut system_context = SystemContext::new(
                 self.delta_time,
                 device,
                 queue,
-                model_registry
+                asset_server
             );
             self.system_schedule.as_mut().unwrap().run_all(world, &mut system_context);
 
@@ -186,7 +186,7 @@ impl AppState {
         let engine_state = self.engine_state.as_ref().unwrap();
         let render_state = self.render_state.as_mut().unwrap();
         let scene = self.scene.as_ref().unwrap();
-        let ecs_models = self.model_registry.as_ref().unwrap().models();
+        let ecs_models = self.asset_server.as_ref().unwrap().models();
         let fps: f32 = if self.show_fps { self.fps_counter.get_fps() } else { -1.0 };
         let world = self.world.as_mut().unwrap();
 

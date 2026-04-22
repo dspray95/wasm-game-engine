@@ -1,4 +1,5 @@
 use crate::engine::{
+    assets::server::AssetServer,
     ecs::{
         systems::{
             camera_update_system::camera_update_system,
@@ -7,7 +8,6 @@ use crate::engine::{
         },
         world::World,
     },
-    model::model_registry::ModelRegistry,
 };
 
 pub struct SystemContext<'a> {
@@ -15,7 +15,7 @@ pub struct SystemContext<'a> {
     // None for systems that don't need GPU access (most of them)
     pub device: Option<&'a wgpu::Device>,
     pub queue: Option<&'a wgpu::Queue>,
-    pub model_registry: Option<&'a mut ModelRegistry>,
+    pub asset_server: Option<&'a mut AssetServer>,
 }
 
 impl<'a> SystemContext<'a> {
@@ -23,13 +23,13 @@ impl<'a> SystemContext<'a> {
         delta_time: f32,
         device: &'a wgpu::Device,
         queue: &'a wgpu::Queue,
-        model_registry: &'a mut ModelRegistry
+        asset_server: &'a mut AssetServer
     ) -> Self {
         Self {
             delta_time,
             device: Some(device),
             queue: Some(queue),
-            model_registry: Some(model_registry),
+            asset_server: Some(asset_server),
         }
     }
 }
@@ -111,7 +111,7 @@ mod tests {
             delta_time: 0.016,
             device: None,
             queue: None,
-            model_registry: None,
+            asset_server: None,
         }
     }
 
@@ -166,7 +166,7 @@ mod tests {
             delta_time: 1.0 / 60.0,
             device: None,
             queue: None,
-            model_registry: None,
+            asset_server: None,
         };
         schedule.run_all(&mut world, &mut ctx);
         let stored = world.get_resource::<f32>().unwrap();

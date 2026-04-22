@@ -40,11 +40,11 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
 
     world.add_resource(FreeCameraEnabled(false));
 
-    let model_registry = system_context.model_registry.as_mut().unwrap();
+    let asset_server = system_context.asset_server.as_mut().unwrap();
 
     // Player setup
     let starfighter_model = starfighter::load_model(&gpu);
-    let starfighter_model_id = model_registry.register(starfighter_model);
+    let starfighter_model_id = asset_server.register_model("starfighter", starfighter_model);
 
     world
         .spawn()
@@ -67,7 +67,7 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
 
     // Laser setup
     let laser_model = LaserManager::load_model(&gpu);
-    let laser_model_id = model_registry.register(laser_model);
+    let laser_model_id = asset_server.register_model("laser", laser_model);
     world.add_resource(LaserModelId(laser_model_id));
     world.add_resource(LaserManager::new());
 
@@ -82,9 +82,9 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
 
     let [terrain_a, terrain_b, terrain_c] = get_initial_terrain(&mut terrain_generation, &gpu);
     let terrain_model_ids = [
-        model_registry.register(terrain_a),
-        model_registry.register(terrain_b),
-        model_registry.register(terrain_c),
+        asset_server.register_model("terrain_a", terrain_a),
+        asset_server.register_model("terrain_b", terrain_b),
+        asset_server.register_model("terrain_c", terrain_c),
     ];
 
     world.add_resource(terrain_generation);

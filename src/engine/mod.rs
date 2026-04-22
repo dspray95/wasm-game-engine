@@ -12,3 +12,4 @@ pub mod scene;
 mod fps_counter;
 mod color;
 pub mod ecs;
+pub mod assets;

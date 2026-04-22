@@ -29,11 +29,10 @@ pub fn terrain_system(world: &mut World, system_context: &mut SystemContext) {
             index
         };
 
-        let model_to_replace = system_context.model_registry
+        let model_to_replace = system_context.asset_server
             .as_mut()
             .unwrap()
-            .get_mut(terrain_model_ids[oldest_index])
-            .unwrap();
+            .get_model_mut(terrain_model_ids[oldest_index]);
 
         replace_terrain_model_buffers(
             new_terrain_mesh_data,

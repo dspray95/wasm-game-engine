@@ -35,11 +35,10 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
         queue: system_context.queue.unwrap(),
     };
 
-    let mesh = system_context.model_registry
+    let mesh = system_context.asset_server
         .as_mut()
         .unwrap()
-        .get_mut(laser_model_id)
-        .unwrap()
+        .get_model_mut(laser_model_id)
         .meshes.get_mut(0)
         .unwrap();
 

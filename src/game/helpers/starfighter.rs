@@ -1,18 +1,11 @@
 use crate::{
     engine::{
         ecs::components::{ transform::Transform, velocity::Velocity },
-        model::{
-            descriptor::{ self, ModelDescriptor },
-            loader::load_model_from_descriptor,
-            material::Material,
-            mesh::{ MeshData, calculate_normals },
-            model::Model,
-        },
-        resources,
+        model::{ loader::load_model_from_obj_bytes, model::Model },
         state::context::GpuContext,
     },
     game::{
-        assets::STARFIGHTER_MODEL_RON,
+        assets::{ STARFIGHTER_MODEL_MTL, STARFIGHTER_MODEL_OBJ },
         components::hover_state::{ HoverDirection, HoverState },
     },
 };
@@ -34,8 +27,11 @@ pub fn animate_hover(transform: &Transform, velocity: &mut Velocity, hover_state
 }
 
 pub fn load_model(gpu_context: &GpuContext) -> Model {
-    let descriptor: ModelDescriptor = ron
-        ::from_str(STARFIGHTER_MODEL_RON)
-        .expect("Failed to parse starfighter.ron");
-    load_model_from_descriptor(&descriptor, gpu_context)
+    load_model_from_obj_bytes(
+        STARFIGHTER_MODEL_OBJ,
+        STARFIGHTER_MODEL_MTL,
+        gpu_context,
+        None,
+        1
+    )
 }

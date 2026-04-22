@@ -76,9 +76,10 @@ See `docs/ECS_IMPL.md` for the full design document. Current status:
 - **Phase 1** (ECS core) ✓
 - **Phase 2** (render bridge) ✓
 - **Phase 3** (player/laser via ECS) ✓
-- **Phase 4** (engine foundations) — planned:
-  - **RON asset loading** — `ModelDescriptor` RON schema, `ModelLoader` parses via `include_str!` at compile time, calls `load_mesh_from_arrays`, registers in `ModelRegistry`. Moves all vertex data out of Rust code into `assets/*.ron` files. WASM-safe (no runtime file I/O).
+- **Phase 4** (engine foundations) — in progress:
+  - **OBJ asset loading + AssetServer** ✓ — `load_model_from_obj_bytes` parses OBJ/MTL via `include_bytes!` at compile time. `AssetServer` wraps `ModelRegistry` with a name→ID `HashMap`, so systems look up models via `asset_server.get_model_id("starfighter")` instead of holding wrapper resources like `StarfighterModelId(usize)`.
   - **Camera into ECS** — Camera becomes a component on an entity rather than a singleton resource. Add `CameraFollow` component to express tracking relationships. Enables `velocity_system` to move the camera naturally and supports multiple cameras (minimap, reflections) later.
+  - **Scene serialisation (RON)** — `assets/scenes/*.ron` declares models + entity archetypes; a generic loader deserialises and spawns entities, replacing hand-coded startup functions like `canyon_runner_startup`. Requires `#[derive(Serialize, Deserialize)]` on all components plus a tagged-enum dispatch so the loader knows which component type each entry represents. Sits on top of the AssetServer, and shares its component registry with the bincode save path planned below.
   - **egui UI** — integrate `egui` with its `wgpu` backend for in-game UI. Immediate-mode, well-maintained, good fit for debug panels and eventual city-builder HUD. Renders as a separate pass after the main scene.
   - **Input action layer** — mappings loaded from `assets/bindings.ron` at startup; `InputState` exposes `is_action_pressed("strafe_left")` rather than raw `KeyCode`s. Systems declare intent via action names, letting users rebind keys and decoupling game logic from winit.
   - **Transform hierarchy** — `Parent(Entity)` component plus a `hierarchy_system` that composes child local transforms with parent world transforms before `render_sync_system` runs. Enables attaching props to the ship, wheels to vehicles, signage to buildings.
@@ -104,6 +105,17 @@ The city-builder will need full world serialisation — every entity and its com
 5. Authored data (building definitions, terrain configs) lives in RON files under `assets/`
 
 The hard part is the type-erased component registry — `World` is currently unaware of which types it stores beyond `TypeId`. A proc macro or explicit registration step will be needed. See Bevy's `Reflect` trait for prior art.
+
+### Save File Layering (planned)
+Saving every tree/rock/prop as a full ECS entity does not scale — a large map has hundreds of thousands of them. Cities: Skylines-style games handle this with packed binary arrays, but we can go further by splitting persistent state into three layers:
+
+1. **Authored density mask** — a 2D array (e.g. 1 byte per cell) describing natural vegetation/prop density. Immutable at runtime, small, loads instantly. Trees are placed deterministically from `(seed, cell_coords, tree_index)` on load.
+2. **Removal overlay** — `Vec<(cell_x, cell_y, tree_idx)>` recording which procedural trees the player removed. Grows with player destruction, not world size. On load, procedural regen runs then skips these positions.
+3. **Placed entities** — full packed records for everything the player built (buildings, roads, planted trees, citizens, vehicles). Serialised as bincode of the relevant sparse-set dense arrays.
+
+Save file = mask + overlay + packed records. Load = regen from mask → skip removals → instantiate records. File size scales with *player activity* rather than world size, and the player-facing fiction of "every tree is persistent" holds for anything they interacted with. Pure background scenery is allowed to reshuffle imperceptibly between sessions.
+
+A replanted tree in a natural cell becomes a new placed entity (layer 3), not a cancellation of the removal — player-planted trees carry different semantics (species choice, "planted by player" flag for gameplay).
 
 ### Input Bindings (planned)
 Input action mappings will be stored in `assets/bindings.ron` and loaded at startup into `InputState`. Systems query named actions (`"strafe_left"`, `"fire"`) rather than raw `KeyCode`s directly. Use `include_str!("../assets/bindings.ron")` for WASM compatibility (no filesystem access in browser).

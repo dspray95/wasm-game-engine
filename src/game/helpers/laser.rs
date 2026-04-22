@@ -4,16 +4,10 @@ use cgmath::{ vec3, Quaternion, Rotation3 };
 use crate::{
     engine::{
         instance::{ Instance, InstanceRaw },
-        model::{
-            descriptor::{ self, ModelDescriptor },
-            material::Material,
-            mesh::{ Mesh, calculate_normals },
-            model::Model,
-        },
-        resources::{ self, load_mesh_from_arrays },
+        model::{ loader::load_model_from_obj_bytes, mesh::Mesh, model::Model },
         state::context::GpuContext,
     },
-    game::assets::LASER_MODEL_RON,
+    game::assets::{ LASER_MODEL_MTL, LASER_MODEL_OBJ },
 };
 
 const MAX_ALIVE_LASERS: u8 = 10;
@@ -53,11 +47,6 @@ impl LaserManager {
     }
 
     pub fn load_model(gpu_context: &GpuContext) -> Model {
-        let descriptor: ModelDescriptor = ron
-            ::from_str(LASER_MODEL_RON)
-            .expect("Failed to parse laser.ron");
-        let mesh_descriptor = &descriptor.meshes[0];
-
         let initial_instances: Vec<Instance> = (0..MAX_ALIVE_LASERS as usize)
             .map(|_| Instance {
                 position: vec3(0.0, -1000.0, 0.0),
@@ -66,28 +55,13 @@ impl LaserManager {
             })
             .collect();
 
-        let mesh = load_mesh_from_arrays(
-            &mesh_descriptor.label,
-            mesh_descriptor.vertices
-                .iter()
-                .map(|(x, y, z)| [*x, *y, *z])
-                .collect(),
-            vec![],
-            mesh_descriptor.triangles.clone(),
+        load_model_from_obj_bytes(
+            LASER_MODEL_OBJ,
+            LASER_MODEL_MTL,
             gpu_context,
-            Material {
-                diffuse_color: [
-                    mesh_descriptor.material.diffuse_color.0,
-                    mesh_descriptor.material.diffuse_color.1,
-                    mesh_descriptor.material.diffuse_color.2,
-                ],
-                alpha: mesh_descriptor.material.alpha,
-            },
             Some(initial_instances),
-            mesh_descriptor.max_instances
-        );
-
-        Model { meshes: vec![mesh] }
+            MAX_ALIVE_LASERS as usize
+        )
     }
 
     pub fn fire(

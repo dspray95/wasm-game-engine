@@ -11,14 +11,12 @@ use crate::engine::{
 
 pub fn render_sync_system(world: &mut World, system_context: &mut SystemContext) {
     let queue = system_context.queue.unwrap();
-    let model_registry = system_context.model_registry.as_mut().unwrap();
+    let asset_server = system_context.asset_server.as_mut().unwrap();
 
     let groups = collect_instance_groups(world);
 
     for (model_id, instances) in &groups {
-        if let Some(model) = model_registry.get_mut(*model_id) {
-            model.update_instances(queue, instances);
-        }
+        asset_server.get_model_mut(*model_id).update_instances(queue, instances);
     }
 }
 
