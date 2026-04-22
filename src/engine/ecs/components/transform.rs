@@ -1,7 +1,9 @@
 use cgmath::{ Deg, Matrix3, Matrix4, Quaternion, Rotation3, Vector3 };
+use serde::{ Deserialize, Serialize };
 
 use crate::engine::instance::InstanceRaw;
 
+#[derive(PartialEq, Serialize, Deserialize)]
 pub struct Transform {
     pub position: Vector3<f32>,
     pub rotation: Quaternion<f32>,
@@ -75,9 +77,7 @@ mod tests {
 
     #[test]
     fn builder_chain_applies_all_values() {
-        let t = Transform::new()
-            .with_position(5.0, 0.0, 0.0)
-            .with_scale(2.0, 2.0, 2.0);
+        let t = Transform::new().with_position(5.0, 0.0, 0.0).with_scale(2.0, 2.0, 2.0);
         assert_eq!(t.position.x, 5.0);
         assert_eq!(t.scale.x, 2.0);
     }
@@ -103,8 +103,7 @@ mod tests {
 
     #[test]
     fn to_raw_normal_matrix_rows_are_unit_length() {
-        let t = Transform::new()
-            .with_rotation(Quaternion::from_angle_y(Deg(45.0)));
+        let t = Transform::new().with_rotation(Quaternion::from_angle_y(Deg(45.0)));
         let raw = t.to_raw();
         for row in &raw.normal {
             let len = Vector3::from(*row).magnitude();

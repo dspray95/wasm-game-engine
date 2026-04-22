@@ -1,17 +1,19 @@
-use cgmath::{ Rotation3, Vector3 };
+use cgmath::{ Vector3 };
 
 use crate::{
     engine::{
+        assets::server::AssetServer,
         ecs::{
-            components::{ renderable::Renderable, transform::Transform, velocity::Velocity },
+            component_registry::ComponentRegistry,
+            components::{ transform::Transform, velocity::Velocity },
             system::{ SystemContext, SystemSchedule },
             world::World,
         },
-        scene::scene::Scene,
+        scene::{ scene::Scene, scene_descriptor::load_scene },
         state::context::GpuContext,
     },
     game::{
-        components::{ hover_state::{ HoverDirection, HoverState }, player::Player },
+        components::{ hover_state::{ HoverState }, player::Player },
         helpers::{ laser::LaserManager, starfighter, terrain_generation::get_initial_terrain },
         resources::{
             laser_resources::LaserModelId,
@@ -45,26 +47,10 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
 
     // Player setup
     let starfighter_model = starfighter::load_model(&gpu);
-    let starfighter_model_id = asset_server.register_model("starfighter", starfighter_model);
+    asset_server.register_model("starfighter", starfighter_model);
 
-    world
-        .spawn()
-        .with(
-            Transform::new()
-                .with_position(24.5, -1.0, 3.0)
-                .with_scale(0.3, 0.3, 0.3)
-                .with_rotation(
-                    cgmath::Quaternion::from_axis_angle(
-                        cgmath::Vector3::unit_y(),
-                        cgmath::Deg(180.0)
-                    )
-                )
-        )
-        .with(Velocity { x: 0.0, y: 0.0, z: 0.0 })
-        .with(Renderable { model_id: starfighter_model_id })
-        .with(HoverState { direction: HoverDirection::Up, upper_limit: -0.9, lower_limit: -0.99 })
-        .with(Player {})
-        .build();
+    // For now this needs to happen _after_ we load the assets from the RON file
+    load_scene_from_ron(world, asset_server);
 
     // Laser setup
     let laser_model = LaserManager::load_model(&gpu);
@@ -90,6 +76,19 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
 
     world.add_resource(terrain_generation);
     world.add_resource(TerrainModelIds(terrain_model_ids));
+}
+
+fn load_scene_from_ron(world: &mut World, asset_server: &mut AssetServer) {
+    let mut registry = ComponentRegistry::new();
+    registry.register::<Transform>("Transform");
+    registry.register::<Velocity>("Velocity");
+    registry.register::<HoverState>("HoverState");
+    registry.register::<Player>("Player");
+
+    let scene_ron = include_str!("../../assets/scenes/canyon_runner.ron");
+    if let Err(e) = load_scene(scene_ron, world, &registry, asset_server) {
+        log::error!("Failed to load scene: {:?}", e);
+    }
 }
 
 impl Scene for CanyonRunnerScene {

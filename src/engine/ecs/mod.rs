@@ -6,3 +6,4 @@ pub mod sparse_set;
 pub mod components;
 pub mod resources;
 pub mod systems;
+pub mod component_registry;

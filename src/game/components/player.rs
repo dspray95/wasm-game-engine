@@ -1,2 +1,5 @@
+use serde::{ Deserialize, Serialize };
+
 // Just an identifier for now
-pub struct Player {}
+#[derive(PartialEq, Serialize, Deserialize)]
+pub struct Player;
