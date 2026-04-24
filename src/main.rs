@@ -5,7 +5,7 @@ use wasm_game_engine::engine;
 use winit::event_loop::{ ControlFlow, EventLoop };
 
 fn main() {
-    pollster::block_on(run());
+    let _ = pollster::block_on(run());
 }
 
 async fn run() -> anyhow::Result<()> {

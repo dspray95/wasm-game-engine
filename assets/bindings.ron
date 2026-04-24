@@ -1,0 +1,14 @@
+(
+    bindings: {
+        "left": [(key: KeyA), (key: ArrowLeft)],
+        "right": [(key: KeyD), (key: ArrowRight)],
+        "fire": [(key: Space)],
+        "toggle_free_camera": [(key: KeyP, modifiers: (ctrl: true))],
+        "free_camera_up": [(key: Space)],
+        "free_camera_down": [(key: LControl)],
+        "forward": [(key: KeyW), (key: ArrowUp)],
+        "back": [(key: KeyS), (key: ArrowDown)],
+        "rotate_left": [(key: KeyQ)],
+        "rotate_right": [(key: KeyE)],
+    },
+)

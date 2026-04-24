@@ -6,7 +6,7 @@ use crate::{
     },
     game::{
         assets::{ STARFIGHTER_MODEL_MTL, STARFIGHTER_MODEL_OBJ },
-        components::hover_state::{ HoverState },
+        components::hover_state::{ HoverDirection, HoverState },
     },
 };
 
@@ -14,15 +14,14 @@ const HOVER_SPEED: f32 = 0.2;
 
 pub fn animate_hover(transform: &Transform, velocity: &mut Velocity, hover_state: &mut HoverState) {
     if transform.position.y > hover_state.upper_limit {
-        hover_state.direction = true;
+        hover_state.direction = HoverDirection::Down;
     } else if transform.position.y < hover_state.lower_limit {
-        hover_state.direction = false;
+        hover_state.direction = HoverDirection::Up;
     }
 
-    if hover_state.direction == false {
-        velocity.y += HOVER_SPEED;
-    } else {
-        velocity.y -= HOVER_SPEED;
+    match hover_state.direction {
+        HoverDirection::Up => velocity.y += HOVER_SPEED,
+        HoverDirection::Down => velocity.y -= HOVER_SPEED,
     }
 }
 

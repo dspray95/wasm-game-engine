@@ -8,7 +8,7 @@ pub enum HoverDirection {
 
 #[derive(PartialEq, Serialize, Deserialize)]
 pub struct HoverState {
-    pub direction: bool,
+    pub direction: HoverDirection,
     pub upper_limit: f32,
     pub lower_limit: f32,
 }
