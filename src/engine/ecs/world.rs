@@ -15,8 +15,7 @@ use crate::engine::{
         entity::{ self, Entity, EntityAllocator },
         resources::camera::ActiveCamera,
         sparse_set::SparseSet,
-    },
-    state::context::GpuContext,
+    }, input::input_state::InputState, state::context::GpuContext
 };
 
 // Trait that lets World call remove() on a type-erased SparseSet without knowing T.
@@ -205,6 +204,17 @@ impl World {
         self.add_resource(ActiveCamera(camera_entity));
     }
 
+    pub fn input_state(&self) -> InputState {
+        self.get_resource::<InputState>()
+            .expect("InputState resource missing - should be added at app setup")
+            .clone()
+    }
+
+    pub fn active_camera(&self) -> Entity {
+        self.get_resource::<ActiveCamera>()
+            .expect("ActiveCamera resource missing - should be added before trying to call .active_camera()")
+            .0
+    }
 }
 
 pub struct EntityBuilder<'w> {

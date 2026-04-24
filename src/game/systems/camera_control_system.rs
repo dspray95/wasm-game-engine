@@ -1,27 +1,21 @@
-use std::collections::binary_heap;
-
 use cgmath::{ InnerSpace, Rad, Vector3 };
-use winit::keyboard::KeyCode;
 
 use crate::{
     engine::{
         ecs::{
             components::{ camera::camera::Camera, transform::Transform },
-            resources::camera::ActiveCamera,
             system::SystemContext,
             world::World,
         },
-        input::input_state::InputState,
     },
-    game::{canyon_runner_scene::FreeCameraEnabled, input::{actions::Action, bindings::Bindings}},
+    game::{canyon_runner_scene::FreeCameraEnabled, input::{actions::Action, world_ext::InputWorldExt}},
 };
 
 const CAMERA_SPEED: f32 = -0.2;
 
-// TODO: Camera actions layer, rather than directly reading the keycodes
 pub fn camera_control_system(world: &mut World, _system_context: &mut SystemContext) {
-    let input = world.get_resource::<InputState>().unwrap().clone();
-    let key_bindings = world.get_resource::<Bindings<Action>>().unwrap().clone();
+    let input = world.input_state();
+    let key_bindings = world.key_bindings();
 
     // Toggle free cam
     {
@@ -36,9 +30,7 @@ pub fn camera_control_system(world: &mut World, _system_context: &mut SystemCont
         return;
     }
 
-    let Some(active_camera_entity) = world.get_resource::<ActiveCamera>().map(|ac| ac.0) else {
-        return;
-    };
+    let active_camera_entity = world.active_camera();
     let Some(yaw) = world.get_component::<Camera>(active_camera_entity).map(|c| c.yaw) else {
         return;
     };

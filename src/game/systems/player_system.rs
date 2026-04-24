@@ -1,5 +1,4 @@
 use cgmath::{ Vector3 };
-use winit::keyboard::KeyCode;
 
 use crate::{
     engine::{
@@ -9,9 +8,8 @@ use crate::{
             system::SystemContext,
             world::World,
         },
-        input::input_state::InputState,
     },
-    game::{components::player::Player, input::{actions::Action, bindings::Bindings}, resources::move_player::{self, MovePlayer}},
+    game::{components::player::Player, input::{actions::Action, bindings::Bindings, world_ext::InputWorldExt}, resources::move_player::{self, MovePlayer}},
 };
 
 const Z_MOVEMENT_SPEED: f32 = 10.0;
@@ -21,8 +19,8 @@ const X_MIN: f32 = 23.5;
 const X_MAX: f32 = 25.5;
 
 pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
-    let input = world.get_resource::<InputState>().unwrap().clone();
-    let key_bindings = world.get_resource::<Bindings<Action>>().unwrap().clone();
+    let input = world.input_state();
+    let key_bindings = world.key_bindings();
     
     let move_player = {
         let resource = world.get_resource_mut::<MovePlayer>().unwrap();

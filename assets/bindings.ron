@@ -9,7 +9,7 @@
         RotateLeft:         [(key: KeyQ)],
         RotateRight:        [(key: KeyE)],
         MoveUp:             [(key: Space)],
-        MoveDown:           [(key: ControlLeft)],
+        MoveDown:           [(key: KeyC)],
         Pause:              [(key: KeyP, modifiers: (ctrl: true))]
     },
 )

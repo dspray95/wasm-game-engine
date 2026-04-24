@@ -1,5 +1,3 @@
-use winit::keyboard::KeyCode;
-
 use crate::{
     engine::{
         ecs::{
@@ -7,19 +5,18 @@ use crate::{
             system::SystemContext,
             world::World,
         },
-        input::input_state::InputState,
         state::context::GpuContext,
     },
     game::{
-        components::player::Player, helpers::laser::LaserManager, input::{actions::Action, bindings::Bindings}, resources::laser_resources::LaserModelId
+        components::player::Player, helpers::laser::LaserManager, input::{actions::Action, bindings::Bindings, world_ext::InputWorldExt}, resources::laser_resources::LaserModelId
     },
 };
 
 const MOVEMENT_SPEED: f32 = 10.0;
 
 pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
-    let input = world.get_resource::<InputState>().unwrap().clone();
-    let key_bindings = world.get_resource::<Bindings<Action>>().unwrap().clone();
+    let input = world.input_state();
+    let key_bindings = world.key_bindings();
 
     let player_position = world
         .query_iter::<(&Player, &Transform)>()
