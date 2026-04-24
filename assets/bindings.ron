@@ -1,14 +1,15 @@
 (
     bindings: {
-        ModeLeft:           [(key: KeyA), (key: ArrowLeft)],
+        MoveLeft:           [(key: KeyA), (key: ArrowLeft)],
         MoveRight:          [(key: KeyD), (key: ArrowRight)],
         MoveForwards:       [(key: KeyW), (key: ArrowUp)],
         MoveBackwards:      [(key: KeyS), (key: ArrowDown)],
         Fire:               [(key: Space)],
-        ToggleFreeCamera:   [(key: KeyP, modifiers: (ctrl: true))],
+        ToggleFreeCamera:   [(key: KeyF, modifiers: (ctrl: true))],
         RotateLeft:         [(key: KeyQ)],
         RotateRight:        [(key: KeyE)],
         MoveUp:             [(key: Space)],
         MoveDown:           [(key: ControlLeft)],
+        Pause:              [(key: KeyP, modifiers: (ctrl: true))]
     },
 )

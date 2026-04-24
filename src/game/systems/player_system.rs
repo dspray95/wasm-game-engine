@@ -11,7 +11,7 @@ use crate::{
         },
         input::input_state::InputState,
     },
-    game::components::player::Player,
+    game::{components::player::Player, input::{actions::Action, bindings::Bindings}, resources::move_player::{self, MovePlayer}},
 };
 
 const Z_MOVEMENT_SPEED: f32 = 10.0;
@@ -22,6 +22,20 @@ const X_MAX: f32 = 25.5;
 
 pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
     let input = world.get_resource::<InputState>().unwrap().clone();
+    let key_bindings = world.get_resource::<Bindings<Action>>().unwrap().clone();
+    
+    let move_player = {
+        let resource = world.get_resource_mut::<MovePlayer>().unwrap();
+        if key_bindings.is_action_just_pressed(&Action::Pause, &input) {
+            resource.0 = !resource.0;
+        }
+        resource.0
+    };
+
+
+    if !move_player {
+        return;
+    }
 
     if
         let Some((_player, transform, velocity)) = world
@@ -30,8 +44,8 @@ pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
     {
         velocity.z += Z_MOVEMENT_SPEED;
 
-        let moving_left = input.is_pressed(KeyCode::KeyA) || input.is_pressed(KeyCode::ArrowLeft);
-        let moving_right = input.is_pressed(KeyCode::KeyD) || input.is_pressed(KeyCode::ArrowRight);
+        let moving_left = key_bindings.is_action_pressed(&Action::MoveLeft, &input);
+        let moving_right = key_bindings.is_action_pressed(&Action::MoveRight, &input);
 
         if moving_left && !moving_right && transform.position.x < X_MAX {
             velocity.x += STRAFE_SPEED;

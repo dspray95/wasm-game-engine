@@ -1,3 +1,5 @@
+use std::collections::binary_heap;
+
 use cgmath::{ InnerSpace, Rad, Vector3 };
 use winit::keyboard::KeyCode;
 
@@ -11,7 +13,7 @@ use crate::{
         },
         input::input_state::InputState,
     },
-    game::canyon_runner_scene::FreeCameraEnabled,
+    game::{canyon_runner_scene::FreeCameraEnabled, input::{actions::Action, bindings::Bindings}},
 };
 
 const CAMERA_SPEED: f32 = -0.2;
@@ -19,11 +21,12 @@ const CAMERA_SPEED: f32 = -0.2;
 // TODO: Camera actions layer, rather than directly reading the keycodes
 pub fn camera_control_system(world: &mut World, _system_context: &mut SystemContext) {
     let input = world.get_resource::<InputState>().unwrap().clone();
+    let key_bindings = world.get_resource::<Bindings<Action>>().unwrap().clone();
 
     // Toggle free cam
     {
         let free_cam = world.get_resource_mut::<FreeCameraEnabled>().unwrap();
-        if input.just_pressed(KeyCode::KeyP) && input.is_pressed(KeyCode::ControlLeft) {
+        if key_bindings.is_action_just_pressed(&Action::ToggleFreeCamera, &input) {
             free_cam.0 = !free_cam.0;
         }
     }
@@ -47,31 +50,31 @@ pub fn camera_control_system(world: &mut World, _system_context: &mut SystemCont
 
     // Now safe to mutably borrow Transform and Camera separately
     if let Some(transform) = world.get_component_mut::<Transform>(active_camera_entity) {
-        if input.is_pressed(KeyCode::KeyW) || input.is_pressed(KeyCode::ArrowUp) {
+        if key_bindings.is_action_pressed(&Action::MoveForwards, &input){
             transform.position -= forward * CAMERA_SPEED;
         }
-        if input.is_pressed(KeyCode::KeyS) || input.is_pressed(KeyCode::ArrowDown) {
+        if key_bindings.is_action_pressed(&Action::MoveBackwards, &input) {
             transform.position += forward * CAMERA_SPEED;
         }
-        if input.is_pressed(KeyCode::KeyA) || input.is_pressed(KeyCode::ArrowLeft) {
+        if key_bindings.is_action_pressed(&Action::MoveLeft, &input)  {
             transform.position += right * CAMERA_SPEED;
         }
-        if input.is_pressed(KeyCode::KeyD) || input.is_pressed(KeyCode::ArrowRight) {
+        if key_bindings.is_action_pressed(&Action::MoveRight, &input) {
             transform.position -= right * CAMERA_SPEED;
         }
-        if input.is_pressed(KeyCode::Space) {
+        if key_bindings.is_action_pressed(&Action::MoveUp, &input) {
             transform.position += up * CAMERA_SPEED;
         }
-        if input.is_pressed(KeyCode::ControlLeft) {
+        if key_bindings.is_action_pressed(&Action::MoveDown, &input) {
             transform.position -= up * CAMERA_SPEED;
         }
     }
 
     if let Some(camera) = world.get_component_mut::<Camera>(active_camera_entity) {
-        if input.is_pressed(KeyCode::KeyQ) {
+        if key_bindings.is_action_pressed(&Action::RotateLeft, &input) {
             camera.yaw -= Rad(0.025);
         }
-        if input.is_pressed(KeyCode::KeyE) {
+        if key_bindings.is_action_pressed(&Action::RotateRight, &input) {
             camera.yaw += Rad(0.025);
         }
     }

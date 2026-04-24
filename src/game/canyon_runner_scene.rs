@@ -2,7 +2,7 @@ use cgmath::{ Vector3 };
 
 use crate::{
     engine::{
-        assets::server::AssetServer,
+        assets::{ ron_loader::parse_ron_or_log, server::AssetServer },
         ecs::{
             component_registry::ComponentRegistry,
             components::{ transform::Transform, velocity::Velocity },
@@ -13,15 +13,14 @@ use crate::{
         state::context::GpuContext,
     },
     game::{
-        components::{ hover_state::{ HoverState }, player::Player },
+        components::{ hover_state::HoverState, player::Player },
         helpers::{ laser::LaserManager, starfighter, terrain_generation::get_initial_terrain },
         input::{
             actions::Action,
             bindings::Bindings,
         },
         resources::{
-            laser_resources::LaserModelId,
-            terrain_resources::{ TerrainGeneration, TerrainModelIds },
+            laser_resources::LaserModelId, move_player::MovePlayer, terrain_resources::{ TerrainGeneration, TerrainModelIds }
         },
         systems::{
             camera_control_system::camera_control_system,
@@ -61,7 +60,8 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
     let laser_model_id = asset_server.register_model("laser", laser_model);
     world.add_resource(LaserModelId(laser_model_id));
     world.add_resource(LaserManager::new());
-
+    world.add_resource(MovePlayer(true));
+    
     // Terrain setup
     let mut terrain_generation = TerrainGeneration {
         terrain_width: TERRAIN_WIDTH,
@@ -95,9 +95,9 @@ fn load_scene_from_ron(world: &mut World, asset_server: &mut AssetServer) {
     }
 
     let bindings_ron = include_str!("../../assets/bindings.ron");
-    let bindings_descriptor = ron::from_str(bindings_ron)
-        .expect("Failed to parse bindings.ron");
-    world.add_resource(Bindings::<Action>::from_descriptor(bindings_descriptor));
+    if let Some(descriptor) = parse_ron_or_log(bindings_ron, "bindings.ron") {
+        world.add_resource(Bindings::<Action>::from_descriptor(descriptor));
+    }
 }
 
 impl Scene for CanyonRunnerScene {

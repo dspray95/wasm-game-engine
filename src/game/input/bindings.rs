@@ -6,6 +6,7 @@ use crate::engine::input::{
     input_state::{Binding, InputState},
 };
 
+#[derive(Clone)]
 pub struct Bindings<A: Hash + Eq> {
     map: HashMap<A, Vec<Binding>>,
 }

@@ -11,9 +11,7 @@ use crate::{
         state::context::GpuContext,
     },
     game::{
-        components::player::Player,
-        helpers::laser::LaserManager,
-        resources::laser_resources::LaserModelId,
+        components::player::Player, helpers::laser::LaserManager, input::{actions::Action, bindings::Bindings}, resources::laser_resources::LaserModelId
     },
 };
 
@@ -21,6 +19,7 @@ const MOVEMENT_SPEED: f32 = 10.0;
 
 pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
     let input = world.get_resource::<InputState>().unwrap().clone();
+    let key_bindings = world.get_resource::<Bindings<Action>>().unwrap().clone();
 
     let player_position = world
         .query_iter::<(&Player, &Transform)>()
@@ -44,7 +43,7 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
 
     let laser_manager = world.get_resource_mut::<LaserManager>().unwrap();
 
-    if input.is_pressed(KeyCode::Space) {
+    if key_bindings.is_action_pressed(&Action::Fire, &input) {
         if let Some(position) = player_position {
             laser_manager.fire(mesh, position, &gpu);
         }
