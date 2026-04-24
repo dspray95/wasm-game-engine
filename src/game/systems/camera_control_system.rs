@@ -2,11 +2,14 @@ use cgmath::{ InnerSpace, Rad, Vector3 };
 use winit::keyboard::KeyCode;
 
 use crate::{
-    engine::ecs::{
-        components::{ camera::camera::Camera, transform::Transform },
-        resources::{ camera::ActiveCamera, input_state::InputState },
-        system::SystemContext,
-        world::World,
+    engine::{
+        ecs::{
+            components::{ camera::camera::Camera, transform::Transform },
+            resources::camera::ActiveCamera,
+            system::SystemContext,
+            world::World,
+        },
+        input::input_state::InputState,
     },
     game::canyon_runner_scene::FreeCameraEnabled,
 };

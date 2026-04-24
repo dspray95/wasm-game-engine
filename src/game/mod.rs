@@ -5,3 +5,4 @@ pub mod components;
 pub mod resources;
 pub mod helpers;
 pub mod assets;
+pub mod input;

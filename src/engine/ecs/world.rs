@@ -204,6 +204,7 @@ impl World {
 
         self.add_resource(ActiveCamera(camera_entity));
     }
+
 }
 
 pub struct EntityBuilder<'w> {

@@ -5,10 +5,11 @@ use crate::{
     engine::{
         ecs::{
             components::{ transform::Transform, velocity::Velocity },
-            resources::{ camera::ActiveCamera, input_state::InputState },
+            resources::camera::ActiveCamera,
             system::SystemContext,
             world::World,
         },
+        input::input_state::InputState,
     },
     game::components::player::Player,
 };

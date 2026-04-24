@@ -15,6 +15,10 @@ use crate::{
     game::{
         components::{ hover_state::{ HoverState }, player::Player },
         helpers::{ laser::LaserManager, starfighter, terrain_generation::get_initial_terrain },
+        input::{
+            actions::Action,
+            bindings::Bindings,
+        },
         resources::{
             laser_resources::LaserModelId,
             terrain_resources::{ TerrainGeneration, TerrainModelIds },
@@ -89,6 +93,11 @@ fn load_scene_from_ron(world: &mut World, asset_server: &mut AssetServer) {
     if let Err(e) = load_scene(scene_ron, world, &registry, asset_server) {
         log::error!("Failed to load scene: {:?}", e);
     }
+
+    let bindings_ron = include_str!("../../assets/bindings.ron");
+    let bindings_descriptor = ron::from_str(bindings_ron)
+        .expect("Failed to parse bindings.ron");
+    world.add_resource(Bindings::<Action>::from_descriptor(bindings_descriptor));
 }
 
 impl Scene for CanyonRunnerScene {

@@ -1,12 +1,32 @@
 use std::collections::HashSet;
+
+use serde::Deserialize;
 use winit::event::ElementState;
 use winit::keyboard::KeyCode;
 
+#[derive(Default, Clone, PartialEq, Eq, Deserialize)]
+pub struct Modifiers {
+    #[serde(default)]
+    pub ctrl: bool,
+    #[serde(default)]
+    pub shift: bool,
+    #[serde(default)]
+    pub alt: bool,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Binding {
+    pub key: KeyCode,
+    #[serde(default)]
+    pub modifiers: Modifiers,
+}
+
 #[derive(Default, Clone)]
 pub struct InputState {
-    pressed: HashSet<KeyCode>, // Keys that are being held down
-    just_pressed: HashSet<KeyCode>, // Keys that went DOWN this frame
-    just_released: HashSet<KeyCode>, // Keys that went UP this frame
+    pressed: HashSet<KeyCode>,
+    just_pressed: HashSet<KeyCode>,
+    just_released: HashSet<KeyCode>,
+    pub active_modifiers: Modifiers,
 }
 
 impl InputState {
@@ -22,25 +42,45 @@ impl InputState {
         self.just_released.contains(&key)
     }
 
+    pub fn pressed_set(&self) -> &HashSet<KeyCode> {
+        &self.pressed
+    }
+
+    pub fn just_pressed_set(&self) -> &HashSet<KeyCode> {
+        &self.just_pressed
+    }
+
+    pub fn just_released_set(&self) -> &HashSet<KeyCode> {
+        &self.just_released
+    }
+
     pub fn record(&mut self, key: KeyCode, state: ElementState) {
         match state {
             ElementState::Pressed => {
-                // winit fires Pressed repeatedly while a key is held — only flag
-                // just_pressed on the actual first-edge transition.
                 if self.pressed.insert(key) {
                     self.just_pressed.insert(key);
                 }
+                self.update_modifier_state(key, true);
             }
             ElementState::Released => {
                 if self.pressed.remove(&key) {
                     self.just_released.insert(key);
                 }
+                self.update_modifier_state(key, false);
             }
         }
     }
 
+    fn update_modifier_state(&mut self, key: KeyCode, is_pressed: bool) {
+        match key {
+            KeyCode::ControlLeft | KeyCode::ControlRight => self.active_modifiers.ctrl = is_pressed,
+            KeyCode::ShiftLeft | KeyCode::ShiftRight => self.active_modifiers.shift = is_pressed,
+            KeyCode::AltLeft | KeyCode::AltRight => self.active_modifiers.alt = is_pressed,
+            _ => {}
+        }
+    }
+
     pub fn clear_transient(&mut self) {
-        // Called by app state before the ECS systems run
         self.just_pressed.clear();
         self.just_released.clear();
     }
@@ -94,5 +134,14 @@ mod tests {
         input.record(KeyCode::KeyA, ElementState::Released);
         assert!(!input.is_pressed(KeyCode::KeyA));
         assert!(!input.just_released(KeyCode::KeyA));
+    }
+
+    #[test]
+    fn ctrl_modifier_tracked_on_press_and_release() {
+        let mut input = InputState::default();
+        input.record(KeyCode::ControlLeft, ElementState::Pressed);
+        assert!(input.active_modifiers.ctrl);
+        input.record(KeyCode::ControlLeft, ElementState::Released);
+        assert!(!input.active_modifiers.ctrl);
     }
 }

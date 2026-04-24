@@ -4,10 +4,10 @@ use crate::{
     engine::{
         ecs::{
             components::transform::Transform,
-            resources::input_state::InputState,
             system::SystemContext,
             world::World,
         },
+        input::input_state::InputState,
         state::context::GpuContext,
     },
     game::{

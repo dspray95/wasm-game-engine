@@ -7,7 +7,7 @@ use winit::window::{ Window };
 use crate::engine::assets::server::AssetServer;
 use crate::engine::ecs::components::camera::camera::{ Camera, SurfaceDimensions };
 use crate::engine::ecs::resources::camera::ActiveCamera;
-use crate::engine::ecs::resources::input_state::InputState;
+use crate::engine::input::input_state::InputState;
 use crate::engine::ecs::system::{ SystemContext, SystemSchedule };
 use crate::engine::ecs::world::World;
 use crate::engine::fps_counter::FpsCounter;
