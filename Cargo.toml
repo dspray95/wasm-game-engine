@@ -27,6 +27,9 @@ web-time = "1.1.0"
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
 erased-serde = "0.4.10"
+egui = "0.31"
+egui-wgpu = "0.31"
+egui-winit = "0.31"
 
 [build-dependencies]
 anyhow = "1.0"
