@@ -21,7 +21,7 @@ impl<T> Events<T> {
     /// Reading both buffers means consumers see events regardless of
     /// whether they run before or after the producer in the schedule.
     pub fn read(&self) -> impl Iterator<Item = &T> {
-        self.previous.iter().chain(self.current.iter())
+        self.previous.iter()
     }
 
     /// Called once per frame to age out events

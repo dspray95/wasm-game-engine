@@ -6,3 +6,4 @@ pub mod resources;
 pub mod helpers;
 pub mod assets;
 pub mod input;
+pub mod events;

@@ -1,10 +1,14 @@
+use cgmath::Vector3;
+
 use crate::{
     engine::{
         ecs::{ components::transform::Transform, system::SystemContext, world::World },
+        events::events::Events,
         state::context::GpuContext,
     },
     game::{
         components::player::Player,
+        events::laser_fired_event::LaserFiredEvent,
         helpers::laser::LaserManager,
         input::{ actions::Action, world_ext::InputWorldExt },
         resources::laser_resources::LaserModelId,
@@ -37,13 +41,22 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
         .meshes.get_mut(0)
         .unwrap();
 
-    let laser_manager = world.get_resource_mut::<LaserManager>().unwrap();
+    let tried_to_fire = key_bindings.is_action_pressed(&Action::Fire, &input);
 
-    if key_bindings.is_action_pressed(&Action::Fire, &input) {
-        if let Some(position) = player_position {
-            laser_manager.fire(mesh, position, &gpu);
-        }
+    let fired_from: Option<Vector3<f32>> = {
+        let laser_manager = world.get_resource_mut::<LaserManager>().unwrap();
+        let result = match (tried_to_fire, player_position) {
+            (true, Some(pos)) if laser_manager.fire(mesh, pos, &gpu) => Some(pos),
+            _ => None,
+        };
+        laser_manager.update(mesh, delta_time, MOVEMENT_SPEED, &gpu);
+        result
+    };
+
+    if let Some(position) = fired_from {
+        world
+            .get_resource_mut::<Events<LaserFiredEvent>>()
+            .unwrap()
+            .send(LaserFiredEvent { origin: position });
     }
-
-    laser_manager.update(mesh, delta_time, MOVEMENT_SPEED, &gpu);
 }

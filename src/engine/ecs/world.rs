@@ -16,6 +16,7 @@ use crate::engine::{
         resources::camera::ActiveCamera,
         sparse_set::SparseSet,
     },
+    events::{ event_registry::EventRegistry, events::Events },
     input::input_state::InputState,
 };
 
@@ -218,6 +219,15 @@ impl World {
 
     pub fn live_entity_count(&self) -> usize {
         self.entities.live_count()
+    }
+
+    pub fn register_event<T: 'static + Send + Sync>(&mut self) {
+        self.add_resource(Events::<T>::default());
+        if let Some(registry) = self.get_resource_mut::<EventRegistry>() {
+            registry.register::<T>();
+        } else {
+            log::warn!("EventRegistry not present — event type registered but won't be cleaned up");
+        }
     }
 }
 

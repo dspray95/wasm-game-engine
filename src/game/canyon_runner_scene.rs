@@ -16,6 +16,7 @@ use crate::{
     },
     game::{
         components::{ hover_state::HoverState, player::Player },
+        events::laser_fired_event::LaserFiredEvent,
         helpers::{ laser::LaserManager, starfighter, terrain_generation::get_initial_terrain },
         input::{ actions::Action, bindings::Bindings },
         resources::{
@@ -26,6 +27,7 @@ use crate::{
         systems::{
             camera_control_system::camera_control_system,
             hover_system::hover_system,
+            laser_log_system::laser_log_system,
             laser_system::laser_system,
             player_system::player_system,
             terrain_system::terrain_system,
@@ -47,6 +49,7 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
     world.create_active_camera(gpu.device, Vector3::new(24.5, -0.25, 1.0));
     world.add_resource(FreeCameraEnabled(false));
     world.add_resource(ShowDebugPanel(false));
+    world.register_event::<LaserFiredEvent>();
 
     let asset_server = system_context.asset_server.as_mut().unwrap();
 
@@ -110,6 +113,7 @@ impl Scene for CanyonRunnerScene {
         schedule.add_game_system(player_system);
         schedule.add_game_system(terrain_system);
         schedule.add_game_system(laser_system);
+        schedule.add_game_system(laser_log_system);
     }
 
     fn setup_ui(&self, ui_registry: &mut crate::engine::ui::ui_registry::UIRegistry) {
