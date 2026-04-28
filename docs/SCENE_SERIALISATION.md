@@ -148,3 +148,62 @@ The RON file format doesn't change. The string-tag dispatch on component names s
 - `canyon_runner.ron` loads with the player visible, hovering, steering
 - A new component with an enum field (e.g. a placeholder `TestEnum { A, B, C }` component) deserialises from a RON scene without error
 - Error messages on bad RON point at the actual type mismatch, not "found a unit value"
+
+---
+
+## Future Scope
+
+### Resources in scene files
+
+Resources split into two camps:
+
+**Pure-data resources** — straightforward to serialise via the same registry pattern as components:
+- `MovePlayer(bool)`, `FreeCameraEnabled(bool)`, `ShowDebugPanel(bool)`, game tunables, initial state
+
+A `ResourceRegistry` mirrors `ComponentRegistry` exactly — string names mapping to `Fn(&mut World, ron::Value) -> Result<()>` deserialisers. Scenes gain a `resources:` section:
+
+```ron
+(
+    resources: {
+        "MovePlayer": (true),
+        "ShowDebugPanel": (false),
+    },
+    entities: [ ... ]
+)
+```
+
+**GPU/handle resources** — not serialisable; stay in code:
+- `AssetServer` (owns GPU buffers, model registry)
+- `CameraBindGroupLayout` (wgpu handle)
+- `LaserManager`, `TerrainGeneration` (hold runtime state with GPU references)
+
+The split is the same one already accepted for models: data in RON, GPU state in Rust. Scene startup should construct GPU resources first, then call `load_scene` to populate pure-data resources and entities together.
+
+**Effort**: low. Roughly a copy of `ComponentRegistry` plus a small extension to `SceneDescriptor` and `load_scene`. Worth doing before the resource list grows.
+
+### Systems in scene files
+
+Technically possible — register systems by string name in a `SystemRegistry`, declare them per-scene in RON:
+
+```ron
+(
+    systems: ["player_system", "hover_system", "terrain_system"],
+    entities: [ ... ]
+)
+```
+
+**But not worth doing yet.** The trade-offs:
+
+- **Order is fragile and implicit.** Systems have ordering dependencies (input → logic → render_sync). RON has no way to express "this must run before that" — wrong order silently breaks behaviour with no compile error.
+- **Compile-time errors become runtime errors.** `add_game_system(playr_system)` is currently caught at compile. With a registry, `"playr_system"` is a runtime miss (or silently no-op).
+- **Refactoring cost.** Renaming a system function means updating Rust definitions *and* every RON file that references it.
+- **Limited payoff right now.** What you'd unlock: per-scene system sets, runtime toggling for debugging, eventual modding. None are pressing.
+
+When this becomes worth doing:
+- Modding becomes a real goal (users replace/extend systems without recompiling)
+- Per-scene system sets diverge meaningfully (menu vs. gameplay vs. simulation)
+- Debug system-toggling becomes a frequent dev workflow
+
+Until then, `schedule.add_game_system(...)` in `Scene::setup_ecs` is the right tool.
+
+**Effort**: medium. Registry, ordering hints, error handling. Skip for now.
