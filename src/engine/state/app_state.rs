@@ -130,20 +130,6 @@ impl AppState {
                 dims.width = width as f32;
                 dims.height = height as f32;
             }
-
-            // Apply resize to our devices rendering data
-            if let Some(render_state) = self.render_state.as_mut() {
-                let width = engine_state.surface_config.width;
-                let height = engine_state.surface_config.height;
-                let format = engine_state.surface_config.format;
-                render_state.resize(
-                    &engine_state.device,
-                    &engine_state.queue,
-                    width,
-                    height,
-                    format
-                );
-            }
         }
     }
 
@@ -212,7 +198,6 @@ impl AppState {
         let render_state = self.render_state.as_mut().unwrap();
         let ecs_models = self.asset_server.as_ref().unwrap().models();
 
-        let fps: f32 = -1.0; // Old text-overlay path retired in favor of egui debug panel
         let world = self.world.as_ref().unwrap();
 
         let camera_bind_group = world
@@ -223,8 +208,7 @@ impl AppState {
         render_state.handle_redraw(
             engine_state.render_context(camera_bind_group),
             ecs_models,
-            EguiContext { state: egui_state, full_output, window: &window },
-            fps
+            EguiContext { state: egui_state, full_output, window: &window }
         );
 
         // Schedule next frame (browser-friendly)

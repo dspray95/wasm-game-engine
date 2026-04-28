@@ -1,8 +1,5 @@
-use wgpu::rwh::WindowsDisplayHandle;
 use winit::event::WindowEvent;
 use winit::window::Window;
-
-use crate::engine::ecs::query;
 
 pub struct EguiState {
     pub context: egui::Context,

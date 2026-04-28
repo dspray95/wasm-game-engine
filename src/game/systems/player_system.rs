@@ -9,7 +9,11 @@ use crate::{
             world::World,
         },
     },
-    game::{components::player::Player, input::{actions::Action, bindings::Bindings, world_ext::InputWorldExt}, resources::move_player::{self, MovePlayer}},
+    game::{
+        components::player::Player,
+        input::{ actions::Action, world_ext::InputWorldExt },
+        resources::move_player::MovePlayer,
+    },
 };
 
 const Z_MOVEMENT_SPEED: f32 = 10.0;
@@ -21,7 +25,7 @@ const X_MAX: f32 = 25.5;
 pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
     let input = world.input_state();
     let key_bindings = world.key_bindings();
-    
+
     let move_player = {
         let resource = world.get_resource_mut::<MovePlayer>().unwrap();
         if key_bindings.is_action_just_pressed(&Action::Pause, &input) {
@@ -29,7 +33,6 @@ pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
         }
         resource.0
     };
-
 
     if !move_player {
         return;

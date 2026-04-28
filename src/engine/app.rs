@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use egui::response;
 use winit::application::ApplicationHandler;
 use winit::event::{ KeyEvent, WindowEvent };
 use winit::event_loop::ActiveEventLoop;
@@ -9,7 +8,6 @@ use winit::window::{ Window, WindowId };
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::WindowExtWebSys;
 use crate::engine::state::app_state::AppState;
-use crate::engine::ui::egui_state;
 
 const INITIAL_WINDOW_WIDTH: u32 = 1920;
 const INITIAL_WINDOW_HEIGHT: u32 = 1080;

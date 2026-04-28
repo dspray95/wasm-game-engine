@@ -1,6 +1,6 @@
 use cgmath::{ Vector2, vec2 };
 use noise::Perlin;
-use rand::{ Rng, SeedableRng, thread_rng };
+use rand::{ Rng, SeedableRng, rng };
 
 use crate::{
     engine::{
@@ -129,8 +129,8 @@ fn generate_canyon_mesh(
 /// Creates a `Model` object from the generated terrain data.
 pub fn create_model_from_data(data: TerrainMeshData, gpu_context: &GpuContext) -> Model {
     let canyon_color = if RAINBOW_ROAD {
-        let mut thread_rng = thread_rng();
-        VIBRANT_COLORS[thread_rng.gen_range(0..VIBRANT_COLORS.len())]
+        let mut thread_rng = rng();
+        VIBRANT_COLORS[thread_rng.random_range(0..VIBRANT_COLORS.len())]
     } else {
         [236, 95, 255]
     };

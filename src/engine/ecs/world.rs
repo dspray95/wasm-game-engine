@@ -12,12 +12,11 @@ use crate::engine::{
             },
             transform::Transform,
         },
-        entity::{ self, Entity, EntityAllocator },
+        entity::{ Entity, EntityAllocator },
         resources::camera::ActiveCamera,
         sparse_set::SparseSet,
     },
     input::input_state::InputState,
-    state::context::GpuContext,
 };
 
 // Trait that lets World call remove() on a type-erased SparseSet without knowing T.
@@ -172,9 +171,6 @@ impl World {
     }
 
     pub fn create_active_camera(&mut self, device: &wgpu::Device, position: Vector3<f32>) {
-        let Some(camera_bind_group_layout) = self.get_resource::<wgpu::BindGroupLayout>() else {
-            return;
-        };
         let Some(surface_dimensions) = self.get_resource::<SurfaceDimensions>() else {
             return;
         };

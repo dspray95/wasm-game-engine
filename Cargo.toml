@@ -1,6 +1,10 @@
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "citizen_engine"
+path = "src/main.rs"
+
 [package]
 name = "wasm_game_engine"
 version = "0.1.0"

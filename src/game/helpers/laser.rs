@@ -11,8 +11,6 @@ use crate::{
 };
 
 const MAX_ALIVE_LASERS: u8 = 10;
-const LASER_WIDTH: f32 = 0.002;
-const LASER_LENGTH: f32 = 0.05;
 const LASER_Y_OFFSET: f32 = 0.05;
 const LASER_SPEED: f32 = 10.0;
 const FIRE_COOLDOWN_SECONDS: f32 = 0.6;

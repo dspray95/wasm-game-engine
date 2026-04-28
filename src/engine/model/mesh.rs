@@ -1,7 +1,7 @@
 use std::{ collections::HashSet, ops::{ Add, Sub }, vec };
 
 use cgmath::{ vec3, InnerSpace, Vector3 };
-use wgpu::{ core::instance, util::DeviceExt };
+use wgpu::{ util::DeviceExt };
 
 use crate::engine::{
     instance::{ Instance, InstanceRaw },

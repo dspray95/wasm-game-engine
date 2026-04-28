@@ -1,4 +1,4 @@
-use cgmath::{ Deg, InnerSpace, Point3, Rad, Vector3, point3 };
+use cgmath::{ Deg, InnerSpace, Rad, Vector3 };
 use wgpu::util::DeviceExt;
 
 use crate::engine::{

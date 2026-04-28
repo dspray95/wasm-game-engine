@@ -2,7 +2,7 @@ use std::f64;
 use log::info;
 
 #[inline]
-pub fn srgb_to_linear_approx_2_2(srgb_component: u32) -> f64 {
+pub fn _srgb_to_linear_approx_2_2(srgb_component: u32) -> f64 {
     info!("srgb_to_linear_approx_2_2: Processing sRGB component {}", srgb_component);
 
     let normalised_srgb = (srgb_component as f64) / 255.0;

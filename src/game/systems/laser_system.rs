@@ -1,14 +1,13 @@
 use crate::{
     engine::{
-        ecs::{
-            components::transform::Transform,
-            system::SystemContext,
-            world::World,
-        },
+        ecs::{ components::transform::Transform, system::SystemContext, world::World },
         state::context::GpuContext,
     },
     game::{
-        components::player::Player, helpers::laser::LaserManager, input::{actions::Action, bindings::Bindings, world_ext::InputWorldExt}, resources::laser_resources::LaserModelId
+        components::player::Player,
+        helpers::laser::LaserManager,
+        input::{ actions::Action, world_ext::InputWorldExt },
+        resources::laser_resources::LaserModelId,
     },
 };
 

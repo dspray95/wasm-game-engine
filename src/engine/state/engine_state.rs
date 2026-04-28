@@ -8,7 +8,7 @@ use crate::engine::{
     light::LightUniform,
     model::vertex::{ ModelVertex, Vertex },
     render_pipeline::{ create_render_pipeline, create_wireframe_render_pipeline },
-    state::context::{ GpuContext, RenderContext },
+    state::context::{ RenderContext },
     texture::{ self, Texture },
 };
 
@@ -56,8 +56,7 @@ impl EngineState {
                     label: None,
                     required_features: features,
                     required_limits: if cfg!(target_arch = "wasm32") {
-                        wgpu::Limits::downlevel_webgl2_defaults()
-                            .using_resolution(adapter.limits())
+                        wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits())
                     } else {
                         wgpu::Limits::default()
                     },
@@ -321,10 +320,6 @@ impl EngineState {
         self.msaa_depth_texture_view = self.msaa_depth_texture.create_view(
             &wgpu::TextureViewDescriptor::default()
         );
-    }
-
-    pub(crate) fn gpu_context(&self) -> GpuContext<'_> {
-        GpuContext { device: &self.device, queue: &self.queue }
     }
 
     pub(crate) fn render_context<'a>(

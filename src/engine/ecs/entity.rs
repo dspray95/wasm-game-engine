@@ -1,5 +1,3 @@
-use crate::engine::ecs::world::World;
-
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Entity {
     pub id: u32,
