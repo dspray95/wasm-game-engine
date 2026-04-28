@@ -123,6 +123,32 @@ Engine systems always run last so they pick up all logic mutations from game sys
 
 `ComponentRegistry` ([component_registry.rs](../src/engine/ecs/component_registry.rs)) — maps string names to type-erased deserializer closures using `erased_serde`. Used by the scene loader to spawn entities from RON files without a central enum. See `docs/SCENE_SERIALISATION.md` for the architectural details.
 
+### Engine resources catalog
+
+A reference list of resources installed into `World` by the engine itself (not by game scenes). Game scenes layer their own resources on top — see `src/game/resources/` for those. This catalog is the canonical "what's in the world" map for engine-side state.
+
+**Conventions for adding a resource**:
+- Must be a singleton (one instance per world)
+- Must be cross-cutting (multiple systems read or write)
+- Pure data preferred; thin handles acceptable; no GPU-owning state with complex lifecycles (those live on `AppState`)
+- If only one system uses it, make it a local in that system instead
+
+| Resource | Type | Where written | Where read |
+|---|---|---|---|
+| `InputState` | engine input | `AppState::handle_keyboard_input`, `clear_transient` per frame | game systems, UI panels |
+| `FpsCounter` | engine timing | `AppState::update` (each frame) | UI panels (debug) |
+| `ActiveCamera(Entity)` | ECS pointer | scene startup (`world.create_active_camera`) | `camera_update_system`, render path, resize handler |
+| `SurfaceDimensions` | engine state | `AppState::install_window_state`, `handle_resized` | systems needing aspect ratio (camera projection on resize) |
+| `CameraBindGroupLayout` | GPU handle | `AppState::install_window_state` (forwarded from `EngineState::new`) | scene startup when spawning camera entities |
+| `EventRegistry` | engine infrastructure | `AppState::install_window_state`, `register_event::<T>` calls | `event_swap_system` |
+| `Events<T>` | engine infrastructure (one per event type) | producer systems via `events_mut().send(...)` | consumer systems via `events().read()` |
+
+**Game-specific resources** (out of scope for this engine doc) live in `src/game/resources/` and are listed here only as examples of the pattern: `Bindings<Action>`, `MovePlayer(bool)`, `FreeCameraEnabled(bool)`, `ShowDebugPanel(bool)`, `TerrainGeneration`, `TerrainModelIds`, `LaserModelId`, `LaserManager`.
+
+**Resources NOT in `World`** (intentional — these have natural owners on `AppState` instead):
+- `EngineState`, `RenderState`, `EguiState`, `UIRegistry`, `SystemSchedule` — owned by `AppState` because they're consumed by the main loop, not by systems
+- `AssetServer` — owned by `AppState`, passed into systems via `SystemContext` because it needs `&mut` access from `render_sync_system`
+
 ---
 
 ## Rendering

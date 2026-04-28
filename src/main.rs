@@ -12,7 +12,13 @@ async fn run() -> anyhow::Result<()> {
     #[cfg(not(target_arch = "wasm32"))]
     {
         println!("loading non-wasm...");
-        env_logger::init();
+        env_logger::Builder
+            ::from_env(
+                env_logger::Env
+                    ::default()
+                    .default_filter_or("info,wgpu_hal=warn,wgpu_core=warn,naga=warn")
+            )
+            .init();
     }
     #[cfg(target_arch = "wasm32")]
     {

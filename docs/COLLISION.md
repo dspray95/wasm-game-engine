@@ -65,23 +65,44 @@ Mixed scenes typically use cheap shapes for moving objects and complex ones for 
 
 ## ECS Integration
 
-A `Collider` component with variants:
+A `Collider` component holds a `ColliderShape` enum field. Following the existing convention (see `HoverState` / `HoverDirection`), components are structs and variant data lives in a nested enum:
 
 ```rust
-pub enum Collider {
+pub struct Collider {
+    pub shape: ColliderShape,
+    // Future metadata fields:
+    //   pub is_trigger: bool,   — emit events but don't resolve overlap
+    //   pub layer: u32,         — collision layer mask
+    //   pub friction: f32,
+}
+
+pub enum ColliderShape {
+    Aabb { half_extents: Vector3<f32> },
     Sphere { radius: f32 },
-    Aabb { half_extents: Vec3 },
     // OBB, Capsule, etc. as you need them
 }
 
 pub struct CollisionEvent {
     pub a: Entity,
     pub b: Entity,
-    pub normal: Vec3,    // direction of penetration (a → b)
-    pub depth: f32,      // how far they overlap
+    pub normal: Vector3<f32>,  // direction of penetration (a → b)
+    pub depth: f32,            // how far they overlap
     // optionally: contact point
 }
 ```
+
+### Why struct + enum, not enum-as-component
+
+Two reasonable options were considered:
+
+1. **`Collider` as a bare enum** — single type, multiple shape variants, dispatch via match.
+2. **Separate components per shape** (`AabbCollider`, `SphereCollider`) — most "ECS-pure" but requires separate queries per shape, no shared metadata.
+
+The chosen pattern (struct wrapping enum) matches the existing component convention and leaves room to add shared metadata (`is_trigger`, collision layers, friction) without touching every shape variant. It's also what Bevy's collider integrations use.
+
+The bare-enum approach was rejected because every other component in the codebase is a struct, and consistency wins over micro-optimization at this scale.
+
+The separate-components approach was rejected because broadphase wants to iterate "all colliders" cheaply — separate components mean you need to merge multiple sparse-set queries every frame.
 
 A `collision_system` in `engine_systems` runs late in the frame:
 
@@ -93,6 +114,19 @@ pub fn collision_system(world: &mut World, _ctx: &mut SystemContext) {
             world.events::<CollisionEvent>().send(CollisionEvent { a, b, ... });
         }
     }
+}
+```
+
+Pair dispatch in narrowphase matches on the inner shape:
+
+```rust
+match (&col_a.shape, &col_b.shape) {
+    (ColliderShape::Aabb { half_extents: ha }, ColliderShape::Aabb { half_extents: hb }) => {
+        aabb_vs_aabb(pos_a, *ha, pos_b, *hb)
+    }
+    // (ColliderShape::Sphere { ... }, ColliderShape::Sphere { ... }) => sphere_vs_sphere(...),
+    // (ColliderShape::Aabb { ... }, ColliderShape::Sphere { ... }) => aabb_vs_sphere(...),
+    _ => None,
 }
 ```
 

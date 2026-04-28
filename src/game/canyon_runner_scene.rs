@@ -5,7 +5,11 @@ use crate::{
         assets::{ ron_loader::parse_ron_or_log, server::AssetServer },
         ecs::{
             component_registry::ComponentRegistry,
-            components::{ transform::Transform, velocity::Velocity },
+            components::{
+                collider::{ Collider, ColliderShape },
+                transform::Transform,
+                velocity::Velocity,
+            },
             resources::debug::ShowDebugPanel,
             system::{ SystemContext, SystemSchedule },
             world::World,
@@ -26,6 +30,7 @@ use crate::{
         },
         systems::{
             camera_control_system::camera_control_system,
+            collision_log_system::collision_log_system,
             hover_system::hover_system,
             laser_log_system::laser_log_system,
             laser_system::laser_system,
@@ -85,6 +90,23 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
 
     world.add_resource(terrain_generation);
     world.add_resource(TerrainModelIds(terrain_model_ids));
+
+    // Collision test
+    world
+        .spawn()
+        .with(Transform::new().with_position(0.0, 0.0, 0.0))
+        .with(Collider {
+            shape: ColliderShape::AABB { half_extents: Vector3::new(1.0, 1.0, 1.0) },
+        })
+        .build();
+
+    world
+        .spawn()
+        .with(Transform::new().with_position(0.5, 0.5, 0.5))
+        .with(Collider {
+            shape: ColliderShape::AABB { half_extents: Vector3::new(1.0, 1.0, 1.0) },
+        })
+        .build();
 }
 
 fn load_scene_from_ron(world: &mut World, asset_server: &mut AssetServer) {
@@ -114,6 +136,7 @@ impl Scene for CanyonRunnerScene {
         schedule.add_game_system(terrain_system);
         schedule.add_game_system(laser_system);
         schedule.add_game_system(laser_log_system);
+        schedule.add_game_system(collision_log_system);
     }
 
     fn setup_ui(&self, ui_registry: &mut crate::engine::ui::ui_registry::UIRegistry) {

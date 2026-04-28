@@ -229,6 +229,10 @@ impl World {
             log::warn!("EventRegistry not present — event type registered but won't be cleaned up");
         }
     }
+
+    pub fn get_entity(&self, id: u32) -> Option<Entity> {
+        self.entities.lookup(id)
+    }
 }
 
 pub struct EntityBuilder<'w> {

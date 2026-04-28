@@ -4,3 +4,4 @@ pub mod hover_system;
 pub mod terrain_system;
 pub mod laser_system;
 pub mod laser_log_system;
+pub mod collision_log_system;

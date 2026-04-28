@@ -40,6 +40,16 @@ impl EntityAllocator {
         }
     }
 
+    /// Reconstruct an Entity handle from its id, if the slot is currently alive.
+    pub fn lookup(&self, id: u32) -> Option<Entity> {
+        let generation = *self.generations.get(id as usize)?;
+        // free_ids holds despawned slots — those aren't currently alive
+        if self.free_ids.contains(&id) {
+            return None;
+        }
+        Some(Entity { id, generation })
+    }
+
     pub fn despawn(&mut self, entity: &Entity) {
         self.free_ids.push(entity.id);
         self.generations[entity.id as usize] += 1;

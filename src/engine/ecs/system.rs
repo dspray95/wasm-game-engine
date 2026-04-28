@@ -3,6 +3,7 @@ use crate::engine::{
     ecs::{
         systems::{
             camera_update_system::camera_update_system,
+            collision_system::collision_system,
             event_swap_system::event_swap_system,
             render_sync_system::render_sync_system,
             velocity_system::velocity_system,
@@ -55,6 +56,7 @@ impl SystemSchedule {
             game_systems: Vec::new(),
             engine_systems: vec![
                 velocity_system,
+                collision_system,
                 camera_update_system,
                 render_sync_system,
                 event_swap_system
