@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::{ Deserialize, Serialize };
 
 #[derive(Serialize, Deserialize, Hash, Eq, PartialEq, Clone, Copy)]
 pub enum Action {
     // Player movement
     MoveLeft,
-    MoveRight, 
-    MoveForwards, 
+    MoveRight,
+    MoveForwards,
     MoveBackwards,
     Fire,
     // Free Cam Movement
@@ -15,4 +15,6 @@ pub enum Action {
     MoveUp,
     MoveDown,
     Pause,
+    //Builtins
+    ToggleDebugPanel,
 }

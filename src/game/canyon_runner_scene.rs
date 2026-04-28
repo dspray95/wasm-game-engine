@@ -6,6 +6,7 @@ use crate::{
         ecs::{
             component_registry::ComponentRegistry,
             components::{ transform::Transform, velocity::Velocity },
+            resources::debug::ShowDebugPanel,
             system::{ SystemContext, SystemSchedule },
             world::World,
         },
@@ -45,6 +46,7 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
 
     world.create_active_camera(gpu.device, Vector3::new(24.5, -0.25, 1.0));
     world.add_resource(FreeCameraEnabled(false));
+    world.add_resource(ShowDebugPanel(false));
 
     let asset_server = system_context.asset_server.as_mut().unwrap();
 

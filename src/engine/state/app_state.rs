@@ -180,13 +180,6 @@ impl AppState {
                 asset_server
             );
             self.system_schedule.as_mut().unwrap().run_all(world, &mut system_context);
-
-            // Clear just_pressed / just_released after all readers have run this frame.
-            // Must be at the END - keyboard events arrive before RedrawRequested in the
-            // winit event loop, so clearing at the start would wipe them before systems see them.
-            if let Some(input) = world.get_resource_mut::<InputState>() {
-                input.clear_transient();
-            }
         }
     }
 
@@ -209,11 +202,17 @@ impl AppState {
             ui_registry.draw_all(ctx, world);
         });
 
+        // All input consumers (systems + UI panels) have now run for this frame.
+        // Clear just_pressed/just_released so they don't fire again next frame.
+        if let Some(input) = world.get_resource_mut::<InputState>() {
+            input.clear_transient();
+        }
+
         let engine_state = self.engine_state.as_ref().unwrap();
         let render_state = self.render_state.as_mut().unwrap();
         let ecs_models = self.asset_server.as_ref().unwrap().models();
 
-        let fps: f32 = -1.0;  // Old text-overlay path retired in favor of egui debug panel
+        let fps: f32 = -1.0; // Old text-overlay path retired in favor of egui debug panel
         let world = self.world.as_ref().unwrap();
 
         let camera_bind_group = world
