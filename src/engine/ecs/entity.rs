@@ -54,6 +54,11 @@ impl EntityAllocator {
 
         entity.generation == self.generations[entity.id as usize]
     }
+
+    pub fn live_count(&self) -> usize {
+        // n_registered_entities - n_freed_ids basically
+        (self.next_id as usize) - self.free_ids.len()
+    }
 }
 
 #[cfg(test)]

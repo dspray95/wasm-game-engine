@@ -1,3 +1,7 @@
+use winit::window::Window;
+
+use crate::engine::ui::egui_state::EguiState;
+
 pub struct GpuContext<'a> {
     pub device: &'a wgpu::Device,
     pub queue: &'a wgpu::Queue,
@@ -15,4 +19,10 @@ pub struct RenderContext<'a> {
     pub wireframe_render_pipeline: &'a wgpu::RenderPipeline,
     pub msaa_texture_view: &'a wgpu::TextureView,
     pub msaa_depth_texture_view: &'a wgpu::TextureView,
+}
+
+pub struct EguiContext<'a> {
+    pub state: &'a mut EguiState,
+    pub full_output: egui::FullOutput,
+    pub window: &'a Window,
 }

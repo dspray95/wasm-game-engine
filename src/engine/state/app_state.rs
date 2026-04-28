@@ -15,6 +15,9 @@ use crate::engine::scene::scene::Scene;
 use crate::engine::state::engine_state::EngineState;
 use crate::engine::state::render_state::RenderState;
 use crate::engine::texture::Texture;
+use crate::engine::state::context::EguiContext;
+use crate::engine::ui::egui_state::EguiState;
+use crate::engine::ui::ui_registry::UIRegistry;
 
 const MINIMUM_DELTA_TIME: f32 = 0.1;
 
@@ -25,11 +28,12 @@ pub struct AppState {
     render_state: Option<RenderState>,
     last_frame_time: Instant,
     delta_time: f32,
-    fps_counter: FpsCounter,
     show_fps: bool,
     world: Option<World>,
     asset_server: Option<AssetServer>,
     system_schedule: Option<SystemSchedule>,
+    pub egui_state: Option<EguiState>,
+    ui_registry: Option<UIRegistry>,
 }
 
 impl AppState {
@@ -43,11 +47,12 @@ impl AppState {
             render_state: None,
             last_frame_time: Instant::now(),
             delta_time: 0.0,
-            fps_counter: FpsCounter::new(),
             show_fps: false,
             world: None,
             asset_server: None,
             system_schedule: None,
+            egui_state: None,
+            ui_registry: None,
         }
     }
 
@@ -62,24 +67,37 @@ impl AppState {
         let mut world = World::new();
         let asset_server = AssetServer::new();
         let mut system_schedule = SystemSchedule::new();
+        let mut ui_registry = UIRegistry::new();
 
         self.window = Some(window);
         self.engine_state = Some(engine_state);
         self.render_state = Some(render_state);
 
-        // ECS setup
+        // ECS + UI setup
         scene.setup_ecs(&mut system_schedule);
+        scene.setup_ui(&mut ui_registry);
         self.asset_server = Some(asset_server);
         self.system_schedule = Some(system_schedule);
+        self.ui_registry = Some(ui_registry);
 
         // World + Resources
         world.add_resource(InputState::default());
+        world.add_resource(FpsCounter::new());
         world.add_resource(camera_bind_group_layout);
         world.add_resource(SurfaceDimensions {
             width: 1920.0,
             height: 1080.0,
         });
         self.world = Some(world);
+
+        // egui setup
+        let engine_state = self.engine_state.as_ref().unwrap();
+        let egui_state = EguiState::new(
+            &engine_state.device,
+            engine_state.surface_config.format,
+            self.window.as_ref().unwrap()
+        );
+        self.egui_state = Some(egui_state);
     }
 
     pub fn handle_resized(&mut self, width: u32, height: u32) {
@@ -130,8 +148,12 @@ impl AppState {
     }
 
     fn update(&mut self) {
-        // Update delta_time
-        self.fps_counter.update();
+        // Update FPS counter (lives in World now)
+        if let Some(world) = self.world.as_mut() {
+            if let Some(fps_counter) = world.get_resource_mut::<FpsCounter>() {
+                fps_counter.update();
+            }
+        }
         let now = Instant::now();
         // Min delta_time stops big jumps etc
         self.delta_time = now
@@ -160,7 +182,7 @@ impl AppState {
             self.system_schedule.as_mut().unwrap().run_all(world, &mut system_context);
 
             // Clear just_pressed / just_released after all readers have run this frame.
-            // Must be at the END — keyboard events arrive before RedrawRequested in the
+            // Must be at the END - keyboard events arrive before RedrawRequested in the
             // winit event loop, so clearing at the start would wipe them before systems see them.
             if let Some(input) = world.get_resource_mut::<InputState>() {
                 input.clear_transient();
@@ -178,10 +200,20 @@ impl AppState {
 
         self.update();
 
+        let window = self.window.as_ref().unwrap().clone();
+        let egui_state = self.egui_state.as_mut().unwrap();
+        let ui_registry = self.ui_registry.as_ref().unwrap();
+        let world = self.world.as_mut().unwrap();
+
+        let full_output = egui_state.run(&window, |ctx| {
+            ui_registry.draw_all(ctx, world);
+        });
+
         let engine_state = self.engine_state.as_ref().unwrap();
         let render_state = self.render_state.as_mut().unwrap();
         let ecs_models = self.asset_server.as_ref().unwrap().models();
-        let fps: f32 = if self.show_fps { self.fps_counter.get_fps() } else { -1.0 };
+
+        let fps: f32 = -1.0;  // Old text-overlay path retired in favor of egui debug panel
         let world = self.world.as_ref().unwrap();
 
         let camera_bind_group = world
@@ -192,6 +224,7 @@ impl AppState {
         render_state.handle_redraw(
             engine_state.render_context(camera_bind_group),
             ecs_models,
+            EguiContext { state: egui_state, full_output, window: &window },
             fps
         );
 

@@ -2,7 +2,7 @@ use wgpu_text::glyph_brush::ab_glyph::{ FontRef, FontVec };
 use wgpu_text::glyph_brush::{ Section, Text };
 use wgpu_text::{ BrushBuilder, TextBrush };
 
-use crate::engine::state::context::RenderContext;
+use crate::engine::state::context::{ EguiContext, RenderContext };
 use crate::engine::{ model::model::Model };
 use crate::engine::model::model::DrawModel;
 
@@ -42,6 +42,7 @@ impl RenderState {
         &mut self,
         render_context: RenderContext,
         ecs_models: &[Model],
+        egui_context: EguiContext,
         fps: f32
     ) {
         // Mesh Rendering //
@@ -200,32 +201,15 @@ impl RenderState {
         //     }
         // }
 
-        // Text render pass
-        // if fps != -1.0 {
-        //     {
-        //         let mut text_render_pass = encoder.begin_render_pass(
-        //             &(wgpu::RenderPassDescriptor {
-        //                 label: Some("Text Render Pass"),
-        //                 color_attachments: &[
-        //                     Some(wgpu::RenderPassColorAttachment {
-        //                         view: &surface_view,
-        //                         resolve_target: None,
-        //                         ops: wgpu::Operations {
-        //                             load: wgpu::LoadOp::Load, // Don't clear - keep the 3D scene
-        //                             store: wgpu::StoreOp::Store,
-        //                         },
-        //                     }),
-        //                 ],
-        //                 depth_stencil_attachment: None, // No depth buffer for text
-        //                 occlusion_query_set: None,
-        //                 timestamp_writes: None,
-        //             })
-        //         );
-
-        //         // Draw text
-        //         self.text_brush.draw(&mut text_render_pass);
-        //     } // text_render_pass is dropped here
-        // }
+        // egui pass — composites the UI on top of the 3D scene
+        egui_context.state.render(
+            render_context.device,
+            render_context.queue,
+            &mut command_encoder,
+            &surface_view,
+            egui_context.window,
+            egui_context.full_output,
+        );
 
         render_context.queue.submit(Some(command_encoder.finish()));
         surface_texture.present();

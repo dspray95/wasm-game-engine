@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use egui::response;
 use winit::application::ApplicationHandler;
 use winit::event::{ KeyEvent, WindowEvent };
 use winit::event_loop::ActiveEventLoop;
@@ -8,6 +9,7 @@ use winit::window::{ Window, WindowId };
 #[cfg(target_arch = "wasm32")]
 use winit::platform::web::WindowExtWebSys;
 use crate::engine::state::app_state::AppState;
+use crate::engine::ui::egui_state;
 
 const INITIAL_WINDOW_WIDTH: u32 = 1920;
 const INITIAL_WINDOW_HEIGHT: u32 = 1080;
@@ -123,6 +125,24 @@ impl ApplicationHandler for App {
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
+        // Forward events to egui
+        let egui_consumed_event = if let Ok(mut state) = self.app_state.try_borrow_mut() {
+            // Clone the window Arc first so we don't hold an immutable borrow on
+            // `state` when we mutably borrow state.egui_state below.
+            let window = state.window.as_ref().cloned();
+            if let (Some(egui_state), Some(window)) = (state.egui_state.as_mut(), window) {
+                let response = egui_state.on_window_event(&window, &event);
+                if response.repaint {
+                    window.request_redraw();
+                }
+                response.consumed
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::RedrawRequested => {
@@ -206,10 +226,12 @@ impl ApplicationHandler for App {
                 event: KeyEvent { state, physical_key: PhysicalKey::Code(key_code), .. },
                 ..
             } => {
-                if let Ok(mut app_state) = self.app_state.try_borrow_mut() {
-                    app_state.handle_keyboard_input(state, key_code);
-                } else {
-                    log::warn!("Could not handle keyboard input - app_state is borrowed");
+                if !egui_consumed_event {
+                    if let Ok(mut app_state) = self.app_state.try_borrow_mut() {
+                        app_state.handle_keyboard_input(state, key_code);
+                    } else {
+                        log::warn!("Could not handle keyboard input");
+                    }
                 }
             }
             _ => (),
@@ -235,11 +257,18 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
 
     let render_state = crate::engine::state::render_state::RenderState::new();
 
-    let scene: Box<crate::game::canyon_runner_scene::CanyonRunnerScene> =
-        Box::new(crate::game::canyon_runner_scene::CanyonRunnerScene);
+    let scene: Box<crate::game::canyon_runner_scene::CanyonRunnerScene> = Box::new(
+        crate::game::canyon_runner_scene::CanyonRunnerScene
+    );
 
     if let Ok(mut state) = app_state.try_borrow_mut() {
-        state.install_window_state(window.clone(), engine_state, render_state, scene, camera_bind_group_layout);
+        state.install_window_state(
+            window.clone(),
+            engine_state,
+            render_state,
+            scene,
+            camera_bind_group_layout
+        );
         window.request_redraw();
     }
 }

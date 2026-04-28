@@ -11,16 +11,16 @@ use crate::{
         },
         scene::{ scene::Scene, scene_descriptor::load_scene },
         state::context::GpuContext,
+        ui::built_in::debug_panel::debug_panel,
     },
     game::{
         components::{ hover_state::HoverState, player::Player },
         helpers::{ laser::LaserManager, starfighter, terrain_generation::get_initial_terrain },
-        input::{
-            actions::Action,
-            bindings::Bindings,
-        },
+        input::{ actions::Action, bindings::Bindings },
         resources::{
-            laser_resources::LaserModelId, move_player::MovePlayer, terrain_resources::{ TerrainGeneration, TerrainModelIds }
+            laser_resources::LaserModelId,
+            move_player::MovePlayer,
+            terrain_resources::{ TerrainGeneration, TerrainModelIds },
         },
         systems::{
             camera_control_system::camera_control_system,
@@ -61,7 +61,7 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
     world.add_resource(LaserModelId(laser_model_id));
     world.add_resource(LaserManager::new());
     world.add_resource(MovePlayer(true));
-    
+
     // Terrain setup
     let mut terrain_generation = TerrainGeneration {
         terrain_width: TERRAIN_WIDTH,
@@ -108,6 +108,10 @@ impl Scene for CanyonRunnerScene {
         schedule.add_game_system(player_system);
         schedule.add_game_system(terrain_system);
         schedule.add_game_system(laser_system);
+    }
+
+    fn setup_ui(&self, ui_registry: &mut crate::engine::ui::ui_registry::UIRegistry) {
+        ui_registry.add(debug_panel);
     }
 }
 

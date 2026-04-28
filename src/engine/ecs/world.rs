@@ -15,7 +15,9 @@ use crate::engine::{
         entity::{ self, Entity, EntityAllocator },
         resources::camera::ActiveCamera,
         sparse_set::SparseSet,
-    }, input::input_state::InputState, state::context::GpuContext
+    },
+    input::input_state::InputState,
+    state::context::GpuContext,
 };
 
 // Trait that lets World call remove() on a type-erased SparseSet without knowing T.
@@ -45,7 +47,7 @@ impl<T: 'static> ComponentStorage for SparseSet<T> {
 }
 
 pub struct World {
-    entities: EntityAllocator,
+    pub entities: EntityAllocator,
     // Keyed by TypeId so each SparseSet<T> is stored and retrieved by its component type.
     // Box<dyn ComponentStorage> erases the type while still exposing remove() for despawn.
     components: HashMap<TypeId, Box<dyn ComponentStorage>>,
@@ -211,9 +213,15 @@ impl World {
     }
 
     pub fn active_camera(&self) -> Entity {
-        self.get_resource::<ActiveCamera>()
-            .expect("ActiveCamera resource missing - should be added before trying to call .active_camera()")
-            .0
+        self
+            .get_resource::<ActiveCamera>()
+            .expect(
+                "ActiveCamera resource missing - should be added before trying to call .active_camera()"
+            ).0
+    }
+
+    pub fn live_entity_count(&self) -> usize {
+        self.entities.live_count()
     }
 }
 
