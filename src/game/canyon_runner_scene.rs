@@ -85,14 +85,14 @@ fn canyon_runner_startup(world: &mut World, system_context: &mut SystemContext) 
 }
 
 fn load_scene_from_ron(world: &mut World, asset_server: &mut AssetServer) {
-    let mut registry = ComponentRegistry::new();
-    registry.register::<Transform>("Transform");
-    registry.register::<Velocity>("Velocity");
-    registry.register::<HoverState>("HoverState");
-    registry.register::<Player>("Player");
+    let mut component_registry = ComponentRegistry::new();
+    component_registry.register::<Transform>("Transform");
+    component_registry.register::<Velocity>("Velocity");
+    component_registry.register::<HoverState>("HoverState");
+    component_registry.register::<Player>("Player");
 
     let scene_ron = include_str!("../../assets/scenes/canyon_runner.ron");
-    if let Err(e) = load_scene(scene_ron, world, &registry, asset_server) {
+    if let Err(e) = load_scene(scene_ron, world, &component_registry, asset_server) {
         log::error!("Failed to load scene: {:?}", e);
     }
 

@@ -14,3 +14,4 @@ pub mod ecs;
 pub mod assets;
 pub mod input;
 pub mod ui;
+pub mod events;

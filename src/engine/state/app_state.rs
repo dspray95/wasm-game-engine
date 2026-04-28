@@ -7,6 +7,7 @@ use winit::window::{ Window };
 use crate::engine::assets::server::AssetServer;
 use crate::engine::ecs::components::camera::camera::{ Camera, SurfaceDimensions };
 use crate::engine::ecs::resources::camera::ActiveCamera;
+use crate::engine::events::event_registry::EventRegistry;
 use crate::engine::input::input_state::InputState;
 use crate::engine::ecs::system::{ SystemContext, SystemSchedule };
 use crate::engine::ecs::world::World;
@@ -88,6 +89,8 @@ impl AppState {
             width: 1920.0,
             height: 1080.0,
         });
+        world.add_resource(EventRegistry::new());
+
         self.world = Some(world);
 
         // egui setup
