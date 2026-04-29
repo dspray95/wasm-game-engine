@@ -1,28 +1,30 @@
 use std::sync::Arc;
-use cgmath::Vector3;
 use web_time::Instant;
 use winit::event::{ ElementState };
 use winit::keyboard::{ KeyCode };
 use winit::window::{ Window };
 
 use crate::engine::assets::server::AssetServer;
+use crate::engine::ecs::component_registry::ComponentRegistry;
 use crate::engine::ecs::components::camera::camera::{ Camera, SurfaceDimensions };
-use crate::engine::ecs::components::collider::{ Collider, ColliderShape };
-use crate::engine::ecs::components::transform::Transform;
 use crate::engine::ecs::events::collision_event::CollisionEvent;
 use crate::engine::ecs::resources::camera::ActiveCamera;
+use crate::engine::ecs::world_descriptor::load_world;
 use crate::engine::events::event_registry::EventRegistry;
+use crate::engine::input::bindings_descriptor::BindingsDescriptor;
 use crate::engine::input::input_state::InputState;
 use crate::engine::ecs::system::{ SystemContext, SystemSchedule };
 use crate::engine::ecs::world::World;
 use crate::engine::fps_counter::FpsCounter;
-use crate::engine::scene::scene::Scene;
+use crate::engine::game_setup::GameSetup;
 use crate::engine::state::engine_state::EngineState;
 use crate::engine::state::render_state::RenderState;
 use crate::engine::texture::Texture;
-use crate::engine::state::context::EguiContext;
+use crate::engine::state::context::{ EguiContext, GpuContext };
 use crate::engine::ui::egui_state::EguiState;
 use crate::engine::ui::ui_registry::UIRegistry;
+use crate::game;
+use crate::game::input::bindings::Bindings;
 
 const MINIMUM_DELTA_TIME: f32 = 0.1;
 
@@ -61,16 +63,41 @@ impl AppState {
         }
     }
 
-    pub fn install_window_state(
+    /// Bootstraps the application: takes the post-window-creation handles
+    /// and runs the game-setup pipeline to produce a frame-ready AppState.
+    ///
+    /// Called once after the winit window has been created (in `App::resumed`),
+    /// since most of what's installed here depends on a live GPU surface and
+    /// therefore can't exist when `AppState::new` runs.
+    ///
+    /// Setup pipeline (in order):
+    /// 1. Allocate the `World`, `AssetServer`, `SystemSchedule`, and `UIRegistry`.
+    /// 2. Install window/engine_state/render_state on `self`.
+    /// 3. Run `game_setup.load_assets` to register GPU models with the AssetServer.
+    /// 4. Run `game_setup.register_components` to populate the component registry
+    ///    with game-specific components (engine components are auto-registered).
+    /// 5. Run `game_setup.setup_ecs` and `setup_ui` to register systems and panels.
+    /// 6. Add engine-managed resources (input, fps, surface dims, event registry).
+    /// 7. Register engine events on the event registry.
+    /// 8. Load the bindings RON (if any) so input is usable from this point on.
+    /// 9. Load the world's RON file (if any) to spawn declared entities.
+    /// 10. Run `game_setup.setup` for game-specific entity/resource setup —
+    ///     runs last so it can query/modify entities loaded from the world RON.
+    /// 11. Construct egui state.
+    /// 12. Move locals into `self`.
+    ///
+    /// Generic over `G: GameSetup` so the associated `Action` type is known
+    /// at the type system level — needed for typed bindings deserialization.
+    pub fn bootstrap<G: GameSetup>(
         &mut self,
         window: Arc<Window>,
         engine_state: EngineState,
         render_state: RenderState,
-        scene: Box<dyn Scene>,
+        game_setup: G,
         camera_bind_group_layout: wgpu::BindGroupLayout
     ) {
         let mut world = World::new();
-        let asset_server = AssetServer::new();
+        let mut asset_server = AssetServer::new();
         let mut system_schedule = SystemSchedule::new();
         let mut ui_registry = UIRegistry::new();
 
@@ -78,35 +105,72 @@ impl AppState {
         self.engine_state = Some(engine_state);
         self.render_state = Some(render_state);
 
-        // ECS + UI setup
-        scene.setup_ecs(&mut system_schedule);
-        scene.setup_ui(&mut ui_registry);
-        self.asset_server = Some(asset_server);
-        self.system_schedule = Some(system_schedule);
-        self.ui_registry = Some(ui_registry);
+        // Step 3: asset loading
+        let render_context = self.engine_state.as_mut().unwrap().render_context(None);
+        let gpu_context = GpuContext {
+            device: render_context.device,
+            queue: render_context.queue,
+        };
+        game_setup.load_assets(&gpu_context, &mut asset_server, &mut world);
 
-        // World + Resources
+        // Step 4: register game-specific components (engine ones auto-registered)
+        let mut component_registry = ComponentRegistry::new();
+        game_setup.register_components(&mut component_registry);
+
+        // Step 5: register systems and UI panels
+        game_setup.setup_ecs(&mut system_schedule);
+        game_setup.setup_ui(&mut ui_registry);
+
+        // Step 6: engine-managed resources
         world.add_resource(InputState::default());
         world.add_resource(FpsCounter::new());
         world.add_resource(camera_bind_group_layout);
-        world.add_resource(SurfaceDimensions {
-            width: 1920.0,
-            height: 1080.0,
-        });
+        world.add_resource(SurfaceDimensions { width: 1920.0, height: 1080.0 });
         world.add_resource(EventRegistry::new());
 
-        // Engine Events
+        // Step 7: engine events
         world.register_event::<CollisionEvent>();
 
-        self.world = Some(world);
+        // Step 8: bindings — input usable from here on
+        if let Some(ron) = game_setup.bindings_ron() {
+            if let Ok(descriptor) = ron::from_str::<BindingsDescriptor<G::Action>>(ron) {
+                world.add_resource(Bindings::<G::Action>::from_descriptor(descriptor));
+            }
+        }
 
-        // egui setup
+        // Step 9: declarative world content from RON
+        if let Some(ron) = game_setup.world_ron() {
+            if let Err(e) = load_world(ron, &mut world, &component_registry, &asset_server) {
+                log::error!("Failed to load world: {:?}", e);
+            }
+        }
+
+        // Step 10: programmatic game setup. Runs last so it can query/modify
+        // entities that were loaded from RON in step 9. Block scope keeps the
+        // &mut asset_server borrow short-lived.
+        {
+            let mut ecs_system_context = SystemContext::new(
+                self.delta_time,
+                render_context.device,
+                render_context.queue,
+                &mut asset_server,
+            );
+            game_setup.setup(&mut world, &mut ecs_system_context);
+        }
+
+        // Step 11: egui state
         let engine_state = self.engine_state.as_ref().unwrap();
         let egui_state = EguiState::new(
             &engine_state.device,
             engine_state.surface_config.format,
-            self.window.as_ref().unwrap()
+            self.window.as_ref().unwrap(),
         );
+
+        // Step 12: commit locals to self
+        self.world = Some(world);
+        self.asset_server = Some(asset_server);
+        self.system_schedule = Some(system_schedule);
+        self.ui_registry = Some(ui_registry);
         self.egui_state = Some(egui_state);
     }
 
@@ -143,6 +207,7 @@ impl AppState {
         }
     }
 
+    /// Update runs once per-frame
     fn update(&mut self) {
         // Update FPS counter (lives in World now)
         if let Some(world) = self.world.as_mut() {

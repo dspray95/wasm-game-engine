@@ -38,7 +38,7 @@ impl ApplicationHandler for App {
 
             use std::sync::Arc;
             use crate::engine::state::{ engine_state::EngineState, render_state::RenderState };
-            use crate::game::canyon_runner_scene::CanyonRunnerScene;
+            use crate::game::canyon_runner_scene::CanyonRunnerWorld;
 
             let window = Arc::new(
                 event_loop
@@ -72,19 +72,23 @@ impl ApplicationHandler for App {
 
                     let render_state = RenderState::new();
 
-                    let scene: Box<CanyonRunnerScene> = Box::new(CanyonRunnerScene);
+                    let scene: Box<CanyonRunnerWorld> = Box::new(CanyonRunnerWorld);
 
                     (engine_state, render_state, scene, camera_bind_group_layout)
                 }
             );
 
+            // TODO: Make this more generic so App doesn't need to know the specifics
+            // of the initial game setup
+            let game_setup = CanyonRunnerWorld;
+
             self.app_state
                 .borrow_mut()
-                .install_window_state(
+                .bootstrap(
                     window.clone(),
                     engine_state,
                     render_state,
-                    scene,
+                    game_setup,
                     camera_bind_group_layout
                 );
 
@@ -255,8 +259,8 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
 
     let render_state = crate::engine::state::render_state::RenderState::new();
 
-    let scene: Box<crate::game::canyon_runner_scene::CanyonRunnerScene> = Box::new(
-        crate::game::canyon_runner_scene::CanyonRunnerScene
+    let scene: Box<crate::game::canyon_runner_scene::CanyonRunnerWorld> = Box::new(
+        crate::game::canyon_runner_scene::CanyonRunnerWorld
     );
 
     if let Ok(mut state) = app_state.try_borrow_mut() {

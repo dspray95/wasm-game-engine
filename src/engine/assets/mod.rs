@@ -1,2 +1,3 @@
-pub mod ron_loader;
+pub mod ron_parser;
 pub mod server;
+pub mod loader;

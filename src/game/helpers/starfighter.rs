@@ -5,7 +5,7 @@ use crate::{
         state::context::GpuContext,
     },
     game::{
-        assets::{ STARFIGHTER_MODEL_MTL, STARFIGHTER_MODEL_OBJ },
+        assets::include::{ STARFIGHTER_MODEL_MTL, STARFIGHTER_MODEL_OBJ },
         components::hover_state::{ HoverDirection, HoverState },
     },
 };
@@ -20,8 +20,12 @@ pub fn animate_hover(transform: &Transform, velocity: &mut Velocity, hover_state
     }
 
     match hover_state.direction {
-        HoverDirection::Up => velocity.y += HOVER_SPEED,
-        HoverDirection::Down => velocity.y -= HOVER_SPEED,
+        HoverDirection::Up => {
+            velocity.y += HOVER_SPEED;
+        }
+        HoverDirection::Down => {
+            velocity.y -= HOVER_SPEED;
+        }
     }
 }
 

@@ -7,10 +7,10 @@ use crate::{
         model::{ loader::load_model_from_obj_bytes, mesh::Mesh, model::Model },
         state::context::GpuContext,
     },
-    game::assets::{ LASER_MODEL_MTL, LASER_MODEL_OBJ },
+    game::assets::include::{ LASER_MODEL_MTL, LASER_MODEL_OBJ },
 };
 
-const MAX_ALIVE_LASERS: u8 = 10;
+pub const MAX_ALIVE_LASERS: u8 = 10;
 const LASER_Y_OFFSET: f32 = 0.05;
 const LASER_SPEED: f32 = 10.0;
 const FIRE_COOLDOWN_SECONDS: f32 = 0.6;
@@ -42,24 +42,6 @@ impl LaserManager {
             current_beam_index: 0,
             last_fired_time: Instant::now(),
         }
-    }
-
-    pub fn load_model(gpu_context: &GpuContext) -> Model {
-        let initial_instances: Vec<Instance> = (0..MAX_ALIVE_LASERS as usize)
-            .map(|_| Instance {
-                position: vec3(0.0, -1000.0, 0.0),
-                rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
-                scale: vec3(0.0, 0.0, 0.0),
-            })
-            .collect();
-
-        load_model_from_obj_bytes(
-            LASER_MODEL_OBJ,
-            LASER_MODEL_MTL,
-            gpu_context,
-            Some(initial_instances),
-            MAX_ALIVE_LASERS as usize
-        )
     }
 
     pub fn fire(

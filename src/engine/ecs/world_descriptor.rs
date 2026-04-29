@@ -1,7 +1,7 @@
 use std::fmt;
 
 use anyhow::Result;
-use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor};
+use serde::de::{ self, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor };
 
 use crate::engine::{
     assets::server::AssetServer,
@@ -17,26 +17,26 @@ const RENDERABLE_NAME: &str = "Renderable";
 
 // --- Top level: deserializes the `( entities: [ ... ] )` wrapper struct ---
 
-struct SceneDescriptorSeed<'a> {
+struct WorldDescriptorSeed<'a> {
     world: &'a mut World,
     registry: &'a ComponentRegistry,
     asset_server: &'a AssetServer,
 }
 
-impl<'de, 'a> DeserializeSeed<'de> for SceneDescriptorSeed<'a> {
+impl<'de, 'a> DeserializeSeed<'de> for WorldDescriptorSeed<'a> {
     type Value = ();
 
     fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<(), D::Error> {
         const FIELDS: &[&str] = &["entities"];
-        deserializer.deserialize_struct("SceneDescriptor", FIELDS, self)
+        deserializer.deserialize_struct("WorldDescriptor", FIELDS, self)
     }
 }
 
-impl<'de, 'a> Visitor<'de> for SceneDescriptorSeed<'a> {
+impl<'de, 'a> Visitor<'de> for WorldDescriptorSeed<'a> {
     type Value = ();
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a scene descriptor with an 'entities' field")
+        formatter.write_str("a world descriptor with an 'entities' field")
     }
 
     fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<(), M::Error> {
@@ -90,11 +90,15 @@ impl<'de, 'a> Visitor<'de> for EntityListSeed<'a> {
     }
 
     fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<(), S::Error> {
-        while seq.next_element_seed(EntitySeed {
-            world: self.world,
-            registry: self.registry,
-            asset_server: self.asset_server,
-        })?.is_some() {}
+        while
+            seq
+                .next_element_seed(EntitySeed {
+                    world: self.world,
+                    registry: self.registry,
+                    asset_server: self.asset_server,
+                })?
+                .is_some()
+        {}
 
         Ok(())
     }
@@ -164,24 +168,25 @@ impl<'de, 'a> DeserializeSeed<'de> for ComponentSeed<'a> {
     fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<(), D::Error> {
         let deserialize_fn = self.registry
             .get(self.component_name)
-            .ok_or_else(|| de::Error::custom(format!("unknown component: {}", self.component_name)))?;
+            .ok_or_else(||
+                de::Error::custom(format!("unknown component: {}", self.component_name))
+            )?;
 
         let mut erased = <dyn erased_serde::Deserializer>::erase(deserializer);
-        deserialize_fn(self.world, self.entity, &mut erased)
-            .map_err(de::Error::custom)
+        deserialize_fn(self.world, self.entity, &mut erased).map_err(de::Error::custom)
     }
 }
 
 // --- Public API ---
 
-pub fn load_scene(
+pub fn load_world(
     ron_str: &str,
     world: &mut World,
     registry: &ComponentRegistry,
-    asset_server: &AssetServer,
+    asset_server: &AssetServer
 ) -> Result<()> {
     let mut deserializer = ron::de::Deserializer::from_str(ron_str)?;
-    let seed = SceneDescriptorSeed { world, registry, asset_server };
+    let seed = WorldDescriptorSeed { world, registry, asset_server };
     seed.deserialize(&mut deserializer)?;
     Ok(())
 }
