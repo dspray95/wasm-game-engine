@@ -60,7 +60,7 @@ impl ApplicationHandler for App {
 
             let size = window.inner_size();
 
-            let (engine_state, render_state, scene, camera_bind_group_layout) = pollster::block_on(
+            let (engine_state, render_state, _world, camera_bind_group_layout) = pollster::block_on(
                 async {
                     let (engine_state, camera_bind_group_layout) = EngineState::new(
                         &instance,
@@ -72,9 +72,9 @@ impl ApplicationHandler for App {
 
                     let render_state = RenderState::new();
 
-                    let scene: Box<CanyonRunnerWorld> = Box::new(CanyonRunnerWorld);
+                    let world: Box<CanyonRunnerWorld> = Box::new(CanyonRunnerWorld);
 
-                    (engine_state, render_state, scene, camera_bind_group_layout)
+                    (engine_state, render_state, world, camera_bind_group_layout)
                 }
             );
 

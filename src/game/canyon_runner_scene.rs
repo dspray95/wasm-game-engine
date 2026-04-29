@@ -2,7 +2,7 @@ use cgmath::{ Vector3 };
 
 use crate::{
     engine::{
-        assets::{ ron_parser::parse_ron_or_log, server::AssetServer },
+        assets::server::AssetServer,
         ecs::{
             component_registry::ComponentRegistry,
             resources::debug::ShowDebugPanel,

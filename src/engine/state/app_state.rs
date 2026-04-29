@@ -23,7 +23,6 @@ use crate::engine::texture::Texture;
 use crate::engine::state::context::{ EguiContext, GpuContext };
 use crate::engine::ui::egui_state::EguiState;
 use crate::engine::ui::ui_registry::UIRegistry;
-use crate::game;
 use crate::game::input::bindings::Bindings;
 
 const MINIMUM_DELTA_TIME: f32 = 0.1;

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use anyhow::Result;
 use serde::de::DeserializeOwned;
-use wgpu::core::registry;
 
 use crate::engine::ecs::{
     components::{ collider::Collider, transform::Transform, velocity::Velocity },

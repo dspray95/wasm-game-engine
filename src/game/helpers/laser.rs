@@ -1,14 +1,11 @@
 use web_time::Instant;
 use cgmath::{ vec3, Quaternion, Rotation3 };
 
-use crate::{
-    engine::{
+use crate::engine::{
         instance::{ Instance, InstanceRaw },
-        model::{ loader::load_model_from_obj_bytes, mesh::Mesh, model::Model },
+        model::mesh::Mesh,
         state::context::GpuContext,
-    },
-    game::assets::include::{ LASER_MODEL_MTL, LASER_MODEL_OBJ },
-};
+    };
 
 pub const MAX_ALIVE_LASERS: u8 = 10;
 const LASER_Y_OFFSET: f32 = 0.05;
