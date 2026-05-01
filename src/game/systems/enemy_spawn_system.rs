@@ -9,6 +9,7 @@ use crate::{
                 renderable::Renderable,
                 transform::Transform,
             },
+            entity::Entity,
             system::SystemContext,
             world::World,
         },
@@ -55,13 +56,44 @@ pub fn enemy_spawn_system(world: &mut World, system_context: &mut SystemContext)
     };
 
     // spawn_enemy needs another mut borrow of world, hence calling it here
-    if spawn_enemy_at.is_some() && enemy_spawn_scale.is_some() {
-        spawn_enemy(
-            world,
-            system_context.asset_server.as_deref().unwrap(),
-            spawn_enemy_at.unwrap(),
-            enemy_spawn_scale.unwrap()
-        );
+    let enemy_entity: Option<Entity> = {
+        if spawn_enemy_at.is_some() && enemy_spawn_scale.is_some() {
+            Some(
+                spawn_enemy(
+                    world,
+                    system_context.asset_server.as_deref().unwrap(),
+                    spawn_enemy_at.unwrap(),
+                    enemy_spawn_scale.unwrap()
+                )
+            )
+        } else {
+            None
+        }
+    };
+
+    // Snapshot what we need from the manager and drop the borrow before touching world again.
+    let (existing_enemies, despawn_threshold) = {
+        let manager = world.get_resource::<EnemySpawnManager>().unwrap();
+        (manager.enemy_entities.clone(), player_position.z - manager.z_gap_between_spanws)
+    };
+
+    let entities_to_despawn: Vec<Entity> = existing_enemies
+        .into_iter()
+        .filter_map(|entity| {
+            let transform = world.get_component_by_id::<Transform>(entity.id)?;
+            (transform.position.z < despawn_threshold).then_some(entity)
+        })
+        .collect();
+
+    for entity in &entities_to_despawn {
+        log::info!("despawning entity: {:?}", entity.id);
+        world.despawn(*entity);
+    }
+
+    let manager = world.get_resource_mut::<EnemySpawnManager>().unwrap();
+    manager.enemy_entities.retain(|e| !entities_to_despawn.contains(e));
+    if let Some(entity) = enemy_entity {
+        manager.enemy_entities.push(entity);
     }
 }
 
@@ -70,7 +102,7 @@ fn spawn_enemy(
     asset_server: &AssetServer,
     position: Vector3<f32>,
     scale: Vector3<f32>
-) {
+) -> Entity {
     log::info!("Spawnning enemy at z: {:?}", position);
     let starfigher_model_id = asset_server.get_model_id("starfighter");
     world
@@ -88,5 +120,5 @@ fn spawn_enemy(
             rotation: Quaternion::one(),
         })
         .with(HoverState { direction: HoverDirection::Down, upper_limit: -0.9, lower_limit: -0.99 })
-        .build();
+        .build()
 }

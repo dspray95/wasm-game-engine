@@ -112,6 +112,7 @@ impl GameSetup for CanyonRunnerWorld {
             canyon_center_x: 24.5,
             enemy_spawn_elevation: -1.0,
             enemy_spawn_scale: Vector3 { x: 0.3, y: 0.3, z: 0.3 },
+            enemy_entities: Vec::new(),
         });
         // Terrain setup
         let mut terrain_generation = TerrainGeneration {
