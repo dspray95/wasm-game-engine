@@ -1,4 +1,4 @@
-use cgmath::Vector3;
+use cgmath::{ Quaternion, Vector3 };
 
 use crate::engine::{
     ecs::{
@@ -41,11 +41,51 @@ fn collect_colliders(world: &mut World) -> Vec<(Entity, Vector3<f32>, Collider)>
     for (entity_id, collider) in world.iter_component::<Collider>() {
         if let Some(transform) = world.get_component_by_id::<Transform>(entity_id) {
             if let Some(entity) = world.get_entity(entity_id) {
-                out.push((entity, transform.position, collider.clone()));
+                let (world_center, scaled) = resolve_collider(
+                    collider,
+                    transform.position,
+                    transform.rotation,
+                    transform.scale
+                );
+                out.push((entity, world_center, scaled));
             }
         }
     }
     out
+}
+
+/// Returns the world-space center and a scaled-but-origin-relative collider.
+/// Folding the offset into the center means downstream collision math doesn't
+/// need to know about offsets at all.
+fn resolve_collider(
+    collider: &Collider,
+    position: Vector3<f32>,
+    rotation: Quaternion<f32>,
+    scale: Vector3<f32>
+) -> (Vector3<f32>, Collider) {
+    let (offset, shape) = match &collider.shape {
+        ColliderShape::AABB { offset, half_extents } => {
+            let scaled = ColliderShape::AABB {
+                offset: Vector3::new(0.0, 0.0, 0.0),
+                half_extents: Vector3::new(
+                    half_extents.x * scale.x,
+                    half_extents.y * scale.y,
+                    half_extents.z * scale.z
+                ),
+            };
+            (*offset, scaled)
+        }
+        ColliderShape::Sphere { offset, radius } => {
+            let scaled = ColliderShape::Sphere {
+                offset: Vector3::new(0.0, 0.0, 0.0),
+                radius: radius * scale.x.max(scale.y).max(scale.z),
+            };
+            (*offset, scaled)
+        }
+    };
+    let scaled_offset = Vector3::new(offset.x * scale.x, offset.y * scale.y, offset.z * scale.z);
+    let world_offset = rotation * scaled_offset;
+    (position + world_offset, Collider { shape })
 }
 
 fn check_collision(
@@ -56,8 +96,8 @@ fn check_collision(
 ) -> Option<(Vector3<f32>, f32)> {
     match (&collider_a.shape, &collider_b.shape) {
         (
-            ColliderShape::AABB { half_extents: half_a },
-            ColliderShape::AABB { half_extents: half_b },
+            ColliderShape::AABB { half_extents: half_a, .. },
+            ColliderShape::AABB { half_extents: half_b, .. },
         ) => {
             aabb_vs_aabb(pos_a, *half_a, pos_b, *half_b)
         }

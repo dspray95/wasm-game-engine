@@ -38,7 +38,7 @@ impl ApplicationHandler for App {
 
             use std::sync::Arc;
             use crate::engine::state::{ engine_state::EngineState, render_state::RenderState };
-            use crate::game::canyon_runner_scene::CanyonRunnerWorld;
+            use crate::game::canyon_runner_world::CanyonRunnerWorld;
 
             let window = Arc::new(
                 event_loop
@@ -259,8 +259,8 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
 
     let render_state = crate::engine::state::render_state::RenderState::new();
 
-    let scene: Box<crate::game::canyon_runner_scene::CanyonRunnerWorld> = Box::new(
-        crate::game::canyon_runner_scene::CanyonRunnerWorld
+    let scene: Box<crate::game::canyon_runner_world::CanyonRunnerWorld> = Box::new(
+        crate::game::canyon_runner_world::CanyonRunnerWorld
     );
 
     if let Ok(mut state) = app_state.try_borrow_mut() {

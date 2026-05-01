@@ -165,6 +165,7 @@ impl World {
             .flatten()
     }
 
+    /// Finds entities with all provided components
     pub fn get_entities_with<T: 'static>(&self) -> Vec<u32> {
         self.iter_component::<T>()
             .map(|(id, _)| id)

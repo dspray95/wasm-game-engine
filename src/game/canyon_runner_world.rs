@@ -5,7 +5,7 @@ use crate::{
         assets::server::AssetServer,
         ecs::{
             component_registry::ComponentRegistry,
-            resources::debug::ShowDebugPanel,
+            resources::debug::{ ShowColliderDebug, ShowDebugPanel },
             system::{ SystemContext, SystemSchedule },
             world::World,
         },
@@ -20,12 +20,15 @@ use crate::{
         helpers::{ laser::LaserManager, terrain_generation::get_initial_terrain },
         input::actions::Action,
         resources::{
+            enemy_resources::EnemySpawnManager,
             move_player::MovePlayer,
             terrain_resources::{ TerrainGeneration, TerrainModelIds },
         },
         systems::{
             camera_control_system::camera_control_system,
+            collider_debug_system::collider_debug_system,
             collision_log_system::collision_log_system,
+            enemy_spawn_system::enemy_spawn_system,
             hover_system::hover_system,
             laser_log_system::laser_log_system,
             laser_system::laser_system,
@@ -51,6 +54,8 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(laser_system);
         schedule.add_game_system(laser_log_system);
         schedule.add_game_system(collision_log_system);
+        schedule.add_game_system(enemy_spawn_system);
+        schedule.add_game_system(collider_debug_system);
     }
 
     fn setup_ui(&self, ui_registry: &mut crate::engine::ui::ui_registry::UIRegistry) {
@@ -88,6 +93,7 @@ impl GameSetup for CanyonRunnerWorld {
         world.create_active_camera(gpu.device, Vector3::new(24.5, -0.25, 1.0));
         world.add_resource(FreeCameraEnabled(false));
         world.add_resource(ShowDebugPanel(false));
+        world.add_resource(ShowColliderDebug(false));
         world.register_event::<LaserFiredEvent>();
 
         let asset_server: &mut AssetServer = system_context.asset_server.as_mut().unwrap();
@@ -98,6 +104,15 @@ impl GameSetup for CanyonRunnerWorld {
         // Player setup
         world.add_resource(MovePlayer(true));
 
+        // Enemy setup
+        world.add_resource(EnemySpawnManager {
+            n_enemies_spawned: 0,
+            z_gap_between_spanws: 100.0,
+            last_z_pos_spawned_at: 0.0,
+            canyon_center_x: 24.5,
+            enemy_spawn_elevation: -1.0,
+            enemy_spawn_scale: Vector3 { x: 0.3, y: 0.3, z: 0.3 },
+        });
         // Terrain setup
         let mut terrain_generation = TerrainGeneration {
             terrain_width: TERRAIN_WIDTH,

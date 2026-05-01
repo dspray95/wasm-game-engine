@@ -8,7 +8,10 @@ use crate::{
             world::World,
         },
     },
-    game::{canyon_runner_scene::FreeCameraEnabled, input::{actions::Action, world_ext::InputWorldExt}},
+    game::{
+        canyon_runner_world::FreeCameraEnabled,
+        input::{ actions::Action, world_ext::InputWorldExt },
+    },
 };
 
 const CAMERA_SPEED: f32 = -0.2;
@@ -42,13 +45,13 @@ pub fn camera_control_system(world: &mut World, _system_context: &mut SystemCont
 
     // Now safe to mutably borrow Transform and Camera separately
     if let Some(transform) = world.get_component_mut::<Transform>(active_camera_entity) {
-        if key_bindings.is_action_pressed(&Action::MoveForwards, &input){
+        if key_bindings.is_action_pressed(&Action::MoveForwards, &input) {
             transform.position -= forward * CAMERA_SPEED;
         }
         if key_bindings.is_action_pressed(&Action::MoveBackwards, &input) {
             transform.position += forward * CAMERA_SPEED;
         }
-        if key_bindings.is_action_pressed(&Action::MoveLeft, &input)  {
+        if key_bindings.is_action_pressed(&Action::MoveLeft, &input) {
             transform.position += right * CAMERA_SPEED;
         }
         if key_bindings.is_action_pressed(&Action::MoveRight, &input) {

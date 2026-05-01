@@ -5,3 +5,5 @@ pub mod terrain_system;
 pub mod laser_system;
 pub mod laser_log_system;
 pub mod collision_log_system;
+pub mod enemy_spawn_system;
+pub mod collider_debug_system;

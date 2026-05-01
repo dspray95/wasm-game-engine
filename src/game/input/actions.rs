@@ -17,4 +17,5 @@ pub enum Action {
     Pause,
     //Builtins
     ToggleDebugPanel,
+    ToggleColliderDebug,
 }

@@ -11,6 +11,7 @@
         MoveUp:             [(key: Space)],
         MoveDown:           [(key: KeyC)],
         Pause:              [(key: KeyP, modifiers: (ctrl: true))],
-        ToggleDebugPanel:   [(key: F1)]
+        ToggleDebugPanel:   [(key: F1)],
+        ToggleColliderDebug:[(key: F2)]
     },
 )

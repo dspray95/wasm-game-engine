@@ -17,7 +17,6 @@ use crate::{
             STARFIGHTER_MODEL_OBJ,
         },
         helpers::laser::MAX_ALIVE_LASERS,
-        resources::laser_resources::LaserModelId,
     },
 };
 
@@ -33,12 +32,12 @@ pub fn load_and_register_world_models(
         STARFIGHTER_MODEL_MTL,
         &gpu_context,
         None,
-        1,
+        10,
         asset_server
     );
 
     // Cube
-    load_obj("cube", CUBE_PREFAB_OBJ, CUBE_PREFAB_MTL, &gpu_context, None, 1, asset_server);
+    load_obj("cube", CUBE_PREFAB_OBJ, CUBE_PREFAB_MTL, &gpu_context, None, 64, asset_server);
 
     // Laser
     let initial_laser_instances: Vec<Instance> = (0..MAX_ALIVE_LASERS as usize)
@@ -49,7 +48,7 @@ pub fn load_and_register_world_models(
         })
         .collect();
 
-    let laser_model_id = load_obj(
+    load_obj(
         "laser",
         LASER_MODEL_OBJ,
         LASER_MODEL_MTL,
@@ -58,5 +57,4 @@ pub fn load_and_register_world_models(
         MAX_ALIVE_LASERS as usize,
         asset_server
     );
-    world.add_resource(LaserModelId(laser_model_id));
 }

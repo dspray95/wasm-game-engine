@@ -52,6 +52,7 @@ impl AssetServer {
     pub fn get_model(&self, id: usize) -> &Model {
         self.model_registry.get(id).unwrap_or_else(|| panic!("No model registered with id {}", id))
     }
+
     pub fn get_model_mut(&mut self, id: usize) -> &mut Model {
         self.model_registry
             .get_mut(id)

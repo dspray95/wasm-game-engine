@@ -11,7 +11,6 @@ use crate::{
         events::laser_fired_event::LaserFiredEvent,
         helpers::laser::LaserManager,
         input::{ actions::Action, world_ext::InputWorldExt },
-        resources::laser_resources::LaserModelId,
     },
 };
 
@@ -26,7 +25,7 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
         .next()
         .map(|(_, transform)| transform.position);
 
-    let laser_model_id = world.get_resource::<LaserModelId>().unwrap().0;
+    let laser_model_id = system_context.asset_server.as_deref().unwrap().get_model_id("laser");
     let delta_time = system_context.delta_time;
 
     let gpu = GpuContext {
@@ -35,7 +34,7 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
     };
 
     let mesh = system_context.asset_server
-        .as_mut()
+        .as_deref_mut()
         .unwrap()
         .get_model_mut(laser_model_id)
         .meshes.get_mut(0)

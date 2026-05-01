@@ -1,4 +1,4 @@
-pub mod canyon_runner_scene;
+pub mod canyon_runner_world;
 pub mod cube;
 pub mod systems;
 pub mod components;
