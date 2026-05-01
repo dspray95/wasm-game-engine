@@ -138,7 +138,7 @@ impl<'de, 'a> Visitor<'de> for EntitySeed<'a> {
                 }
                 let descriptor: RenderableDescriptor = map.next_value()?;
                 let model_id = self.asset_server.get_model_id(&descriptor.model);
-                self.world.add_component(entity, Renderable { model_id });
+                self.world.add_component(entity, Renderable::new(model_id));
             } else {
                 map.next_value_seed(ComponentSeed {
                     world: self.world,
@@ -152,6 +152,7 @@ impl<'de, 'a> Visitor<'de> for EntitySeed<'a> {
         Ok(())
     }
 }
+
 
 // --- Single component value: dispatches through the registry ---
 

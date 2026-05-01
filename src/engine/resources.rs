@@ -154,7 +154,11 @@ pub fn load_mesh_from_arrays(
     mesh
 }
 
-pub async fn load_model_from_file(file_name: &str, device: &wgpu::Device, queue: &wgpu::Queue) -> anyhow::Result<Model> {
+pub async fn load_model_from_file(
+    file_name: &str,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue
+) -> anyhow::Result<Model> {
     let obj_text = load_string(file_name).await?;
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);

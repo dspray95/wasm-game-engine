@@ -23,7 +23,10 @@ pub fn collider_debug_system(world: &mut World, system_context: &mut SystemConte
         resource.0 = !resource.0;
     }
 
-    let show = world.get_resource::<ShowColliderDebug>().map(|r| r.0).unwrap_or(false);
+    let show = world
+        .get_resource::<ShowColliderDebug>()
+        .map(|r| r.0)
+        .unwrap_or(false);
 
     let stale_visual_ids: Vec<u32> = world.get_entities_with::<DebugVisual>();
     for entity_id in stale_visual_ids {
@@ -36,11 +39,7 @@ pub fn collider_debug_system(world: &mut World, system_context: &mut SystemConte
         return;
     }
 
-    let cube_model_id = system_context
-        .asset_server
-        .as_deref()
-        .unwrap()
-        .get_model_id("cube");
+    let cube_model_id = system_context.asset_server.as_deref().unwrap().get_model_id("cube");
 
     let collider_snapshots: Vec<(u32, ColliderShape)> = world
         .iter_component::<Collider>()
@@ -52,23 +51,25 @@ pub fn collider_debug_system(world: &mut World, system_context: &mut SystemConte
         .filter_map(|(entity_id, shape)| {
             let transform = world.get_component_by_id::<Transform>(entity_id)?;
             let (offset, half_extents) = match shape {
-                ColliderShape::AABB { offset, half_extents } => (
-                    offset,
-                    Vector3::new(
-                        half_extents.x * transform.scale.x,
-                        half_extents.y * transform.scale.y,
-                        half_extents.z * transform.scale.z,
+                ColliderShape::AABB { offset, half_extents } =>
+                    (
+                        offset,
+                        Vector3::new(
+                            half_extents.x * transform.scale.x,
+                            half_extents.y * transform.scale.y,
+                            half_extents.z * transform.scale.z
+                        ),
                     ),
-                ),
                 ColliderShape::Sphere { offset, radius } => {
-                    let r = radius * transform.scale.x.max(transform.scale.y).max(transform.scale.z);
+                    let r =
+                        radius * transform.scale.x.max(transform.scale.y).max(transform.scale.z);
                     (offset, Vector3::new(r, r, r))
                 }
             };
             let scaled_offset = Vector3::new(
                 offset.x * transform.scale.x,
                 offset.y * transform.scale.y,
-                offset.z * transform.scale.z,
+                offset.z * transform.scale.z
             );
             let world_offset = transform.rotation * scaled_offset;
             Some((transform.position + world_offset, half_extents))
@@ -78,7 +79,7 @@ pub fn collider_debug_system(world: &mut World, system_context: &mut SystemConte
     for (position, half_extents) in visuals {
         world
             .spawn()
-            .with(Renderable { model_id: cube_model_id })
+            .with(Renderable::new(cube_model_id))
             .with(Transform {
                 position,
                 rotation: Quaternion::one(),

@@ -13,8 +13,9 @@ use crate::{
             CUBE_PREFAB_OBJ,
             LASER_MODEL_MTL,
             LASER_MODEL_OBJ,
-            STARFIGHTER_MODEL_MTL,
+            STARFIGHTER_ENEMY_MTL,
             STARFIGHTER_MODEL_OBJ,
+            STARFIGHTER_PLAYER_MTL,
         },
         helpers::laser::MAX_ALIVE_LASERS,
     },
@@ -29,13 +30,23 @@ pub fn load_and_register_world_models(
     load_obj(
         "starfighter",
         STARFIGHTER_MODEL_OBJ,
-        STARFIGHTER_MODEL_MTL,
+        STARFIGHTER_PLAYER_MTL,
         &gpu_context,
         None,
-        10,
+        1,
         asset_server
     );
 
+    // Enemy
+    load_obj(
+        "starfighter_enemy",
+        STARFIGHTER_MODEL_OBJ,
+        STARFIGHTER_ENEMY_MTL,
+        &gpu_context,
+        None,
+        48,
+        asset_server
+    );
     // Cube
     load_obj("cube", CUBE_PREFAB_OBJ, CUBE_PREFAB_MTL, &gpu_context, None, 64, asset_server);
 

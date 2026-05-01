@@ -8,6 +8,7 @@ use crate::{
                 collider::{ Collider, ColliderShape },
                 renderable::Renderable,
                 transform::Transform,
+                velocity::Velocity,
             },
             entity::Entity,
             system::SystemContext,
@@ -103,11 +104,11 @@ fn spawn_enemy(
     position: Vector3<f32>,
     scale: Vector3<f32>
 ) -> Entity {
-    log::info!("Spawnning enemy at z: {:?}", position);
-    let starfigher_model_id = asset_server.get_model_id("starfighter");
+    log::info!("Spawning enemy at z: {:?}", position);
+    let starfigher_model_id = asset_server.get_model_id("starfighter_enemy");
     world
         .spawn()
-        .with(Renderable { model_id: starfigher_model_id })
+        .with(Renderable::new(starfigher_model_id))
         .with(Collider {
             shape: ColliderShape::AABB {
                 offset: Vector3::new(0.0, 0.0, -0.3),
@@ -119,6 +120,7 @@ fn spawn_enemy(
             scale,
             rotation: Quaternion::one(),
         })
+        .with(Velocity { x: 0.0, y: 0.0, z: 0.0 })
         .with(HoverState { direction: HoverDirection::Down, upper_limit: -0.9, lower_limit: -0.99 })
         .build()
 }

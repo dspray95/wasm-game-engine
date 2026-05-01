@@ -28,7 +28,7 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) world_normal: vec3<f32>,
     @location(1) world_position: vec3<f32>,
-    @location(2) camera_distance: f32, 
+    @location(2) camera_distance: f32,
 }
 
 struct Light {
@@ -54,7 +54,7 @@ fn vs_main(
         instance.normal_matrix_1,
         instance.normal_matrix_2,
     );
-    
+
     var out: VertexOutput;
     // transform the normal(model.normal) to match the transformation of the instance(instance_normal_matrix)
     out.world_normal = instance_normal_matrix * model.normal;
@@ -65,7 +65,7 @@ fn vs_main(
     // Calculate distance for fade
     out.camera_distance = length(world_position.xyz - camera.position);
     out.clip_position = camera.view_projection * instance_model_matrix * vec4<f32>(model.position, 1.0);
-    return out;    
+    return out;
 }
 
 // Flat material

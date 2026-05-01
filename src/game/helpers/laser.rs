@@ -2,10 +2,10 @@ use web_time::Instant;
 use cgmath::{ vec3, Quaternion, Rotation3 };
 
 use crate::engine::{
-        instance::{ Instance, InstanceRaw },
-        model::mesh::Mesh,
-        state::context::GpuContext,
-    };
+    instance::{ Instance, InstanceRaw },
+    model::mesh::Mesh,
+    state::context::GpuContext,
+};
 
 pub const MAX_ALIVE_LASERS: u8 = 10;
 const LASER_Y_OFFSET: f32 = 0.05;

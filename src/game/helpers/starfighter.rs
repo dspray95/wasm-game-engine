@@ -5,7 +5,7 @@ use crate::{
         state::context::GpuContext,
     },
     game::{
-        assets::include::{ STARFIGHTER_MODEL_MTL, STARFIGHTER_MODEL_OBJ },
+        assets::include::{ STARFIGHTER_PLAYER_MTL, STARFIGHTER_MODEL_OBJ },
         components::hover_state::{ HoverDirection, HoverState },
     },
 };
@@ -30,5 +30,5 @@ pub fn animate_hover(transform: &Transform, velocity: &mut Velocity, hover_state
 }
 
 pub fn load_model(gpu_context: &GpuContext) -> Model {
-    load_model_from_obj_bytes(STARFIGHTER_MODEL_OBJ, STARFIGHTER_MODEL_MTL, gpu_context, None, 1)
+    load_model_from_obj_bytes(STARFIGHTER_MODEL_OBJ, STARFIGHTER_PLAYER_MTL, gpu_context, None, 1)
 }

@@ -71,7 +71,7 @@ mod tests {
     fn entity_without_transform_is_excluded() {
         let mut world = world_with_components();
         let e = world.spawn_entity_only();
-        world.add_component(e, Renderable { model_id: 0 });
+        world.add_component(e, Renderable::new(0));
         // No Transform added — should not appear in groups
         assert!(collect_instance_groups(&world).is_empty());
     }
@@ -90,7 +90,7 @@ mod tests {
         let mut world = world_with_components();
         let e = world.spawn_entity_only();
         world.add_component(e, Transform::new().with_position(1.0, 2.0, 3.0));
-        world.add_component(e, Renderable { model_id: 0 });
+        world.add_component(e, Renderable::new(0));
 
         let groups = collect_instance_groups(&world);
         assert_eq!(groups.len(), 1);
@@ -103,7 +103,7 @@ mod tests {
         for _ in 0..3 {
             let e = world.spawn_entity_only();
             world.add_component(e, Transform::new());
-            world.add_component(e, Renderable { model_id: 0 });
+            world.add_component(e, Renderable::new(0));
         }
         let groups = collect_instance_groups(&world);
         assert_eq!(groups[&0].len(), 3);
@@ -115,7 +115,7 @@ mod tests {
         for model_id in [0, 1, 2] {
             let e = world.spawn_entity_only();
             world.add_component(e, Transform::new());
-            world.add_component(e, Renderable { model_id });
+            world.add_component(e, Renderable::new(0));
         }
         let groups = collect_instance_groups(&world);
         assert_eq!(groups.len(), 3);
@@ -129,7 +129,7 @@ mod tests {
         let mut world = world_with_components();
         let e = world.spawn_entity_only();
         world.add_component(e, Transform::new());
-        world.add_component(e, Renderable { model_id: 0 });
+        world.add_component(e, Renderable::new(0));
         world.despawn(e);
         assert!(collect_instance_groups(&world).is_empty());
     }
