@@ -4,7 +4,7 @@ use rand::{ Rng, SeedableRng, rng };
 
 use crate::{
     engine::{
-        model::{ material::Material, mesh, model::Model, vertex::ModelVertex },
+        model::{ material::Material, mesh, model::{ Model, ModelBounds }, vertex::ModelVertex },
         resources,
         state::context::GpuContext,
     },
@@ -135,6 +135,10 @@ pub fn create_model_from_data(data: TerrainMeshData, gpu_context: &GpuContext) -
         [236, 95, 255]
     };
 
+    let bounds = ModelBounds::from_vertices(
+        data.terrain_vertices.iter().chain(data.canyon_vertices.iter()).copied()
+    );
+
     Model {
         meshes: vec![
             resources::load_mesh_from_arrays(
@@ -158,6 +162,7 @@ pub fn create_model_from_data(data: TerrainMeshData, gpu_context: &GpuContext) -
                 1
             )
         ],
+        bounds,
     }
 }
 

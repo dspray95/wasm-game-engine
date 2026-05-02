@@ -293,5 +293,5 @@ pub async fn load_model_from_file(
         })
         .collect::<Vec<_>>();
 
-    Ok(Model { meshes })
+    Ok(Model { meshes, bounds: crate::engine::model::model::ModelBounds::zero() })
 }

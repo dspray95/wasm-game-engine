@@ -15,12 +15,13 @@ use crate::{
     },
     game::{
         assets::load::load_and_register_world_models,
-        components::{ hover_state::HoverState, player::Player },
+        components::{ enemy::Enemy, hover_state::HoverState, player::Player },
         events::laser_fired_event::LaserFiredEvent,
-        helpers::{ laser::LaserManager, terrain_generation::get_initial_terrain },
+        helpers::terrain_generation::get_initial_terrain,
         input::actions::Action,
         resources::{
             enemy_resources::EnemySpawnManager,
+            laser_resources::LaserManager,
             move_player::MovePlayer,
             terrain_resources::{ TerrainGeneration, TerrainModelIds },
         },
@@ -53,7 +54,6 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(terrain_system);
         schedule.add_game_system(laser_system);
         schedule.add_game_system(laser_log_system);
-        schedule.add_game_system(collision_log_system);
         schedule.add_game_system(enemy_spawn_system);
         schedule.add_game_system(collider_debug_system);
     }
@@ -65,6 +65,7 @@ impl GameSetup for CanyonRunnerWorld {
     fn register_components(&self, registry: &mut ComponentRegistry) {
         registry.register::<HoverState>("HoverState");
         registry.register::<Player>("Player");
+        registry.register::<Enemy>("Enemy");
     }
 
     fn world_ron(&self) -> Option<&'static str> {

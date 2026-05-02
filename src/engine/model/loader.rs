@@ -2,7 +2,7 @@ use std::io::{ BufReader, Cursor };
 
 use crate::engine::{
     instance::Instance,
-    model::{ material::Material, model::Model },
+    model::{ material::Material, model::{ Model, ModelBounds } },
     resources::load_mesh_from_arrays,
     state::context::GpuContext,
 };
@@ -26,6 +26,8 @@ pub fn load_model_from_obj_bytes(
         )
         .expect("Failed to parse OBJ");
 
+    let mut all_vertices: Vec<[f32; 3]> = Vec::new();
+
     let meshes = raw_models
         .into_iter()
         .map(|raw_model| {
@@ -40,6 +42,8 @@ pub fn load_model_from_obj_bytes(
                     ]
                 })
                 .collect();
+
+            all_vertices.extend(vertices.iter().copied());
 
             let normals: Vec<[f32; 3]> = if raw_model.mesh.normals.is_empty() {
                 vec![]
@@ -83,5 +87,7 @@ pub fn load_model_from_obj_bytes(
         })
         .collect();
 
-    Model { meshes }
+    let bounds = ModelBounds::from_vertices(all_vertices);
+
+    Model { meshes, bounds }
 }

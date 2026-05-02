@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::engine::{
+    ecs::components::collider::{ Collider, ColliderShape },
     instance::Instance,
     model::{ loader::load_model_from_obj_bytes, model::Model, model_registry::{ ModelRegistry } },
     state::context::GpuContext,
@@ -57,5 +58,18 @@ impl AssetServer {
         self.model_registry
             .get_mut(id)
             .unwrap_or_else(|| panic!("No model registered with id {}", id))
+    }
+
+    /// Builds an AABB collider from the model's vertex bounds, in model-local space.
+    /// `collision_system` and `collider_debug_system` apply `Transform.scale` at runtime,
+    /// so do not pre-scale this before attaching to an entity.
+    pub fn get_collider_aabb(&self, name: &str) -> Collider {
+        let bounds = self.get_model(self.get_model_id(name)).bounds;
+        Collider {
+            shape: ColliderShape::AABB {
+                offset: bounds.center(),
+                half_extents: bounds.half_extents(),
+            },
+        }
     }
 }
