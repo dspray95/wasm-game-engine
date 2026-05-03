@@ -1,12 +1,12 @@
-use cgmath::{ Vector3 };
+use cgmath::Vector3;
 
 use crate::{
     engine::{
         assets::server::AssetServer,
         ecs::{
             component_registry::ComponentRegistry,
-            resources::debug::{ ShowColliderDebug, ShowDebugPanel },
-            system::{ SystemContext, SystemSchedule },
+            resources::debug::{ShowColliderDebug, ShowDebugPanel},
+            system::{SystemContext, SystemSchedule},
             world::World,
         },
         game_setup::GameSetup,
@@ -15,7 +15,7 @@ use crate::{
     },
     game::{
         assets::load::load_and_register_world_models,
-        components::{ enemy::Enemy, hover_state::HoverState, player::Player },
+        components::{enemy::Enemy, hover_state::HoverState, player::Player},
         events::laser_fired_event::LaserFiredEvent,
         helpers::terrain_generation::get_initial_terrain,
         input::actions::Action,
@@ -23,18 +23,14 @@ use crate::{
             enemy_resources::EnemySpawnManager,
             laser_resources::LaserManager,
             move_player::MovePlayer,
-            terrain_resources::{ TerrainGeneration, TerrainModelIds },
+            terrain_resources::{TerrainGeneration, TerrainModelIds},
         },
         systems::{
             camera_control_system::camera_control_system,
-            collider_debug_system::collider_debug_system,
-            collision_log_system::collision_log_system,
-            enemy_spawn_system::enemy_spawn_system,
-            hover_system::hover_system,
-            laser_log_system::laser_log_system,
-            laser_system::laser_system,
-            player_system::player_system,
-            terrain_system::terrain_system,
+            collider_debug_system::collider_debug_system, enemy_spawn_system::enemy_spawn_system,
+            hover_system::hover_system, laser_hit_system::laser_hit_system,
+            laser_log_system::laser_log_system, laser_system::laser_system,
+            player_system::player_system, terrain_system::terrain_system,
         },
     },
 };
@@ -55,6 +51,7 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(laser_system);
         schedule.add_game_system(laser_log_system);
         schedule.add_game_system(enemy_spawn_system);
+        schedule.add_game_system(laser_hit_system);
         schedule.add_game_system(collider_debug_system);
     }
 
@@ -80,7 +77,7 @@ impl GameSetup for CanyonRunnerWorld {
         &self,
         gpu_context: &GpuContext,
         asset_server: &mut AssetServer,
-        world: &mut World
+        world: &mut World,
     ) {
         load_and_register_world_models(&gpu_context, asset_server, world);
     }
@@ -112,7 +109,11 @@ impl GameSetup for CanyonRunnerWorld {
             last_z_pos_spawned_at: 0.0,
             canyon_center_x: 24.5,
             enemy_spawn_elevation: -1.0,
-            enemy_spawn_scale: Vector3 { x: 0.3, y: 0.3, z: 0.3 },
+            enemy_spawn_scale: Vector3 {
+                x: 0.3,
+                y: 0.3,
+                z: 0.3,
+            },
             enemy_entities: Vec::new(),
         });
         // Terrain setup

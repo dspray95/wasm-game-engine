@@ -26,9 +26,16 @@ impl RenderState {
         egui_context: EguiContext
     ) {
         // Mesh Rendering //
-        let surface_texture = render_context.surface
-            .get_current_texture()
-            .expect("Failed to acquire next swap chain texture");
+        let surface_texture = match render_context.surface.get_current_texture() {
+            Ok(texture) => texture,
+            Err(wgpu::SurfaceError::Timeout | wgpu::SurfaceError::Outdated | wgpu::SurfaceError::Lost) => {
+                return;
+            }
+            Err(e) => {
+                log::error!("Surface error: {:?}", e);
+                return;
+            }
+        };
 
         let surface_view = surface_texture.texture.create_view(
             &wgpu::TextureViewDescriptor::default()

@@ -146,7 +146,15 @@ impl ApplicationHandler for App {
         };
 
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => {
+                // Drop the wgpu surface before the window is destroyed.
+                // On Linux, letting the surface outlive the window causes a segfault.
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Ok(mut state) = self.app_state.try_borrow_mut() {
+                    state.release_gpu_resources();
+                }
+                event_loop.exit();
+            }
             WindowEvent::RedrawRequested => {
                 if let Ok(mut state) = self.app_state.try_borrow_mut() {
                     state.handle_redraw_requested();

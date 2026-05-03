@@ -5,7 +5,10 @@ pub struct Events<T> {
 
 impl<T> Default for Events<T> {
     fn default() -> Self {
-        Self { current: Vec::new(), previous: Vec::new() }
+        Self {
+            current: Vec::new(),
+            previous: Vec::new(),
+        }
     }
 }
 

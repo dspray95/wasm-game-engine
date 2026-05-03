@@ -289,6 +289,10 @@ impl AppState {
         self.window.as_ref().unwrap().request_redraw();
     }
 
+    pub fn release_gpu_resources(&mut self) {
+        self.engine_state = None;
+    }
+
     pub fn handle_keyboard_input(&mut self, state: ElementState, key_code: KeyCode) {
         // AppState is the sole writer of InputState. All game and camera logic reads from it.
         if let Some(world) = self.world.as_mut() {
