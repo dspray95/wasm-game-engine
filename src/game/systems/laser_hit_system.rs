@@ -28,11 +28,15 @@ pub fn laser_hit_system(world: &mut World, _system_context: &mut SystemContext) 
     let enemies_to_despawn: HashSet<Entity> = hits.iter().map(|(_, enemy)| *enemy).collect();
 
     if let Some(laser_manager) = world.get_resource_mut::<LaserManager>() {
-        laser_manager.alive_lasers.retain(|e| !lasers_to_despawn.contains(e));
+        laser_manager
+            .alive_lasers
+            .retain(|e| !lasers_to_despawn.contains(e));
     }
 
     if let Some(enemy_manager) = world.get_resource_mut::<EnemySpawnManager>() {
-        enemy_manager.enemy_entities.retain(|e| !enemies_to_despawn.contains(e));
+        enemy_manager
+            .enemy_entities
+            .retain(|e| !enemies_to_despawn.contains(e));
     }
 
     for entity in lasers_to_despawn.into_iter().chain(enemies_to_despawn) {

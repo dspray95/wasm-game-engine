@@ -16,6 +16,7 @@ use crate::engine::{
 
 pub fn collision_system(world: &mut World, _: &mut SystemContext) {
     let snapshot: Vec<(Entity, Vector3<f32>, Collider)> = collect_colliders(world);
+    // log::info!("collision_system: {} colliders in snapshot", snapshot.len());
 
     let mut hits: Vec<CollisionEvent> = Vec::new();
 
