@@ -1,22 +1,25 @@
-use std::{ any::{ Any, TypeId }, collections::HashMap };
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+};
 
-use cgmath::{ Deg, Vector3 };
+use cgmath::{Deg, Vector3};
 
 use crate::engine::{
     ecs::{
         components::{
             camera::{
-                camera::{ Camera, SurfaceDimensions },
-                constants::{ DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR },
+                camera::{Camera, SurfaceDimensions},
+                constants::{DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR},
                 projection::Projection,
             },
             transform::Transform,
         },
-        entity::{ Entity, EntityAllocator },
+        entity::{Entity, EntityAllocator},
         resources::camera::ActiveCamera,
         sparse_set::SparseSet,
     },
-    events::{ event_registry::EventRegistry, events::Events },
+    events::{event_registry::EventRegistry, events::Events},
     input::input_state::InputState,
 };
 
@@ -40,9 +43,7 @@ impl<T: 'static> ComponentStorage for SparseSet<T> {
         self
     }
     fn entity_ids(&self) -> Vec<u32> {
-        self.iter()
-            .map(|(id, _)| id)
-            .collect()
+        self.iter().map(|(id, _)| id).collect()
     }
 }
 
@@ -69,12 +70,15 @@ impl World {
 
     pub fn register_component<T: 'static>(&mut self) {
         let type_id = TypeId::of::<T>();
-        self.components.insert(type_id, Box::new(SparseSet::<T>::new()));
+        self.components
+            .insert(type_id, Box::new(SparseSet::<T>::new()));
     }
 
     pub fn add_component<T: 'static>(&mut self, entity: Entity, value: T) {
         let type_id = TypeId::of::<T>();
-        self.components.entry(type_id).or_insert_with(|| Box::new(SparseSet::<T>::new()));
+        self.components
+            .entry(type_id)
+            .or_insert_with(|| Box::new(SparseSet::<T>::new()));
         let storage = self.components.get_mut(&type_id).unwrap();
         let set = storage.as_any_mut().downcast_mut::<SparseSet<T>>().unwrap();
         set.insert(entity.id, value);
@@ -118,9 +122,12 @@ impl World {
         self.entities.spawn()
     }
 
-    pub fn spawn(&mut self) -> EntityBuilder {
+    pub fn spawn(&'_ mut self) -> EntityBuilder<'_> {
         let entity = self.spawn_entity_only();
-        EntityBuilder { world: self, entity }
+        EntityBuilder {
+            world: self,
+            entity,
+        }
     }
 
     pub fn is_alive(&self, entity: Entity) -> bool {
@@ -143,11 +150,16 @@ impl World {
     }
 
     pub fn get_resource_mut<T: 'static>(&mut self) -> Option<&mut T> {
-        self.resources.get_mut(&TypeId::of::<T>())?.downcast_mut::<T>()
+        self.resources
+            .get_mut(&TypeId::of::<T>())?
+            .downcast_mut::<T>()
     }
 
     fn get_storage<T: 'static>(&self) -> Option<&SparseSet<T>> {
-        self.components.get(&TypeId::of::<T>())?.as_any().downcast_ref()
+        self.components
+            .get(&TypeId::of::<T>())?
+            .as_any()
+            .downcast_ref()
     }
 
     pub(crate) fn entity_ids_for(&self, type_id: TypeId) -> Vec<u32> {
@@ -167,24 +179,20 @@ impl World {
 
     /// Finds entities with all provided components
     pub fn get_entities_with<T: 'static>(&self) -> Vec<u32> {
-        self.iter_component::<T>()
-            .map(|(id, _)| id)
-            .collect()
+        self.iter_component::<T>().map(|(id, _)| id).collect()
     }
 
     pub fn create_active_camera(&mut self, device: &wgpu::Device, position: Vector3<f32>) {
         let Some(surface_dimensions) = self.get_resource::<SurfaceDimensions>() else {
             return;
         };
-        let (width, height) = (surface_dimensions.width as u32, surface_dimensions.height as u32);
-
-        let projection = Projection::new(
-            width,
-            height,
-            Deg(DEFAULT_FOV),
-            DEFAULT_NEAR,
-            DEFAULT_FAR
+        let (width, height) = (
+            surface_dimensions.width as u32,
+            surface_dimensions.height as u32,
         );
+
+        let projection =
+            Projection::new(width, height, Deg(DEFAULT_FOV), DEFAULT_NEAR, DEFAULT_FAR);
 
         let render_pass_data = Camera::create_render_pass_data(device);
 
@@ -192,7 +200,7 @@ impl World {
             Deg(90.0).into(),
             Deg(0.0).into(),
             projection,
-            render_pass_data
+            render_pass_data,
         );
 
         let camera_entity = self
@@ -360,7 +368,7 @@ mod tests {
         world.add_component(old, Position { x: 5.0, y: 5.0 });
         world.despawn(old);
         let _new = world.spawn_entity_only(); // reuses same id slot
-        // old handle's generation is stale — component was removed on despawn
+                                              // old handle's generation is stale — component was removed on despawn
         assert!(world.get_component::<Position>(old).is_none());
     }
 
@@ -369,7 +377,11 @@ mod tests {
     #[test]
     fn builder_attaches_all_components_to_same_entity() {
         let mut world = World::new();
-        let e = world.spawn().with(Position { x: 1.0, y: 2.0 }).with(Health(42)).build();
+        let e = world
+            .spawn()
+            .with(Position { x: 1.0, y: 2.0 })
+            .with(Health(42))
+            .build();
         assert_eq!(world.get_component::<Position>(e).unwrap().x, 1.0);
         assert_eq!(world.get_component::<Health>(e).unwrap().0, 42);
     }
@@ -441,10 +453,7 @@ mod tests {
         world.add_component(b, Health(20));
         world.add_component(c, Health(30));
 
-        let mut values: Vec<u32> = world
-            .iter_component::<Health>()
-            .map(|(_, h)| h.0)
-            .collect();
+        let mut values: Vec<u32> = world.iter_component::<Health>().map(|(_, h)| h.0).collect();
         values.sort();
         assert_eq!(values, vec![10, 20, 30]);
     }
@@ -461,10 +470,7 @@ mod tests {
         world.add_component(b, Position { x: 2.0, y: 0.0 });
         // b has no Health
 
-        let health_ids: Vec<u32> = world
-            .iter_component::<Health>()
-            .map(|(id, _)| id)
-            .collect();
+        let health_ids: Vec<u32> = world.iter_component::<Health>().map(|(id, _)| id).collect();
         assert_eq!(health_ids, vec![a.id]);
     }
 

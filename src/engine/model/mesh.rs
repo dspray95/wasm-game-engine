@@ -288,6 +288,10 @@ impl Mesh {
         }
     }
 
+    pub fn clear_instances(&mut self) {
+        self.instance_count = 0;
+    }
+
     pub(crate) fn _remove_instance() {
         todo!("NO_IMPL")
     }

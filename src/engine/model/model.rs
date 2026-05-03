@@ -79,6 +79,12 @@ impl Model {
             mesh.update_instances(queue, instances);
         }
     }
+
+    pub fn clear_instances(&mut self) {
+        for mesh in self.meshes.iter_mut() {
+            mesh.clear_instances();
+        }
+    }
 }
 
 pub(in crate::engine) trait DrawModel<'a> {

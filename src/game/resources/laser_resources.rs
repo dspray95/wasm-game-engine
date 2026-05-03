@@ -22,12 +22,9 @@ impl LaserManager {
     }
 
     pub fn is_allowed_to_fire(&self, current_time: Instant) -> bool {
-        let time_since_last_fire = current_time.duration_since(self.last_fired_time).as_secs_f32();
-        log::info!(
-            "Checking time to fire - time since last: {:?}, cooldown_seconds: {:?}",
-            time_since_last_fire,
-            self.fire_cooldown_seconds
-        );
+        let time_since_last_fire = current_time
+            .duration_since(self.last_fired_time)
+            .as_secs_f32();
         time_since_last_fire > self.fire_cooldown_seconds
     }
 }

@@ -15,8 +15,12 @@ pub fn render_sync_system(world: &mut World, system_context: &mut SystemContext)
 
     let groups = collect_instance_groups(world);
 
-    for (model_id, instances) in &groups {
-        asset_server.get_model_mut(*model_id).update_instances(queue, instances);
+    let model_count = asset_server.models().len();
+    for model_id in 0..model_count {
+        match groups.get(&model_id) {
+            Some(instances) => asset_server.get_model_mut(model_id).update_instances(queue, instances),
+            None => asset_server.get_model_mut(model_id).clear_instances(),
+        }
     }
 }
 

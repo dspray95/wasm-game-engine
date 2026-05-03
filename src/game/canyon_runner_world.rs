@@ -5,6 +5,7 @@ use crate::{
         assets::server::AssetServer,
         ecs::{
             component_registry::ComponentRegistry,
+            components::{renderable::Renderable, transform::Transform},
             resources::debug::{ShowColliderDebug, ShowDebugPanel},
             system::{SystemContext, SystemSchedule},
             world::World,
@@ -131,6 +132,13 @@ impl GameSetup for CanyonRunnerWorld {
             asset_server.register_model("terrain_b", terrain_b),
             asset_server.register_model("terrain_c", terrain_c),
         ];
+
+        for model_id in terrain_model_ids {
+            world.spawn()
+                .with(Renderable::new(model_id))
+                .with(Transform::new())
+                .build();
+        }
 
         world.add_resource(terrain_generation);
         world.add_resource(TerrainModelIds(terrain_model_ids));

@@ -1,21 +1,24 @@
 use std::collections::HashSet;
 
+use cgmath::{One, Quaternion, Vector3};
 use web_time::Instant;
-use cgmath::{ One, Quaternion, Vector3 };
 
 use crate::{
     engine::{
         assets::server::AssetServer,
         ecs::{
-            components::{ renderable::Renderable, transform::Transform, velocity::Velocity },
+            components::{renderable::Renderable, transform::Transform, velocity::Velocity},
             entity::Entity,
             system::SystemContext,
             world::World,
         },
     },
     game::{
-        components::{ laser::{ DEFAULT_TRAVEL_SPEED, Laser }, player::Player },
-        input::{ actions::Action, world_ext::InputWorldExt },
+        components::{
+            laser::{Laser, DEFAULT_TRAVEL_SPEED},
+            player::Player,
+        },
+        input::{actions::Action, world_ext::InputWorldExt},
         resources::laser_resources::LaserManager,
     },
 };
@@ -31,7 +34,6 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
 
     let tried_to_fire = key_bindings.is_action_pressed(&Action::Fire, &input);
     if tried_to_fire {
-        log::info!("tried to fire!");
         let now = Instant::now();
 
         let is_allowed_to_fire = {
@@ -40,17 +42,18 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
             };
             laser_manager.is_allowed_to_fire(now)
         };
-        log::info!("is allowed to fire: {:?}", is_allowed_to_fire);
         let laser_entity: Option<Entity> = if is_allowed_to_fire {
-            Some(
-                spawn_laser(
-                    world,
-                    system_context.asset_server.as_deref().unwrap(),
-                    player_position.unwrap(),
-                    Vector3 { x: 10.0, y: 10.0, z: 10.0 },
-                    now
-                )
-            )
+            Some(spawn_laser(
+                world,
+                system_context.asset_server.as_deref().unwrap(),
+                player_position.unwrap(),
+                Vector3 {
+                    x: 10.0,
+                    y: 10.0,
+                    z: 10.0,
+                },
+                now,
+            ))
         } else {
             None
         };
@@ -67,17 +70,18 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
 
     let (alive_lasers, max_travel_distance) = {
         let laser_manager = world.get_resource::<LaserManager>().unwrap();
-        (laser_manager.alive_lasers.clone(), laser_manager.max_travel_distance)
+        (
+            laser_manager.alive_lasers.clone(),
+            laser_manager.max_travel_distance,
+        )
     };
 
     // Move/despawn beams
     let mut to_despawn: Vec<Entity> = Vec::new();
 
     for laser_entity in alive_lasers {
-        if
-            let Some((laser, transform, velocity)) = world.query::<
-                (&mut Laser, &mut Transform, &mut Velocity)
-            >(laser_entity.id)
+        if let Some((laser, transform, velocity)) =
+            world.query::<(&mut Laser, &mut Transform, &mut Velocity)>(laser_entity.id)
         {
             let distance_travelled = (transform.position.z - laser.initial_z).abs();
             if distance_travelled > max_travel_distance {
@@ -88,12 +92,11 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
         }
     }
 
-    let despawn_ids: HashSet<u32> = to_despawn
-        .iter()
-        .map(|entity| entity.id)
-        .collect();
+    let despawn_ids: HashSet<u32> = to_despawn.iter().map(|entity| entity.id).collect();
     let laser_manager = world.get_resource_mut::<LaserManager>().unwrap();
-    laser_manager.alive_lasers.retain(|entity| !despawn_ids.contains(&entity.id));
+    laser_manager
+        .alive_lasers
+        .retain(|entity| !despawn_ids.contains(&entity.id));
 
     for entity in to_despawn {
         world.despawn(entity);
@@ -105,9 +108,8 @@ fn spawn_laser(
     asset_server: &AssetServer,
     position: Vector3<f32>,
     scale: Vector3<f32>,
-    fired_at: Instant
+    fired_at: Instant,
 ) -> Entity {
-    log::info!("Spawning laser at z: {:?}", position);
     let laser_model_id = asset_server.get_model_id("laser");
     world
         .spawn()
@@ -118,7 +120,15 @@ fn spawn_laser(
             scale,
             rotation: Quaternion::one(),
         })
-        .with(Velocity { x: 0.0, y: 0.0, z: 0.0 })
-        .with(Laser { initial_z: position.z, fired_at, travel_speed: DEFAULT_TRAVEL_SPEED })
+        .with(Velocity {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        })
+        .with(Laser {
+            initial_z: position.z,
+            fired_at,
+            travel_speed: DEFAULT_TRAVEL_SPEED,
+        })
         .build()
 }
