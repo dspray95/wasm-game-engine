@@ -53,7 +53,7 @@ impl ApplicationHandler for App {
                     .expect("Failed to create window")
             );
 
-            let instance = self.app_state.borrow().instance.clone();
+            let instance = self.app_state.borrow().instance.as_ref().unwrap().clone();
             let surface = instance
                 .create_surface(window.clone())
                 .expect("Failed to create surface");
@@ -147,8 +147,6 @@ impl ApplicationHandler for App {
 
         match event {
             WindowEvent::CloseRequested => {
-                // Drop the wgpu surface before the window is destroyed.
-                // On Linux, letting the surface outlive the window causes a segfault.
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Ok(mut state) = self.app_state.try_borrow_mut() {
                     state.release_gpu_resources();
@@ -258,7 +256,7 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
     let width = canvas.client_width() as u32;
     let height = canvas.client_height() as u32;
 
-    let instance = app_state.borrow().instance.clone();
+    let instance = app_state.borrow().instance.as_ref().unwrap().clone();
     let surface = instance.create_surface(window.clone()).expect("Failed to create surface");
 
     let (engine_state, camera_bind_group_layout) = crate::engine::state::engine_state::EngineState

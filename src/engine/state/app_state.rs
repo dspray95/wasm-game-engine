@@ -28,7 +28,7 @@ use crate::game::input::bindings::Bindings;
 const MINIMUM_DELTA_TIME: f32 = 0.1;
 
 pub struct AppState {
-    pub instance: wgpu::Instance,
+    pub instance: Option<wgpu::Instance>,
     engine_state: Option<EngineState>,
     pub window: Option<Arc<Window>>,
     render_state: Option<RenderState>,
@@ -44,10 +44,10 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        let instance: wgpu::Instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
 
         Self {
-            instance,
+            instance: Some(instance),
             engine_state: None,
             window: None,
             render_state: None,
@@ -290,7 +290,16 @@ impl AppState {
     }
 
     pub fn release_gpu_resources(&mut self) {
+        if let Some(engine_state) = &self.engine_state {
+            engine_state.device.poll(wgpu::Maintain::Wait);
+        }
         self.engine_state = None;
+        self.egui_state = None;
+        self.asset_server = None;
+        self.world = None;
+        self.render_state = None;
+        self.window = None;
+        self.instance = None;
     }
 
     pub fn handle_keyboard_input(&mut self, state: ElementState, key_code: KeyCode) {

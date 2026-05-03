@@ -29,8 +29,8 @@ use crate::{
             camera_control_system::camera_control_system,
             collider_debug_system::collider_debug_system, enemy_spawn_system::enemy_spawn_system,
             hover_system::hover_system, laser_hit_system::laser_hit_system,
-            laser_log_system::laser_log_system, laser_system::laser_system,
-            player_system::player_system, terrain_system::terrain_system,
+            laser_system::laser_system, player_system::player_system,
+            terrain_system::terrain_system,
         },
     },
 };
@@ -49,7 +49,6 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(player_system);
         schedule.add_game_system(terrain_system);
         schedule.add_game_system(laser_system);
-        schedule.add_game_system(laser_log_system);
         schedule.add_game_system(enemy_spawn_system);
         schedule.add_game_system(laser_hit_system);
         schedule.add_game_system(collider_debug_system);
@@ -116,6 +115,7 @@ impl GameSetup for CanyonRunnerWorld {
             },
             enemy_entities: Vec::new(),
         });
+
         // Terrain setup
         let mut terrain_generation = TerrainGeneration {
             terrain_width: TERRAIN_WIDTH,
