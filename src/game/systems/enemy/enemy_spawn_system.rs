@@ -1,4 +1,5 @@
 use cgmath::{One, Quaternion, Vector3};
+use rand::Rng;
 
 use crate::{
     engine::{
@@ -45,10 +46,18 @@ pub fn enemy_spawn_system(world: &mut World, system_context: &mut SystemContext)
             > enemy_spawn_manager.last_z_pos_spawned_at + enemy_spawn_manager.z_gap_between_spanws
         {
             let spawn_at_z = player_position.z + enemy_spawn_manager.z_gap_between_spanws;
+
+            let mut rng = rand::rng();
+
+            let x_pos = rng.random_range(
+                (enemy_spawn_manager.canyon_center_x - 1.0)
+                    ..(enemy_spawn_manager.canyon_center_x + 1.0),
+            );
+
             enemy_spawn_manager.last_z_pos_spawned_at = spawn_at_z;
             (
                 Some(Vector3 {
-                    x: enemy_spawn_manager.canyon_center_x,
+                    x: x_pos,
                     y: enemy_spawn_manager.enemy_spawn_elevation,
                     z: spawn_at_z,
                 }),
@@ -110,6 +119,7 @@ fn spawn_enemy(
     scale: Vector3<f32>,
 ) -> Entity {
     let starfigher_model_id = asset_server.get_model_id("starfighter_enemy");
+
     world
         .spawn()
         .with(Enemy)

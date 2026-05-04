@@ -3,13 +3,15 @@ use std::collections::HashSet;
 use crate::{
     engine::{
         ecs::{
-            entity::Entity, events::collision_event::CollisionEvent, system::SystemContext,
+            components::transform::Transform, entity::Entity,
+            events::collision_event::CollisionEvent, system::SystemContext,
             systems::collision_system::filter_collision_pairs, world::World,
         },
         events::events::Events,
     },
     game::{
         components::{enemy::Enemy, laser::Laser},
+        events::enemy_killed_event::EnemyKilledEvent,
         resources::{enemy_resources::EnemySpawnManager, laser_resources::LaserManager},
     },
 };
@@ -26,6 +28,14 @@ pub fn laser_hit_system(world: &mut World, _system_context: &mut SystemContext) 
 
     let lasers_to_despawn: HashSet<Entity> = hits.iter().map(|(laser, _)| *laser).collect();
     let enemies_to_despawn: HashSet<Entity> = hits.iter().map(|(_, enemy)| *enemy).collect();
+    let enemy_killed_events: Vec<EnemyKilledEvent> = enemies_to_despawn
+        .iter()
+        .filter_map(|enemy| {
+            world
+                .get_component_by_id::<Transform>(enemy.id)
+                .map(|t| EnemyKilledEvent { origin: t.position })
+        })
+        .collect();
 
     if let Some(laser_manager) = world.get_resource_mut::<LaserManager>() {
         laser_manager
@@ -41,5 +51,12 @@ pub fn laser_hit_system(world: &mut World, _system_context: &mut SystemContext) 
 
     for entity in lasers_to_despawn.into_iter().chain(enemies_to_despawn) {
         world.despawn(entity);
+    }
+
+    if let Some(killed_events) = world.get_resource_mut::<Events<EnemyKilledEvent>>() {
+        for event in enemy_killed_events {
+            log::info!("Sending enemy killed event");
+            killed_events.send(event);
+        }
     }
 }

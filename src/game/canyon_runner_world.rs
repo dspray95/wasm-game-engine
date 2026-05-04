@@ -1,4 +1,4 @@
-use cgmath::Vector3;
+use cgmath::{One, Quaternion, Vector3};
 
 use crate::{
     engine::{
@@ -16,8 +16,11 @@ use crate::{
     },
     game::{
         assets::load::load_and_register_world_models,
-        components::{enemy::Enemy, hover_state::HoverState, player::Player},
-        events::laser_fired_event::LaserFiredEvent,
+        components::{
+            enemy::Enemy, explosion::Explosion, hover_state::HoverState, laser::Laser,
+            player::Player,
+        },
+        events::{enemy_killed_event::EnemyKilledEvent, laser_fired_event::LaserFiredEvent},
         helpers::terrain_generation::get_initial_terrain,
         input::actions::Action,
         resources::{
@@ -28,9 +31,15 @@ use crate::{
         },
         systems::{
             camera_control_system::camera_control_system,
-            collider_debug_system::collider_debug_system, enemy_spawn_system::enemy_spawn_system,
-            hover_system::hover_system, laser_hit_system::laser_hit_system,
-            laser_system::laser_system, player_system::player_system,
+            collider_debug_system::collider_debug_system,
+            enemy::enemy_spawn_system::enemy_spawn_system,
+            explosion::{
+                explosion_lifecycle_system::explosion_lifecycle_system,
+                explosion_spawn_system::explosion_spawn_system,
+            },
+            hover_system::hover_system,
+            laser::{laser_hit_system::laser_hit_system, laser_system::laser_system},
+            player_system::player_system,
             terrain_system::terrain_system,
         },
     },
@@ -52,6 +61,8 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(laser_system);
         schedule.add_game_system(enemy_spawn_system);
         schedule.add_game_system(laser_hit_system);
+        schedule.add_game_system(explosion_spawn_system);
+        schedule.add_game_system(explosion_lifecycle_system);
         schedule.add_game_system(collider_debug_system);
     }
 
@@ -63,6 +74,8 @@ impl GameSetup for CanyonRunnerWorld {
         registry.register::<HoverState>("HoverState");
         registry.register::<Player>("Player");
         registry.register::<Enemy>("Enemy");
+        registry.register::<Explosion>("Explosion");
+        registry.register::<Laser>("Laser");
     }
 
     fn world_ron(&self) -> Option<&'static str> {
@@ -89,12 +102,17 @@ impl GameSetup for CanyonRunnerWorld {
         };
 
         world.create_active_camera(gpu.device, Vector3::new(24.5, -0.25, 1.0));
+
+        // Event registration
+        world.register_event::<LaserFiredEvent>();
+        world.register_event::<EnemyKilledEvent>();
+
+        let asset_server: &mut AssetServer = system_context.asset_server.as_mut().unwrap();
+
+        // Debug
         world.add_resource(FreeCameraEnabled(false));
         world.add_resource(ShowDebugPanel(false));
         world.add_resource(ShowColliderDebug(false));
-        world.register_event::<LaserFiredEvent>();
-
-        let asset_server: &mut AssetServer = system_context.asset_server.as_mut().unwrap();
 
         // Laser setup
         world.add_resource(LaserManager::new());
@@ -105,7 +123,7 @@ impl GameSetup for CanyonRunnerWorld {
         // Enemy setup
         world.add_resource(EnemySpawnManager {
             n_enemies_spawned: 0,
-            z_gap_between_spanws: 100.0,
+            z_gap_between_spanws: 50.0,
             last_z_pos_spawned_at: 0.0,
             canyon_center_x: 24.5,
             enemy_spawn_elevation: -1.0,
@@ -134,7 +152,8 @@ impl GameSetup for CanyonRunnerWorld {
         ];
 
         for model_id in terrain_model_ids {
-            world.spawn()
+            world
+                .spawn()
                 .with(Renderable::new(model_id))
                 .with(Transform::new())
                 .build();

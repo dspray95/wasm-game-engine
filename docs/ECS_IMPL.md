@@ -243,3 +243,9 @@ Once the canyon runner runs cleanly through ECS, layer in city-builder primitive
   - Two-component queries — World::iter_component<T>() only gives you one component at a time. When you need both Laser and Transform for the same entity, iterate iter_component::<Laser>() for the
    IDs, then call world.get_component_mut::<Transform>(entity) per ID. It's O(1) per lookup, just a bit verbose.
   - Despawn-during-iteration — always collect entity IDs to a Vec<Entity> first, then loop over that vec calling world.despawn(). Trying to do it inline will hit the borrow checker immediately.
+  - Reading events then mutating the world — same shape. world.get_resource::<Events<T>>() takes an immutable borrow, so you can't call spawn/despawn/get_resource_mut while holding it. Collect the event data you need into a Vec first, let the borrow drop, then act. The two-loop shape is intentional and correct:
+    ```rust
+    let origins: Vec<_> = world.get_resource::<Events<MyEvent>>().unwrap().read().map(|e| e.origin).collect();
+    for origin in origins { spawn_thing(world, origin); }
+    ```
+    Alternatives (a deferred Commands buffer, or Bevy-style fine-grained system parameters) would hide this split inside the engine but add significant infrastructure for the same logical result. The explicit Vec is the right call at this scale.

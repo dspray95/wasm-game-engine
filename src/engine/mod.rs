@@ -15,3 +15,4 @@ pub mod input;
 pub mod ui;
 pub mod events;
 pub mod game_setup;
+pub mod serde_helpers;

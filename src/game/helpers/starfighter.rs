@@ -1,34 +1,17 @@
 use crate::{
     engine::{
-        ecs::components::{ transform::Transform, velocity::Velocity },
-        model::{ loader::load_model_from_obj_bytes, model::Model },
+        model::{loader::load_model_from_obj_bytes, model::Model},
         state::context::GpuContext,
     },
-    game::{
-        assets::include::{ STARFIGHTER_PLAYER_MTL, STARFIGHTER_MODEL_OBJ },
-        components::hover_state::{ HoverDirection, HoverState },
-    },
+    game::assets::include::{STARFIGHTER_MODEL_OBJ, STARFIGHTER_PLAYER_MTL},
 };
 
-const HOVER_SPEED: f32 = 0.2;
-
-pub fn animate_hover(transform: &Transform, velocity: &mut Velocity, hover_state: &mut HoverState) {
-    if transform.position.y > hover_state.upper_limit {
-        hover_state.direction = HoverDirection::Down;
-    } else if transform.position.y < hover_state.lower_limit {
-        hover_state.direction = HoverDirection::Up;
-    }
-
-    match hover_state.direction {
-        HoverDirection::Up => {
-            velocity.y += HOVER_SPEED;
-        }
-        HoverDirection::Down => {
-            velocity.y -= HOVER_SPEED;
-        }
-    }
-}
-
 pub fn load_model(gpu_context: &GpuContext) -> Model {
-    load_model_from_obj_bytes(STARFIGHTER_MODEL_OBJ, STARFIGHTER_PLAYER_MTL, gpu_context, None, 1)
+    load_model_from_obj_bytes(
+        STARFIGHTER_MODEL_OBJ,
+        STARFIGHTER_PLAYER_MTL,
+        gpu_context,
+        None,
+        1,
+    )
 }
