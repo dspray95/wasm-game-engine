@@ -2,6 +2,7 @@
 pub struct Material {
     pub diffuse_color: [u32; 3],
     pub alpha: f32,
+    pub emissive: [f32; 3],
 }
 
 impl Material {
@@ -9,6 +10,7 @@ impl Material {
         Material {
             diffuse_color: color,
             alpha,
+            emissive: [0.0, 0.0, 0.0],
         }
     }
 }

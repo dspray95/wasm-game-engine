@@ -66,6 +66,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     let fade_factor = 1.0 - smoothstep(fade_start, fade_end, in.camera_distance);
     
-    // pink line with opacity fade
-    return vec4<f32>(0.93, 0.11, 1.0, fade_factor);
+    // pink line with opacity fade — premultiplied (rgb * alpha)
+    let rgb = vec3<f32>(0.93, 0.11, 1.0);
+    return vec4<f32>(rgb * fade_factor, fade_factor);
 }

@@ -10,29 +10,18 @@ use crate::{
 pub fn explosion_lifecycle_system(world: &mut World, _system_context: &mut SystemContext) {
     let now = Instant::now();
 
-    let expired_explosions: Vec<(u32, f32, f32)> = world
+    let expired_explosions: Vec<u32> = world
         .iter_component::<Explosion>()
         .filter(|(_, explosion)| {
             let time_diff =
                 explosion.created_at + Duration::from_secs_f32(explosion.lifetime_seconds);
             now > time_diff
         })
-        .map(|(id, explosion)| {
-            (
-                id,
-                explosion.lifetime_seconds,
-                explosion.created_at.elapsed().as_secs_f32(),
-            )
-        })
+        .map(|(id, _)| id)
         .collect();
 
-    for (entity_id, lifetime_seconds, age_seconds) in expired_explosions {
+    for entity_id in expired_explosions {
         if let Some(entity) = world.get_entity(entity_id) {
-            log::info!(
-                "despawning explosion (lifetime {}s, actual age {}s)",
-                lifetime_seconds,
-                age_seconds
-            );
             world.despawn(entity);
         }
     }

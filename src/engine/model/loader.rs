@@ -61,14 +61,31 @@ pub fn load_model_from_obj_bytes(
 
             let material = match (&materials_result, raw_model.mesh.material_id) {
                 (Ok(materials), Some(material_id)) if material_id < materials.len() => {
-                    let diffuse = materials[material_id].diffuse;
+                    let mtl = &materials[material_id];
+                    let diffuse = mtl.diffuse;
+                    let emissive = mtl
+                        .unknown_param
+                        .get("Ke")
+                        .and_then(|raw| {
+                            let parts: Vec<f32> = raw
+                                .split_whitespace()
+                                .filter_map(|t| t.parse::<f32>().ok())
+                                .collect();
+                            if parts.len() == 3 {
+                                Some([parts[0], parts[1], parts[2]])
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or([0.0, 0.0, 0.0]);
                     Material {
                         diffuse_color: [
                             (diffuse[0] * 255.0).round() as u32,
                             (diffuse[1] * 255.0).round() as u32,
                             (diffuse[2] * 255.0).round() as u32,
                         ],
-                        alpha: materials[material_id].dissolve,
+                        alpha: mtl.dissolve,
+                        emissive,
                     }
                 }
                 _ => Material::new([255, 255, 255], 1.0),

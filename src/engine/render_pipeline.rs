@@ -46,7 +46,7 @@ pub(super) fn create_render_pipeline(
                 targets: &[
                     Some(wgpu::ColorTargetState {
                         format: color_format,
-                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                        blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     }),
                 ],
@@ -84,7 +84,7 @@ pub(in crate::engine) fn create_wireframe_render_pipeline(
                 targets: &[
                     Some(wgpu::ColorTargetState {
                         format: color_format,
-                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                        blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     }),
                 ],

@@ -72,6 +72,8 @@ fn vs_main(
 struct Material {
     color: vec3<f32>,
     alpha: f32,
+    emissive: vec3<f32>,
+    _padding: f32,
 }
 @group(2) @binding(0)
 var<uniform> material: Material;
@@ -89,13 +91,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // let diffuse_strength = max(dot(in.world_normal, light_direction), 0.0);
     // let diffuse_color = light.color * diffuse_strength;
 
-    let result = material.color;
-    let alpha = material.alpha;
-
     let fade_start = 75.0;
     let fade_end = 125.0;
-
     let fade_factor = 1.0 - smoothstep(fade_start, fade_end, in.camera_distance);
 
-    return vec4<f32>(result, min(alpha, fade_factor));
+    let effective_alpha = min(material.alpha, fade_factor);
+
+    // Premultiplied output: diffuse * alpha (so blend pipeline doesn't re-multiply),
+    // plus emissive added on top regardless of surface alpha (mimics glow).
+    // Emissive is gated by fade_factor so distant glow still fades out gracefully.
+    let result = material.color * effective_alpha + material.emissive * fade_factor;
+
+    return vec4<f32>(result, effective_alpha);
 }

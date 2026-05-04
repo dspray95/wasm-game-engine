@@ -20,12 +20,13 @@ pub struct MeshData {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ColorUniform {
-    // The paddings here are because WGSL shader structs have
-    // to be powers of 2.
-    // f32 array of length 3 would be 12 bytes, and the padding
-    // brings it up to 16 (2^4).
+    // WGSL uniform layout: each vec3 must sit on a 16-byte boundary,
+    // so vec3 + f32 packs into one slot (16 bytes), and emissive vec3
+    // gets its own slot with trailing padding.
     pub color: [f32; 3],
     pub alpha: f32,
+    pub emissive: [f32; 3],
+    pub _padding: f32,
 }
 
 pub struct Mesh {
@@ -94,6 +95,12 @@ impl Mesh {
                 ((material.diffuse_color[2] as f32) / 255.0).powf(2.2),
             ],
             alpha: material.alpha,
+            emissive: [
+                material.emissive[0].powf(2.2),
+                material.emissive[1].powf(2.2),
+                material.emissive[2].powf(2.2),
+            ],
+            _padding: 0.0,
         };
 
         let color_buffer = device.create_buffer_init(
