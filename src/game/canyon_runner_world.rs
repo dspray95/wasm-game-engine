@@ -1,4 +1,4 @@
-use cgmath::{One, Quaternion, Vector3};
+use cgmath::Vector3;
 
 use crate::{
     engine::{

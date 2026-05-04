@@ -47,7 +47,6 @@ pub(crate) fn generate_terrain_chunk(
             } else {
                 // Otherwise sample noise
                 //set values for octave
-                noise_amplitude = 2.0;
                 let mut noise_frequency: f64 = 0.1;
                 let mut noise_height = 2.0;
 

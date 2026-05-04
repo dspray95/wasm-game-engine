@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::engine::{
     ecs::{
-        components::{ renderable::Renderable, transform::Transform },
+        components::{renderable::Renderable, transform::Transform},
         system::SystemContext,
         world::World,
     },
@@ -18,7 +18,9 @@ pub fn render_sync_system(world: &mut World, system_context: &mut SystemContext)
     let model_count = asset_server.models().len();
     for model_id in 0..model_count {
         match groups.get(&model_id) {
-            Some(instances) => asset_server.get_model_mut(model_id).update_instances(queue, instances),
+            Some(instances) => asset_server
+                .get_model_mut(model_id)
+                .update_instances(queue, instances),
             None => asset_server.get_model_mut(model_id).clear_instances(),
         }
     }
@@ -46,7 +48,10 @@ fn collect_instance_groups(world: &World) -> HashMap<usize, Vec<InstanceRaw>> {
 
     for (entity_id, renderable) in world.iter_component::<Renderable>() {
         if let Some(transform) = world.get_component_by_id::<Transform>(entity_id) {
-            groups.entry(renderable.model_id).or_default().push(transform.to_raw());
+            groups
+                .entry(renderable.model_id)
+                .or_default()
+                .push(transform.to_raw());
         }
     }
 
@@ -116,7 +121,7 @@ mod tests {
     #[test]
     fn entities_with_different_model_ids_go_to_separate_groups() {
         let mut world = world_with_components();
-        for model_id in [0, 1, 2] {
+        for _model_id in [0, 1, 2] {
             let e = world.spawn_entity_only();
             world.add_component(e, Transform::new());
             world.add_component(e, Renderable::new(0));
