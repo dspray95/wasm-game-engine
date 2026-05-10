@@ -48,7 +48,6 @@ impl<T: 'static> ComponentStorage for SparseSet<T> {
 }
 
 pub struct World {
-    pub entities: EntityAllocator,
     // Keyed by TypeId so each SparseSet<T> is stored and retrieved by its component type.
     // Box<dyn ComponentStorage> erases the type while still exposing remove() for despawn.
     components: HashMap<TypeId, Box<dyn ComponentStorage>>,
@@ -62,7 +61,6 @@ impl World {
 
     pub fn new() -> Self {
         Self {
-            entities: EntityAllocator::default(),
             components: HashMap::new(),
             resources: HashMap::new(),
         }
@@ -118,24 +116,20 @@ impl World {
         set.remove(entity.id);
     }
 
-    pub fn spawn_entity_only(&mut self) -> Entity {
-        self.entities.spawn()
+    pub fn spawn_entity_only(&mut self, entity_allocator: &mut EntityAllocator) -> Entity {
+        entity_allocator.spawn()
     }
 
-    pub fn spawn(&'_ mut self) -> EntityBuilder<'_> {
-        let entity = self.spawn_entity_only();
+    pub fn spawn(&'_ mut self, entity_allocator: &mut EntityAllocator) -> EntityBuilder<'_> {
+        let entity = self.spawn_entity_only(entity_allocator);
         EntityBuilder {
             world: self,
             entity,
         }
     }
 
-    pub fn is_alive(&self, entity: Entity) -> bool {
-        self.entities.is_alive(&entity)
-    }
-
-    pub fn despawn(&mut self, entity: Entity) {
-        self.entities.despawn(&entity);
+    pub fn despawn(&mut self, entity: Entity, entity_allocator: &mut EntityAllocator) {
+        entity_allocator.despawn(&entity);
         for storage in self.components.values_mut() {
             storage.remove(entity.id);
         }
@@ -182,7 +176,12 @@ impl World {
         self.iter_component::<T>().map(|(id, _)| id).collect()
     }
 
-    pub fn create_active_camera(&mut self, device: &wgpu::Device, position: Vector3<f32>) {
+    pub fn create_active_camera(
+        &mut self,
+        device: &wgpu::Device,
+        position: Vector3<f32>,
+        entity_allocator: &mut EntityAllocator,
+    ) {
         let Some(surface_dimensions) = self.get_resource::<SurfaceDimensions>() else {
             return;
         };
@@ -204,7 +203,7 @@ impl World {
         );
 
         let camera_entity = self
-            .spawn()
+            .spawn(entity_allocator)
             .with(Transform::new().with_position(position.x, position.y, position.z))
             .with(camera_component)
             .build();
@@ -226,10 +225,6 @@ impl World {
             ).0
     }
 
-    pub fn live_entity_count(&self) -> usize {
-        self.entities.live_count()
-    }
-
     pub fn register_event<T: 'static + Send + Sync>(&mut self) {
         self.add_resource(Events::<T>::default());
         if let Some(registry) = self.get_resource_mut::<EventRegistry>() {
@@ -237,10 +232,6 @@ impl World {
         } else {
             log::warn!("EventRegistry not present — event type registered but won't be cleaned up");
         }
-    }
-
-    pub fn get_entity(&self, id: u32) -> Option<Entity> {
-        self.entities.lookup(id)
     }
 }
 
@@ -271,41 +262,41 @@ mod tests {
     struct Health(u32);
     struct Speed(f32);
 
-    fn world_with_position() -> World {
+    fn world_with_position() -> (World, EntityAllocator) {
         let mut world = World::new();
         world.register_component::<Position>();
-        world
+        (world, EntityAllocator::default())
     }
 
     // --- spawn / despawn ---
 
     #[test]
     fn spawned_entities_are_unique() {
-        let mut world = World::new();
-        let a = world.spawn_entity_only();
-        let b = world.spawn_entity_only();
+        let mut alloc = EntityAllocator::default();
+        let a = alloc.spawn();
+        let b = alloc.spawn();
         assert_ne!(a, b);
     }
 
     #[test]
     fn despawned_entity_is_no_longer_alive_and_slot_is_recycled() {
         let mut world = World::new();
-        let a = world.spawn_entity_only();
-        assert!(world.is_alive(a));
-        world.despawn(a);
-        assert!(!world.is_alive(a));
-        let b = world.spawn_entity_only();
-        // new entity is alive, old stale handle is not
-        assert!(world.is_alive(b));
-        assert!(!world.is_alive(a));
+        let mut alloc = EntityAllocator::default();
+        let a = alloc.spawn();
+        assert!(alloc.is_alive(&a));
+        world.despawn(a, &mut alloc);
+        assert!(!alloc.is_alive(&a));
+        let b = alloc.spawn();
+        assert!(alloc.is_alive(&b));
+        assert!(!alloc.is_alive(&a));
     }
 
     // --- add / get component ---
 
     #[test]
     fn add_and_get_component() {
-        let mut world = world_with_position();
-        let e = world.spawn_entity_only();
+        let (mut world, mut alloc) = world_with_position();
+        let e = alloc.spawn();
         world.add_component(e, Position { x: 1.0, y: 2.0 });
         let pos = world.get_component::<Position>(e).unwrap();
         assert_eq!(pos.x, 1.0);
@@ -314,15 +305,15 @@ mod tests {
 
     #[test]
     fn get_component_returns_none_when_not_added() {
-        let mut world = world_with_position();
-        let e = world.spawn_entity_only();
+        let (world, mut alloc) = world_with_position();
+        let e = alloc.spawn();
         assert!(world.get_component::<Position>(e).is_none());
     }
 
     #[test]
     fn get_component_mut_allows_mutation() {
-        let mut world = world_with_position();
-        let e = world.spawn_entity_only();
+        let (mut world, mut alloc) = world_with_position();
+        let e = alloc.spawn();
         world.add_component(e, Position { x: 0.0, y: 0.0 });
         world.get_component_mut::<Position>(e).unwrap().x = 99.0;
         assert_eq!(world.get_component::<Position>(e).unwrap().x, 99.0);
@@ -332,8 +323,8 @@ mod tests {
 
     #[test]
     fn removed_component_is_no_longer_present() {
-        let mut world = world_with_position();
-        let e = world.spawn_entity_only();
+        let (mut world, mut alloc) = world_with_position();
+        let e = alloc.spawn();
         world.add_component(e, Position { x: 1.0, y: 1.0 });
         world.remove_component::<Position>(e);
         assert!(world.get_component::<Position>(e).is_none());
@@ -342,7 +333,8 @@ mod tests {
     #[test]
     fn remove_unregistered_component_does_not_panic() {
         let mut world = World::new();
-        let e = world.spawn_entity_only();
+        let mut alloc = EntityAllocator::default();
+        let e = alloc.spawn();
         world.remove_component::<Position>(e); // no-op
     }
 
@@ -351,24 +343,24 @@ mod tests {
     #[test]
     fn despawn_removes_all_components() {
         let mut world = World::new();
+        let mut alloc = EntityAllocator::default();
         world.register_component::<Position>();
         world.register_component::<Health>();
-        let e = world.spawn_entity_only();
+        let e = alloc.spawn();
         world.add_component(e, Position { x: 1.0, y: 1.0 });
         world.add_component(e, Health(100));
-        world.despawn(e);
+        world.despawn(e, &mut alloc);
         assert!(world.get_component::<Position>(e).is_none());
         assert!(world.get_component::<Health>(e).is_none());
     }
 
     #[test]
     fn stale_handle_cannot_access_recycled_entity_components() {
-        let mut world = world_with_position();
-        let old = world.spawn_entity_only();
+        let (mut world, mut alloc) = world_with_position();
+        let old = alloc.spawn();
         world.add_component(old, Position { x: 5.0, y: 5.0 });
-        world.despawn(old);
-        let _new = world.spawn_entity_only(); // reuses same id slot
-                                              // old handle's generation is stale — component was removed on despawn
+        world.despawn(old, &mut alloc);
+        let _new = alloc.spawn(); // reuses same id slot
         assert!(world.get_component::<Position>(old).is_none());
     }
 
@@ -377,8 +369,9 @@ mod tests {
     #[test]
     fn builder_attaches_all_components_to_same_entity() {
         let mut world = World::new();
+        let mut alloc = EntityAllocator::default();
         let e = world
-            .spawn()
+            .spawn(&mut alloc)
             .with(Position { x: 1.0, y: 2.0 })
             .with(Health(42))
             .build();
@@ -389,15 +382,17 @@ mod tests {
     #[test]
     fn builder_with_no_components_produces_live_entity() {
         let mut world = World::new();
-        let e = world.spawn().build();
-        assert!(world.is_alive(e));
+        let mut alloc = EntityAllocator::default();
+        let e = world.spawn(&mut alloc).build();
+        assert!(alloc.is_alive(&e));
     }
 
     #[test]
     fn two_builders_produce_distinct_entities() {
         let mut world = World::new();
-        let a = world.spawn().with(Health(1)).build();
-        let b = world.spawn().with(Health(2)).build();
+        let mut alloc = EntityAllocator::default();
+        let a = world.spawn(&mut alloc).with(Health(1)).build();
+        let b = world.spawn(&mut alloc).with(Health(2)).build();
         assert_ne!(a, b);
         assert_eq!(world.get_component::<Health>(a).unwrap().0, 1);
         assert_eq!(world.get_component::<Health>(b).unwrap().0, 2);
@@ -408,9 +403,10 @@ mod tests {
     #[test]
     fn multiple_component_types_on_one_entity() {
         let mut world = World::new();
+        let mut alloc = EntityAllocator::default();
         world.register_component::<Position>();
         world.register_component::<Health>();
-        let e = world.spawn_entity_only();
+        let e = alloc.spawn();
         world.add_component(e, Position { x: 3.0, y: 4.0 });
         world.add_component(e, Health(50));
         assert_eq!(world.get_component::<Position>(e).unwrap().x, 3.0);
@@ -445,10 +441,11 @@ mod tests {
     #[test]
     fn iter_component_yields_all_entities_with_component() {
         let mut world = World::new();
+        let mut alloc = EntityAllocator::default();
         world.register_component::<Health>();
-        let a = world.spawn_entity_only();
-        let b = world.spawn_entity_only();
-        let c = world.spawn_entity_only();
+        let a = alloc.spawn();
+        let b = alloc.spawn();
+        let c = alloc.spawn();
         world.add_component(a, Health(10));
         world.add_component(b, Health(20));
         world.add_component(c, Health(30));
@@ -461,10 +458,11 @@ mod tests {
     #[test]
     fn iter_component_only_yields_entities_that_have_it() {
         let mut world = World::new();
+        let mut alloc = EntityAllocator::default();
         world.register_component::<Position>();
         world.register_component::<Health>();
-        let a = world.spawn_entity_only();
-        let b = world.spawn_entity_only();
+        let a = alloc.spawn();
+        let b = alloc.spawn();
         world.add_component(a, Position { x: 1.0, y: 0.0 });
         world.add_component(a, Health(100));
         world.add_component(b, Position { x: 2.0, y: 0.0 });
@@ -484,10 +482,11 @@ mod tests {
     #[test]
     fn iter_component_empty_after_all_despawned() {
         let mut world = World::new();
+        let mut alloc = EntityAllocator::default();
         world.register_component::<Health>();
-        let e = world.spawn_entity_only();
+        let e = alloc.spawn();
         world.add_component(e, Health(50));
-        world.despawn(e);
+        world.despawn(e, &mut alloc);
         assert_eq!(world.iter_component::<Health>().count(), 0);
     }
 }

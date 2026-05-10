@@ -8,7 +8,7 @@ use crate::{
         assets::server::AssetServer,
         ecs::{
             components::{renderable::Renderable, transform::Transform, velocity::Velocity},
-            entity::Entity,
+            entity::{Entity, EntityAllocator},
             system::SystemContext,
             world::World,
         },
@@ -53,6 +53,7 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
                     z: 10.0,
                 },
                 now,
+                system_context.entity_allocator,
             ))
         } else {
             None
@@ -99,7 +100,7 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
         .retain(|entity| !despawn_ids.contains(&entity.id));
 
     for entity in to_despawn {
-        world.despawn(entity);
+        system_context.commands.despawn(entity);
     }
 }
 
@@ -109,10 +110,11 @@ fn spawn_laser(
     position: Vector3<f32>,
     scale: Vector3<f32>,
     fired_at: Instant,
+    allocator: &mut EntityAllocator,
 ) -> Entity {
     let laser_model_id = asset_server.get_model_id("laser");
     world
-        .spawn()
+        .spawn(allocator)
         .with(Renderable::new(laser_model_id))
         .with(asset_server.get_collider_aabb("laser"))
         .with(Transform {

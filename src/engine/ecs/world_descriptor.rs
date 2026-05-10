@@ -1,14 +1,14 @@
 use std::fmt;
 
 use anyhow::Result;
-use serde::de::{ self, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor };
+use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor};
 
 use crate::engine::{
     assets::server::AssetServer,
     ecs::{
         component_registry::ComponentRegistry,
         components::renderable::Renderable,
-        entity::Entity,
+        entity::{Entity, EntityAllocator},
         world::World,
     },
 };
@@ -21,6 +21,7 @@ struct WorldDescriptorSeed<'a> {
     world: &'a mut World,
     registry: &'a ComponentRegistry,
     asset_server: &'a AssetServer,
+    allocator: &'a mut EntityAllocator,
 }
 
 impl<'de, 'a> DeserializeSeed<'de> for WorldDescriptorSeed<'a> {
@@ -52,6 +53,7 @@ impl<'de, 'a> Visitor<'de> for WorldDescriptorSeed<'a> {
                     world: self.world,
                     registry: self.registry,
                     asset_server: self.asset_server,
+                    allocator: self.allocator,
                 })?;
             } else {
                 return Err(de::Error::unknown_field(&key, &["entities"]));
@@ -72,6 +74,7 @@ struct EntityListSeed<'a> {
     world: &'a mut World,
     registry: &'a ComponentRegistry,
     asset_server: &'a AssetServer,
+    allocator: &'a mut EntityAllocator,
 }
 
 impl<'de, 'a> DeserializeSeed<'de> for EntityListSeed<'a> {
@@ -90,16 +93,25 @@ impl<'de, 'a> Visitor<'de> for EntityListSeed<'a> {
     }
 
     fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<(), S::Error> {
-        while
-            seq
-                .next_element_seed(EntitySeed {
-                    world: self.world,
-                    registry: self.registry,
-                    asset_server: self.asset_server,
-                })?
-                .is_some()
-        {}
-
+        let EntityListSeed {
+            world,
+            registry,
+            asset_server,
+            allocator,
+        } = self;
+        loop {
+            // Reborrow the references each iteration so the EntitySeed
+            // doesn't consume them outright on the first pass.
+            let made_progress = seq.next_element_seed(EntitySeed {
+                world: &mut *world,
+                registry,
+                asset_server,
+                allocator: &mut *allocator,
+            })?;
+            if made_progress.is_none() {
+                break;
+            }
+        }
         Ok(())
     }
 }
@@ -110,6 +122,7 @@ struct EntitySeed<'a> {
     world: &'a mut World,
     registry: &'a ComponentRegistry,
     asset_server: &'a AssetServer,
+    allocator: &'a mut EntityAllocator,
 }
 
 impl<'de, 'a> DeserializeSeed<'de> for EntitySeed<'a> {
@@ -128,7 +141,7 @@ impl<'de, 'a> Visitor<'de> for EntitySeed<'a> {
     }
 
     fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<(), M::Error> {
-        let entity = self.world.spawn_entity_only();
+        let entity = self.world.spawn_entity_only(self.allocator);
 
         while let Some(component_name) = map.next_key::<String>()? {
             if component_name == RENDERABLE_NAME {
@@ -153,7 +166,6 @@ impl<'de, 'a> Visitor<'de> for EntitySeed<'a> {
     }
 }
 
-
 // --- Single component value: dispatches through the registry ---
 
 struct ComponentSeed<'a> {
@@ -167,11 +179,9 @@ impl<'de, 'a> DeserializeSeed<'de> for ComponentSeed<'a> {
     type Value = ();
 
     fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<(), D::Error> {
-        let deserialize_fn = self.registry
-            .get(self.component_name)
-            .ok_or_else(||
-                de::Error::custom(format!("unknown component: {}", self.component_name))
-            )?;
+        let deserialize_fn = self.registry.get(self.component_name).ok_or_else(|| {
+            de::Error::custom(format!("unknown component: {}", self.component_name))
+        })?;
 
         let mut erased = <dyn erased_serde::Deserializer>::erase(deserializer);
         deserialize_fn(self.world, self.entity, &mut erased).map_err(de::Error::custom)
@@ -184,10 +194,16 @@ pub fn load_world(
     ron_str: &str,
     world: &mut World,
     registry: &ComponentRegistry,
-    asset_server: &AssetServer
+    asset_server: &AssetServer,
+    allocator: &mut EntityAllocator,
 ) -> Result<()> {
     let mut deserializer = ron::de::Deserializer::from_str(ron_str)?;
-    let seed = WorldDescriptorSeed { world, registry, asset_server };
+    let seed = WorldDescriptorSeed {
+        world,
+        registry,
+        asset_server,
+        allocator,
+    };
     seed.deserialize(&mut deserializer)?;
     Ok(())
 }

@@ -30,8 +30,8 @@ pub fn collider_debug_system(world: &mut World, system_context: &mut SystemConte
 
     let stale_visual_ids: Vec<u32> = world.get_entities_with::<DebugVisual>();
     for entity_id in stale_visual_ids {
-        if let Some(entity) = world.get_entity(entity_id) {
-            world.despawn(entity);
+        if let Some(entity) = system_context.entity_allocator.lookup(entity_id) {
+            system_context.commands.despawn(entity);
         }
     }
 
@@ -78,7 +78,7 @@ pub fn collider_debug_system(world: &mut World, system_context: &mut SystemConte
 
     for (position, half_extents) in visuals {
         world
-            .spawn()
+            .spawn(system_context.entity_allocator)
             .with(Renderable::new(cube_model_id))
             .with(Transform {
                 position,

@@ -20,7 +20,10 @@ use crate::{
             enemy::Enemy, explosion::Explosion, hover_state::HoverState, laser::Laser,
             player::Player,
         },
-        events::{enemy_killed_event::EnemyKilledEvent, laser_fired_event::LaserFiredEvent},
+        events::{
+            enemy_killed_event::EnemyKilledEvent, laser_fired_event::LaserFiredEvent,
+            score_event::ScoreEvent,
+        },
         helpers::terrain_generation::get_initial_terrain,
         input::actions::Action,
         resources::{
@@ -101,11 +104,16 @@ impl GameSetup for CanyonRunnerWorld {
             queue: system_context.queue.unwrap(),
         };
 
-        world.create_active_camera(gpu.device, Vector3::new(24.5, -0.25, 1.0));
+        world.create_active_camera(
+            gpu.device,
+            Vector3::new(24.5, -0.25, 1.0),
+            system_context.entity_allocator,
+        );
 
         // Event registration
         world.register_event::<LaserFiredEvent>();
         world.register_event::<EnemyKilledEvent>();
+        world.register_event::<ScoreEvent>();
 
         let asset_server: &mut AssetServer = system_context.asset_server.as_mut().unwrap();
 
@@ -153,7 +161,7 @@ impl GameSetup for CanyonRunnerWorld {
 
         for model_id in terrain_model_ids {
             world
-                .spawn()
+                .spawn(system_context.entity_allocator)
                 .with(Renderable::new(model_id))
                 .with(Transform::new())
                 .build();

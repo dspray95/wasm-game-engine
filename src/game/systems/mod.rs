@@ -5,5 +5,6 @@ pub mod enemy;
 pub mod explosion;
 pub mod hover_system;
 pub mod laser;
+pub mod player_score_system;
 pub mod player_system;
 pub mod terrain_system;

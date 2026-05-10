@@ -9,3 +9,4 @@ pub mod systems;
 pub mod component_registry;
 pub mod events;
 pub mod world_descriptor;
+pub mod commands;

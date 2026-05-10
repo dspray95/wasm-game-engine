@@ -5,10 +5,13 @@ use winit::keyboard::{ KeyCode };
 use winit::window::{ Window };
 
 use crate::engine::assets::server::AssetServer;
+use crate::engine::ecs::commands::commands::Commands;
 use crate::engine::ecs::component_registry::ComponentRegistry;
 use crate::engine::ecs::components::camera::camera::{ Camera, SurfaceDimensions };
+use crate::engine::ecs::entity::EntityAllocator;
 use crate::engine::ecs::events::collision_event::CollisionEvent;
 use crate::engine::ecs::resources::camera::ActiveCamera;
+use crate::engine::ecs::resources::entity_count::EntityCount;
 use crate::engine::ecs::world_descriptor::load_world;
 use crate::engine::events::event_registry::EventRegistry;
 use crate::engine::input::bindings_descriptor::BindingsDescriptor;
@@ -40,6 +43,8 @@ pub struct AppState {
     system_schedule: Option<SystemSchedule>,
     pub egui_state: Option<EguiState>,
     ui_registry: Option<UIRegistry>,
+    entity_allocator: EntityAllocator,
+    commands: Commands,
 }
 
 impl AppState {
@@ -59,6 +64,8 @@ impl AppState {
             system_schedule: None,
             egui_state: None,
             ui_registry: None,
+            entity_allocator: EntityAllocator::default(),
+            commands: Commands::new(),
         }
     }
 
@@ -139,7 +146,13 @@ impl AppState {
 
         // Step 9: declarative world content from RON
         if let Some(ron) = game_setup.world_ron() {
-            if let Err(e) = load_world(ron, &mut world, &component_registry, &asset_server) {
+            if let Err(e) = load_world(
+                ron,
+                &mut world,
+                &component_registry,
+                &asset_server,
+                &mut self.entity_allocator,
+            ) {
                 log::error!("Failed to load world: {:?}", e);
             }
         }
@@ -153,8 +166,14 @@ impl AppState {
                 render_context.device,
                 render_context.queue,
                 &mut asset_server,
+                &mut self.commands,
+                &mut self.entity_allocator,
             );
             game_setup.setup(&mut world, &mut ecs_system_context);
+            // Apply any commands the setup queued.
+            ecs_system_context
+                .commands
+                .apply(&mut world, ecs_system_context.entity_allocator);
         }
 
         // Step 11: egui state
@@ -233,11 +252,17 @@ impl AppState {
             let world = self.world.as_mut().unwrap();
             let asset_server = self.asset_server.as_mut().unwrap();
 
+            // Sync entity count into the world as a resource so UI panels can
+            // read it without needing access to the allocator directly.
+            world.add_resource(EntityCount(self.entity_allocator.live_count()));
+
             let mut system_context = SystemContext::new(
                 self.delta_time,
                 device,
                 queue,
-                asset_server
+                asset_server,
+                &mut self.commands,
+                &mut self.entity_allocator,
             );
             self.system_schedule.as_mut().unwrap().run_all(world, &mut system_context);
         }

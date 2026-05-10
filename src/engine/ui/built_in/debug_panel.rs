@@ -1,8 +1,14 @@
 use egui::Color32;
 
 use crate::{
-    engine::{ ecs::{ resources::debug::ShowDebugPanel, world::World }, fps_counter::FpsCounter },
-    game::input::{ actions::Action, world_ext::InputWorldExt },
+    engine::{
+        ecs::{
+            resources::{debug::ShowDebugPanel, entity_count::EntityCount},
+            world::World,
+        },
+        fps_counter::FpsCounter,
+    },
+    game::input::{actions::Action, world_ext::InputWorldExt},
 };
 
 pub fn debug_panel(context: &egui::Context, world: &mut World) {
@@ -28,7 +34,7 @@ pub fn debug_panel(context: &egui::Context, world: &mut World) {
         .get_resource::<FpsCounter>()
         .map(|f| f.get_fps())
         .unwrap_or(0.0);
-    let n_entities = world.live_entity_count();
+    let n_entities = world.get_resource::<EntityCount>().map(|c| c.0).unwrap_or(0);
 
     egui::Window
         ::new("Debug")

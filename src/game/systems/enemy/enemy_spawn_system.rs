@@ -11,7 +11,7 @@ use crate::{
                 transform::Transform,
                 velocity::Velocity,
             },
-            entity::Entity,
+            entity::{Entity, EntityAllocator},
             system::SystemContext,
             world::World,
         },
@@ -76,6 +76,7 @@ pub fn enemy_spawn_system(world: &mut World, system_context: &mut SystemContext)
                 system_context.asset_server.as_deref().unwrap(),
                 spawn_enemy_at.unwrap(),
                 enemy_spawn_scale.unwrap(),
+                system_context.entity_allocator,
             ))
         } else {
             None
@@ -100,7 +101,7 @@ pub fn enemy_spawn_system(world: &mut World, system_context: &mut SystemContext)
         .collect();
 
     for entity in &entities_to_despawn {
-        world.despawn(*entity);
+        system_context.commands.despawn(*entity);
     }
 
     let manager = world.get_resource_mut::<EnemySpawnManager>().unwrap();
@@ -117,11 +118,12 @@ fn spawn_enemy(
     asset_server: &AssetServer,
     position: Vector3<f32>,
     scale: Vector3<f32>,
+    allocator: &mut EntityAllocator,
 ) -> Entity {
     let starfigher_model_id = asset_server.get_model_id("starfighter_enemy");
 
     world
-        .spawn()
+        .spawn(allocator)
         .with(Enemy)
         .with(Renderable::new(starfigher_model_id))
         .with(Collider {

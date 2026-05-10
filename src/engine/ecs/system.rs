@@ -1,6 +1,8 @@
 use crate::engine::{
     assets::server::AssetServer,
     ecs::{
+        commands::commands::Commands,
+        entity::EntityAllocator,
         systems::{
             camera_update_system::camera_update_system,
             collision_system::collision_system,
@@ -18,6 +20,8 @@ pub struct SystemContext<'a> {
     pub device: Option<&'a wgpu::Device>,
     pub queue: Option<&'a wgpu::Queue>,
     pub asset_server: Option<&'a mut AssetServer>,
+    pub commands: &'a mut Commands,
+    pub entity_allocator: &'a mut EntityAllocator,
 }
 
 impl<'a> SystemContext<'a> {
@@ -25,13 +29,17 @@ impl<'a> SystemContext<'a> {
         delta_time: f32,
         device: &'a wgpu::Device,
         queue: &'a wgpu::Queue,
-        asset_server: &'a mut AssetServer
+        asset_server: &'a mut AssetServer,
+        commands: &'a mut Commands,
+        entity_allocator: &'a mut EntityAllocator,
     ) -> Self {
         Self {
             delta_time,
             device: Some(device),
             queue: Some(queue),
             asset_server: Some(asset_server),
+            commands,
+            entity_allocator,
         }
     }
 }
@@ -59,8 +67,20 @@ impl SystemSchedule {
                 collision_system,
                 camera_update_system,
                 render_sync_system,
-                event_swap_system
+                event_swap_system,
             ],
+            started: false,
+        }
+    }
+
+    /// Schedule with no pre-installed engine systems. Used in tests so we
+    /// don't drag in render_sync_system (which needs a real GPU queue).
+    #[cfg(test)]
+    pub fn empty() -> Self {
+        Self {
+            startup_systems: Vec::new(),
+            game_systems: Vec::new(),
+            engine_systems: Vec::new(),
             started: false,
         }
     }
@@ -73,25 +93,31 @@ impl SystemSchedule {
         self.game_systems.push(system);
     }
 
-    // run_all takes &mut self and &mut World. When you call each system with world,
-    // you're passing the same &mut World repeatedly through the loop. Rust will let you
-    // do this because each call completes before the next one starts - the borrow is
-    // released between iterations.
-    // We'll need to reconsider this if we want to run systems async
+    /// Run a single system, then drain any commands it queued into `world`.
+    /// Buffers are cleared (not dropped) before each system, so allocations
+    /// stay warm across frames.
+    fn run_system(world: &mut World, system_context: &mut SystemContext, system: System) {
+        system_context.commands.clear();
+        system(world, system_context);
+        system_context
+            .commands
+            .apply(world, system_context.entity_allocator);
+    }
+
     pub fn run_all(&mut self, world: &mut World, system_context: &mut SystemContext) {
         if !self.started {
             for system in &self.startup_systems {
-                system(world, system_context);
+                Self::run_system(world, system_context, *system);
             }
             self.started = true;
         }
 
         for game_system in &self.game_systems {
-            game_system(world, system_context);
+            Self::run_system(world, system_context, *game_system);
         }
 
         for engine_system in &self.engine_systems {
-            engine_system(world, system_context);
+            Self::run_system(world, system_context, *engine_system);
         }
     }
 }
@@ -114,12 +140,28 @@ mod tests {
         world.add_resource(system_context.delta_time);
     }
 
-    fn make_ctx() -> SystemContext<'static> {
-        SystemContext {
-            delta_time: 0.016,
-            device: None,
-            queue: None,
-            asset_server: None,
+    struct TestHarness {
+        commands: Commands,
+        allocator: EntityAllocator,
+    }
+
+    impl TestHarness {
+        fn new() -> Self {
+            Self {
+                commands: Commands::new(),
+                allocator: EntityAllocator::default(),
+            }
+        }
+
+        fn ctx(&mut self, delta_time: f32) -> SystemContext {
+            SystemContext {
+                delta_time,
+                device: None,
+                queue: None,
+                asset_server: None,
+                commands: &mut self.commands,
+                entity_allocator: &mut self.allocator,
+            }
         }
     }
 
@@ -127,22 +169,22 @@ mod tests {
     fn system_runs_and_mutates_world() {
         let mut world = World::new();
         world.add_resource(Counter(0));
-        let mut schedule = SystemSchedule::new();
+        let mut schedule = SystemSchedule::empty();
         schedule.add_game_system(increment_system);
-        schedule.run_all(&mut world, &mut make_ctx());
+        let mut harness = TestHarness::new();
+        schedule.run_all(&mut world, &mut harness.ctx(0.016));
         assert_eq!(world.get_resource::<Counter>().unwrap().0, 1);
     }
 
     #[test]
     fn systems_run_in_order() {
-        // increment then double → (0+1)*2 = 2
-        // reversed would be: double then increment → (0*2)+1 = 1
         let mut world = World::new();
         world.add_resource(Counter(0));
-        let mut schedule = SystemSchedule::new();
+        let mut schedule = SystemSchedule::empty();
         schedule.add_game_system(increment_system);
         schedule.add_game_system(double_system);
-        schedule.run_all(&mut world, &mut make_ctx());
+        let mut harness = TestHarness::new();
+        schedule.run_all(&mut world, &mut harness.ctx(0.016));
         assert_eq!(world.get_resource::<Counter>().unwrap().0, 2);
     }
 
@@ -150,33 +192,30 @@ mod tests {
     fn multiple_runs_accumulate() {
         let mut world = World::new();
         world.add_resource(Counter(0));
-        let mut schedule = SystemSchedule::new();
+        let mut schedule = SystemSchedule::empty();
         schedule.add_game_system(increment_system);
-        schedule.run_all(&mut world, &mut make_ctx());
-        schedule.run_all(&mut world, &mut make_ctx());
-        schedule.run_all(&mut world, &mut make_ctx());
+        let mut harness = TestHarness::new();
+        schedule.run_all(&mut world, &mut harness.ctx(0.016));
+        schedule.run_all(&mut world, &mut harness.ctx(0.016));
+        schedule.run_all(&mut world, &mut harness.ctx(0.016));
         assert_eq!(world.get_resource::<Counter>().unwrap().0, 3);
     }
 
     #[test]
     fn empty_schedule_does_not_panic() {
         let mut world = World::new();
-        let mut schedule = SystemSchedule::new();
-        schedule.run_all(&mut world, &mut make_ctx());
+        let mut schedule = SystemSchedule::empty();
+        let mut harness = TestHarness::new();
+        schedule.run_all(&mut world, &mut harness.ctx(0.016));
     }
 
     #[test]
     fn delta_time_is_accessible_in_system() {
         let mut world = World::new();
-        let mut schedule = SystemSchedule::new();
+        let mut schedule = SystemSchedule::empty();
         schedule.add_game_system(capture_dt_system);
-        let mut ctx = SystemContext {
-            delta_time: 1.0 / 60.0,
-            device: None,
-            queue: None,
-            asset_server: None,
-        };
-        schedule.run_all(&mut world, &mut ctx);
+        let mut harness = TestHarness::new();
+        schedule.run_all(&mut world, &mut harness.ctx(1.0 / 60.0));
         let stored = world.get_resource::<f32>().unwrap();
         assert!((stored - 1.0 / 60.0).abs() < f32::EPSILON);
     }

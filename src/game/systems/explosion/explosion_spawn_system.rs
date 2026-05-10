@@ -5,6 +5,7 @@ use crate::{
         assets::server::AssetServer,
         ecs::{
             components::{renderable::Renderable, transform::Transform},
+            entity::EntityAllocator,
             system::SystemContext,
             world::World,
         },
@@ -30,13 +31,19 @@ pub fn explosion_spawn_system(world: &mut World, system_context: &mut SystemCont
             world,
             system_context.asset_server.as_deref().unwrap(),
             origin,
+            system_context.entity_allocator,
         );
     }
 }
 
-fn spawn_explosion(world: &mut World, asset_server: &AssetServer, position: Vector3<f32>) {
+fn spawn_explosion(
+    world: &mut World,
+    asset_server: &AssetServer,
+    position: Vector3<f32>,
+    allocator: &mut EntityAllocator,
+) {
     world
-        .spawn()
+        .spawn(allocator)
         .with(Explosion::new())
         .with(Transform {
             position,

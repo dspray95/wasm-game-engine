@@ -6,7 +6,7 @@ use crate::engine::{
             collider::{Collider, ColliderShape},
             transform::Transform,
         },
-        entity::Entity,
+        entity::{Entity, EntityAllocator},
         events::collision_event::CollisionEvent,
         system::SystemContext,
         world::World,
@@ -14,9 +14,9 @@ use crate::engine::{
     events::events::Events,
 };
 
-pub fn collision_system(world: &mut World, _: &mut SystemContext) {
-    let snapshot: Vec<(Entity, Vector3<f32>, Collider)> = collect_colliders(world);
-    // log::info!("collision_system: {} colliders in snapshot", snapshot.len());
+pub fn collision_system(world: &mut World, system_context: &mut SystemContext) {
+    let snapshot: Vec<(Entity, Vector3<f32>, Collider)> =
+        collect_colliders(world, system_context.entity_allocator);
 
     let mut hits: Vec<CollisionEvent> = Vec::new();
 
@@ -45,11 +45,14 @@ pub fn collision_system(world: &mut World, _: &mut SystemContext) {
     }
 }
 
-fn collect_colliders(world: &mut World) -> Vec<(Entity, Vector3<f32>, Collider)> {
+fn collect_colliders(
+    world: &mut World,
+    allocator: &EntityAllocator,
+) -> Vec<(Entity, Vector3<f32>, Collider)> {
     let mut out = Vec::new();
     for (entity_id, collider) in world.iter_component::<Collider>() {
         if let Some(transform) = world.get_component_by_id::<Transform>(entity_id) {
-            if let Some(entity) = world.get_entity(entity_id) {
+            if let Some(entity) = allocator.lookup(entity_id) {
                 let (world_center, scaled) = resolve_collider(
                     collider,
                     transform.position,

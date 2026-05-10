@@ -62,42 +62,41 @@ fn collect_instance_groups(world: &World) -> HashMap<usize, Vec<InstanceRaw>> {
 mod tests {
     use super::*;
     use crate::engine::ecs::components::transform::Transform;
+    use crate::engine::ecs::entity::EntityAllocator;
 
-    fn world_with_components() -> World {
+    fn world_with_components() -> (World, EntityAllocator) {
         let mut world = World::new();
         world.register_component::<Transform>();
         world.register_component::<Renderable>();
-        world
+        (world, EntityAllocator::default())
     }
 
     #[test]
     fn no_entities_produces_empty_groups() {
-        let world = world_with_components();
+        let (world, _alloc) = world_with_components();
         assert!(collect_instance_groups(&world).is_empty());
     }
 
     #[test]
     fn entity_without_transform_is_excluded() {
-        let mut world = world_with_components();
-        let e = world.spawn_entity_only();
+        let (mut world, mut alloc) = world_with_components();
+        let e = alloc.spawn();
         world.add_component(e, Renderable::new(0));
-        // No Transform added — should not appear in groups
         assert!(collect_instance_groups(&world).is_empty());
     }
 
     #[test]
     fn entity_without_renderable_is_excluded() {
-        let mut world = world_with_components();
-        let e = world.spawn_entity_only();
+        let (mut world, mut alloc) = world_with_components();
+        let e = alloc.spawn();
         world.add_component(e, Transform::new());
-        // No Renderable added — should not appear in groups
         assert!(collect_instance_groups(&world).is_empty());
     }
 
     #[test]
     fn single_entity_produces_one_group_with_one_instance() {
-        let mut world = world_with_components();
-        let e = world.spawn_entity_only();
+        let (mut world, mut alloc) = world_with_components();
+        let e = alloc.spawn();
         world.add_component(e, Transform::new().with_position(1.0, 2.0, 3.0));
         world.add_component(e, Renderable::new(0));
 
@@ -108,9 +107,9 @@ mod tests {
 
     #[test]
     fn entities_with_same_model_id_are_grouped_together() {
-        let mut world = world_with_components();
+        let (mut world, mut alloc) = world_with_components();
         for _ in 0..3 {
-            let e = world.spawn_entity_only();
+            let e = alloc.spawn();
             world.add_component(e, Transform::new());
             world.add_component(e, Renderable::new(0));
         }
@@ -120,11 +119,11 @@ mod tests {
 
     #[test]
     fn entities_with_different_model_ids_go_to_separate_groups() {
-        let mut world = world_with_components();
-        for _model_id in [0, 1, 2] {
-            let e = world.spawn_entity_only();
+        let (mut world, mut alloc) = world_with_components();
+        for model_id in [0, 1, 2] {
+            let e = alloc.spawn();
             world.add_component(e, Transform::new());
-            world.add_component(e, Renderable::new(0));
+            world.add_component(e, Renderable::new(model_id));
         }
         let groups = collect_instance_groups(&world);
         assert_eq!(groups.len(), 3);
@@ -135,11 +134,11 @@ mod tests {
 
     #[test]
     fn despawned_entity_is_not_included() {
-        let mut world = world_with_components();
-        let e = world.spawn_entity_only();
+        let (mut world, mut alloc) = world_with_components();
+        let e = alloc.spawn();
         world.add_component(e, Transform::new());
         world.add_component(e, Renderable::new(0));
-        world.despawn(e);
+        world.despawn(e, &mut alloc);
         assert!(collect_instance_groups(&world).is_empty());
     }
 }

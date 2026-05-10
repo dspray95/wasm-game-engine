@@ -11,12 +11,15 @@ use crate::{
     },
     game::{
         components::{enemy::Enemy, laser::Laser},
-        events::enemy_killed_event::EnemyKilledEvent,
+        events::{
+            enemy_killed_event::EnemyKilledEvent,
+            score_event::{ScoreEvent, ScoreType},
+        },
         resources::{enemy_resources::EnemySpawnManager, laser_resources::LaserManager},
     },
 };
 
-pub fn laser_hit_system(world: &mut World, _system_context: &mut SystemContext) {
+pub fn laser_hit_system(world: &mut World, system_context: &mut SystemContext) {
     let collision_events: Vec<(Entity, Entity)> = world
         .get_resource::<Events<CollisionEvent>>()
         .unwrap()
@@ -28,6 +31,7 @@ pub fn laser_hit_system(world: &mut World, _system_context: &mut SystemContext) 
 
     let lasers_to_despawn: HashSet<Entity> = hits.iter().map(|(laser, _)| *laser).collect();
     let enemies_to_despawn: HashSet<Entity> = hits.iter().map(|(_, enemy)| *enemy).collect();
+
     let enemy_killed_events: Vec<EnemyKilledEvent> = enemies_to_despawn
         .iter()
         .filter_map(|enemy| {
@@ -37,26 +41,31 @@ pub fn laser_hit_system(world: &mut World, _system_context: &mut SystemContext) 
         })
         .collect();
 
-    if let Some(laser_manager) = world.get_resource_mut::<LaserManager>() {
-        laser_manager
-            .alive_lasers
-            .retain(|e| !lasers_to_despawn.contains(e));
-    }
+    let cmd = &mut system_context.commands;
 
-    if let Some(enemy_manager) = world.get_resource_mut::<EnemySpawnManager>() {
-        enemy_manager
-            .enemy_entities
-            .retain(|e| !enemies_to_despawn.contains(e));
+    {
+        let lasers = lasers_to_despawn.clone();
+        cmd.update_resource::<LaserManager, _>(move |m| {
+            m.alive_lasers.retain(|e| !lasers.contains(e));
+        });
+    }
+    {
+        let enemies = enemies_to_despawn.clone();
+        cmd.update_resource::<EnemySpawnManager, _>(move |m| {
+            m.enemy_entities.retain(|e| !enemies.contains(e));
+        });
     }
 
     for entity in lasers_to_despawn.into_iter().chain(enemies_to_despawn) {
-        world.despawn(entity);
+        cmd.despawn(entity);
     }
 
-    if let Some(killed_events) = world.get_resource_mut::<Events<EnemyKilledEvent>>() {
-        for event in enemy_killed_events {
-            log::info!("Sending enemy killed event");
-            killed_events.send(event);
-        }
+    for _ in 0..enemy_killed_events.len() {
+        cmd.send_event(ScoreEvent {
+            score_type: ScoreType::EnemyKilled,
+        });
+    }
+    for event in enemy_killed_events {
+        cmd.send_event(event);
     }
 }

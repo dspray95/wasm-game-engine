@@ -7,7 +7,7 @@ use crate::{
     game::components::explosion::Explosion,
 };
 
-pub fn explosion_lifecycle_system(world: &mut World, _system_context: &mut SystemContext) {
+pub fn explosion_lifecycle_system(world: &mut World, system_context: &mut SystemContext) {
     let now = Instant::now();
 
     let expired_explosions: Vec<u32> = world
@@ -21,8 +21,8 @@ pub fn explosion_lifecycle_system(world: &mut World, _system_context: &mut Syste
         .collect();
 
     for entity_id in expired_explosions {
-        if let Some(entity) = world.get_entity(entity_id) {
-            world.despawn(entity);
+        if let Some(entity) = system_context.entity_allocator.lookup(entity_id) {
+            system_context.commands.despawn(entity);
         }
     }
 

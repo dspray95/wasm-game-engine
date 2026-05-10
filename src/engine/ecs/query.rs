@@ -125,7 +125,8 @@ mod tests {
     #[test]
     fn immutable_fetch_returns_component() {
         let mut world = World::new();
-        let e = world.spawn().with(Position { x: 1.0, y: 2.0 }).build();
+        let mut alloc = crate::engine::ecs::entity::EntityAllocator::default();
+        let e = world.spawn(&mut alloc).with(Position { x: 1.0, y: 2.0 }).build();
         let pos = world.query::<&Position>(e.id).unwrap();
         assert_eq!(pos.x, 1.0);
     }
@@ -133,7 +134,8 @@ mod tests {
     #[test]
     fn mutable_fetch_allows_mutation() {
         let mut world = World::new();
-        let e = world.spawn().with(Position { x: 0.0, y: 0.0 }).build();
+        let mut alloc = crate::engine::ecs::entity::EntityAllocator::default();
+        let e = world.spawn(&mut alloc).with(Position { x: 0.0, y: 0.0 }).build();
         world.query::<&mut Position>(e.id).unwrap().x = 42.0;
         assert_eq!(world.query::<&Position>(e.id).unwrap().x, 42.0);
     }
@@ -141,7 +143,8 @@ mod tests {
     #[test]
     fn fetch_returns_none_for_missing_component() {
         let mut world = World::new();
-        let e = world.spawn().build();
+        let mut alloc = crate::engine::ecs::entity::EntityAllocator::default();
+        let e = world.spawn(&mut alloc).build();
         assert!(world.query::<&Position>(e.id).is_none());
     }
 
@@ -154,7 +157,8 @@ mod tests {
     #[test]
     fn two_component_mutable_query_mutates_both() {
         let mut world = World::new();
-        let e = world.spawn()
+        let mut alloc = crate::engine::ecs::entity::EntityAllocator::default();
+        let e = world.spawn(&mut alloc)
             .with(Position { x: 0.0, y: 0.0 })
             .with(Velocity { x: 0.0, y: 0.0 })
             .build();
@@ -170,14 +174,16 @@ mod tests {
     #[test]
     fn tuple_query_returns_none_if_any_component_missing() {
         let mut world = World::new();
-        let e = world.spawn().with(Position { x: 1.0, y: 0.0 }).build();
+        let mut alloc = crate::engine::ecs::entity::EntityAllocator::default();
+        let e = world.spawn(&mut alloc).with(Position { x: 1.0, y: 0.0 }).build();
         assert!(world.query::<(&Position, &Velocity)>(e.id).is_none());
     }
 
     #[test]
     fn three_component_query() {
         let mut world = World::new();
-        let e = world.spawn()
+        let mut alloc = crate::engine::ecs::entity::EntityAllocator::default();
+        let e = world.spawn(&mut alloc)
             .with(Position { x: 0.0, y: 0.0 })
             .with(Velocity { x: 0.0, y: 0.0 })
             .with(Health(100))
@@ -198,8 +204,9 @@ mod tests {
     #[test]
     fn query_iter_yields_all_entities_with_component() {
         let mut world = World::new();
+        let mut alloc = crate::engine::ecs::entity::EntityAllocator::default();
         for i in 0..3 {
-            world.spawn().with(Position { x: i as f32, y: 0.0 }).build();
+            world.spawn(&mut alloc).with(Position { x: i as f32, y: 0.0 }).build();
         }
         let xs: Vec<f32> = world.query_iter::<&Position>().map(|p| p.x).collect();
         assert_eq!(xs.len(), 3);
@@ -208,13 +215,14 @@ mod tests {
     #[test]
     fn query_iter_skips_entities_missing_secondary_component() {
         let mut world = World::new();
+        let mut alloc = crate::engine::ecs::entity::EntityAllocator::default();
         // Entity with both
-        world.spawn()
+        world.spawn(&mut alloc)
             .with(Position { x: 1.0, y: 0.0 })
             .with(Velocity { x: 0.0, y: 0.0 })
             .build();
         // Entity with only Position — should be skipped
-        world.spawn()
+        world.spawn(&mut alloc)
             .with(Position { x: 2.0, y: 0.0 })
             .build();
 
@@ -225,7 +233,8 @@ mod tests {
     #[test]
     fn query_iter_empty_when_no_entities_have_primary_component() {
         let mut world = World::new();
-        world.spawn().with(Velocity { x: 1.0, y: 0.0 }).build();
+        let mut alloc = crate::engine::ecs::entity::EntityAllocator::default();
+        world.spawn(&mut alloc).with(Velocity { x: 1.0, y: 0.0 }).build();
         // No Position components — iterator driven by Position should be empty
         let count = world.query_iter::<(&Position, &Velocity)>().count();
         assert_eq!(count, 0);
@@ -234,8 +243,9 @@ mod tests {
     #[test]
     fn query_iter_mutation_affects_stored_components() {
         let mut world = World::new();
+        let mut alloc = crate::engine::ecs::entity::EntityAllocator::default();
         for _ in 0..3 {
-            world.spawn()
+            world.spawn(&mut alloc)
                 .with(Position { x: 0.0, y: 0.0 })
                 .with(Velocity { x: 1.0, y: 0.0 })
                 .build();
