@@ -8,8 +8,21 @@ The engine currently manages scene objects via a flat `Vec<Model>` with hardcode
 
 **Why sparse set over alternatives:**
 - **vs HashMap per component:** HashMap has pointer chasing and poor cache locality. City builders iterate thousands of entities per frame — you'll feel this.
-- **vs Archetype-based (Bevy-style):** Best iteration perf but extremely complex to implement from scratch (dynamic column management, archetype graphs, entity migration). Obscures the core ECS concepts you're trying to learn.
-- **Sparse set sweet spot:** O(1) insert/remove/lookup, contiguous dense array for iteration, conceptually simple. The tradeoff (cross-component queries need lookups into second set) is acceptable — still O(1) per entity.
+- **vs Archetype-based (Bevy-style):** Archetypes win for iteration-heavy workloads with stable component sets — entities of the same shape are stored contiguously, so joining `(A, B)` is a linear scan rather than two sparse lookups per entity. The cost is per-entity component add/remove, which moves the entity between archetype tables. Also very complex to implement from scratch (dynamic column management, archetype graphs, entity migration), and obscures the core ECS concepts you're trying to learn.
+- **Sparse set sweet spot:** O(1) insert/remove/lookup, contiguous dense iteration *per component*, conceptually simple. Cross-component queries (`Renderable` + `Transform`, etc.) do two sparse-set lookups per entity — still O(1) but loses the cache-friendly story that single-component iteration has.
+
+**Honest summary of the tradeoff:**
+
+| | Sparse sets (this engine) | Archetypes (Bevy default) |
+|---|---|---|
+| Add/remove component | O(1), no entity movement | Entity moves between archetype tables |
+| Iterate `(A,)` alone | Dense, cache-friendly | Same |
+| Iterate `(A, B)` join | Two sparse lookups per entity | Contiguous scan, cache-friendly |
+| Implementation complexity | Low | High |
+
+Bevy actually supports **both** — components default to archetype storage (`Table`), and you opt in to sparse storage with `#[component(storage = "SparseSet")]` for components that get added/removed often. The "right answer" is per-component.
+
+For this engine, sparse sets are fine through the city-builder's expected scale. The point at which it would matter is ~100k entities iterated every frame in joined queries (per-tick simulation of a packed map). If profiling shows that's a bottleneck, the upgrade path is to add archetype storage as an opt-in alongside sparse — not to rip out the existing storage.
 
 ## Key Architectural Considerations
 

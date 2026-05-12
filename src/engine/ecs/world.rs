@@ -226,12 +226,24 @@ impl World {
     }
 
     pub fn register_event<T: 'static + Send + Sync>(&mut self) {
+        if self.get_resource::<Events<T>>().is_some() {
+            log::warn!(
+                "register_event: Events<{}> already registered — replacing wipes any unread events from the previous registration. Likely a bootstrap-ordering bug.",
+                std::any::type_name::<T>()
+            );
+        }
         self.add_resource(Events::<T>::default());
         if let Some(registry) = self.get_resource_mut::<EventRegistry>() {
             registry.register::<T>();
         } else {
             log::warn!("EventRegistry not present — event type registered but won't be cleaned up");
         }
+    }
+
+    pub fn events<T: 'static>(&self) -> impl Iterator<Item = &T> + '_ {
+        self.get_resource::<Events<T>>()
+            .into_iter()
+            .flat_map(|e| e.read())
     }
 }
 

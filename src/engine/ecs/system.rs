@@ -4,10 +4,8 @@ use crate::engine::{
         commands::commands::Commands,
         entity::EntityAllocator,
         systems::{
-            camera_update_system::camera_update_system,
-            collision_system::collision_system,
-            event_swap_system::event_swap_system,
-            render_sync_system::render_sync_system,
+            camera_update_system::camera_update_system, collision_system::collision_system,
+            event_swap_system::event_swap_system, render_sync_system::render_sync_system,
             velocity_system::velocity_system,
         },
         world::World,
@@ -41,6 +39,10 @@ impl<'a> SystemContext<'a> {
             commands,
             entity_allocator,
         }
+    }
+
+    pub fn commands(&mut self) -> &mut Commands {
+        &mut *self.commands
     }
 }
 

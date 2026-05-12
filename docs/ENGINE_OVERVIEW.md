@@ -8,9 +8,10 @@ A jumping-off point for understanding how the engine fits together. Covers the c
 src/engine/
 ├── app.rs              — winit application handler, window + event routing
 ├── state/              — application state, GPU state, render state
-├── ecs/                — custom Entity Component System
+├── ecs/                — custom Entity Component System (incl. commands buffer, world RON loader)
 ├── assets/             — asset server, RON loader
-├── scene/              — scene trait + RON scene loader
+├── game_setup.rs       — `GameSetup` trait that game code implements to register systems/components/UI
+├── events/             — generic double-buffered Events<T> infrastructure
 ├── input/              — input state, key binding descriptors
 ├── ui/                 — egui integration + UI panel registry
 ├── model/              — model loading, mesh, material, vertex, draw
@@ -37,7 +38,9 @@ The engine has four major subsystems that talk to each other through `World`:
                 │          AppState               │
                 │  owns: window, engine_state,    │
                 │         render_state, world,    │
-                │         egui_state, ui_registry │
+                │         egui_state, ui_registry,│
+                │         entity_allocator,       │
+                │         commands                │
                 └───┬──────────┬──────────┬───────┘
                     │          │          │
                     ▼          ▼          ▼
@@ -63,17 +66,31 @@ A custom sparse-set ECS, intentionally hand-built (not Bevy or specs) as a learn
 ### Core types
 
 - **`Entity { id: u32, generation: u32 }`** ([entity.rs](../src/engine/ecs/entity.rs)) — generational index. Generations prevent stale-handle bugs after despawn.
-- **`SparseSet<T>`** ([sparse_set.rs](../src/engine/ecs/sparse_set.rs)) — backing storage per component type. `sparse[entity_id] → dense_index → data[dense_index]`. O(1) insert/remove/lookup, contiguous dense iteration.
-- **`World`** ([world.rs](../src/engine/ecs/world.rs)) — owns all component storages and resources. Components keyed by `TypeId`, stored as `Box<dyn ComponentStorage>` and downcast to `SparseSet<T>` when accessed.
+- **`EntityAllocator`** ([entity.rs](../src/engine/ecs/entity.rs)) — mints new IDs, tracks live/dead generations, recycles slots. **Lives on `AppState`, not `World`** — kept separate so the borrow checker can lend it out alongside an immutable `&World` to systems and to `Commands::spawn`. Persists across frames.
+- **`SparseSet<T>`** ([sparse_set.rs](../src/engine/ecs/sparse_set.rs)) — backing storage per component type. `sparse[entity_id] → dense_index → data[dense_index]`. O(1) insert/remove/lookup, contiguous dense iteration over a single component. Note: joining two components (the common case in systems) does two sparse-set lookups per entity, which archetype storage would avoid. See `docs/ECS_IMPL.md` for the tradeoff vs archetypes.
+- **`World`** ([world.rs](../src/engine/ecs/world.rs)) — owns all component storages and resources. Components keyed by `TypeId`, stored as `Box<dyn ComponentStorage>` and downcast to `SparseSet<T>` when accessed. Does **not** own the entity allocator (see above) — `world.spawn(&mut allocator)` and `world.despawn(entity, &mut allocator)` thread it in explicitly.
 
 ### Adding components
 
+Two paths, depending on whether you're inside a system (use `Commands`) or doing setup (use `World` directly with the allocator):
+
 ```rust
-world.spawn().with(Transform::new()).with(Velocity { ... }).build();
-// or
-let entity = world.spawn_entity_only();
-world.add_component(entity, Transform::new());
+// Inside a system — deferred via Commands, applied between systems
+let entity = system_context.commands
+    .spawn(system_context.entity_allocator)
+    .with(Transform::new())
+    .with(Velocity { ... })
+    .build();
+
+// In setup / startup code with direct &mut World access
+let entity = world
+    .spawn(&mut allocator)
+    .with(Transform::new())
+    .with(Velocity { ... })
+    .build();
 ```
+
+Both forms allocate the entity ID synchronously (the builder returns a real `Entity` immediately), so you can use the handle in the same scope. With `Commands`, the actual component inserts are queued and applied after the system returns.
 
 ### Querying
 
@@ -104,20 +121,62 @@ pub type System = fn(&mut World, &mut SystemContext);
 `SystemContext` carries per-frame inputs that aren't on `World`:
 - `delta_time: f32`
 - Optional `&wgpu::Device`, `&wgpu::Queue`, `&mut AssetServer` (only for systems that need GPU access)
+- `&mut Commands` — deferred-mutation buffer for the system to enqueue spawns/despawns/events/resource updates against (see Commands section below)
+- `&mut EntityAllocator` — for synchronous entity ID allocation when spawning
 
 `SystemSchedule` ([system.rs](../src/engine/ecs/system.rs)) runs systems in a fixed order, split into three buckets:
 
-1. **`startup_systems`** — run once on first tick (scene initialization)
-2. **`game_systems`** — game-side logic (added by `Scene::setup_ecs`)
-3. **`engine_systems`** — fixed engine systems (currently `velocity_system`, `camera_update_system`, `render_sync_system`, in that order)
+1. **`startup_systems`** — run once on first tick (game initialization)
+2. **`game_systems`** — game-side logic (added by `GameSetup::setup_ecs`)
+3. **`engine_systems`** — fixed engine systems (currently `velocity_system`, `collision_system`, `camera_update_system`, `render_sync_system`, `event_swap_system`, in that order)
+
+Between every system call the schedule clears the `Commands` buffer, runs the system, then applies any commands the system queued. This means a system can't see its own queued mutations during its run, but the next system always will.
 
 Engine systems always run last so they pick up all logic mutations from game systems before pushing to the GPU.
 
 ### Built-in engine systems
 
 - **`velocity_system`** ([systems/velocity_system.rs](../src/engine/ecs/systems/velocity_system.rs)) — applies `Velocity` to `Transform` each frame.
+- **`collision_system`** ([systems/collision_system.rs](../src/engine/ecs/systems/collision_system.rs)) — broadphase AABB/sphere overlap checks against all entities with `Collider`, emits `CollisionEvent`s.
 - **`camera_update_system`** ([systems/camera_update_system.rs](../src/engine/ecs/systems/camera_update_system.rs)) — reads `ActiveCamera` entity's `Transform`, updates the camera's view-projection matrix, uploads to GPU.
 - **`render_sync_system`** ([systems/render_sync_system.rs](../src/engine/ecs/systems/render_sync_system.rs)) — groups all `(Renderable, Transform)` entities by `model_id`, builds instance buffers, uploads via `queue.write_buffer`. The bridge between ECS and rendering.
+- **`event_swap_system`** ([systems/event_swap_system.rs](../src/engine/ecs/systems/event_swap_system.rs)) — rotates the double-buffered `Events<T>` queues so events from frame N are readable in frame N+1, then dropped.
+
+### Commands (deferred mutation buffer)
+
+`Commands` ([ecs/commands/](../src/engine/ecs/commands/)) is the deferred-mutation API for systems. Without it, every system would need `&mut World` to spawn, despawn, send events, or mutate resources — which makes it hard to read multiple resources at once and prevents future parallelisation.
+
+Instead, systems take `&mut World` for direct reads/mutations *and* `&mut Commands` (via `system_context.commands`) for deferred operations. The schedule applies the queued commands after each system returns.
+
+```rust
+// Despawn — queued, applied after the system
+system_context.commands.despawn(entity);
+
+// Send event — queued in a typed per-event-type buffer
+system_context.commands.send_event(EnemyKilledEvent { origin });
+
+// Update resource — closure-based, applied after the system
+system_context.commands.update_resource::<LaserManager, _>(move |manager| {
+    manager.alive_lasers.retain(|e| !dead.contains(e));
+});
+
+// Spawn — entity ID allocated synchronously, components queued
+let entity = system_context.commands
+    .spawn(system_context.entity_allocator)
+    .with(Transform { ... })
+    .with(Renderable { model_id })
+    .build();
+```
+
+**Why this shape:**
+- Per-event-type buffers (`HashMap<TypeId, Box<dyn AnyEventBuffer>>`) avoid per-event allocation. The `Box` exists once per event type, the inner `Vec<T>` stays warm across frames.
+- Tagged storage for despawns (plain `Vec<Entity>`) and component inserts (per-type `Vec<(Entity, T)>`) — no allocation per command at scale.
+- `update_resource` and `Custom` paths use boxed closures (rare, escape hatch for arbitrary mutations).
+- `Commands` lives on `AppState`, owned across frames — `clear()` between systems resets length but keeps capacity.
+
+**Order within `apply`:** component inserts → component removes → events → resource updates → despawns → custom. Spawns happened synchronously already.
+
+**When to use direct `&mut World` vs Commands:** when you need to read components or resources *immediately after* mutating them within the same system, you must mutate directly — Commands buffers don't apply until the system returns. Otherwise prefer Commands; it composes better and keeps the door open for parallel scheduling later.
 
 ### Component registry
 
@@ -138,10 +197,11 @@ A reference list of resources installed into `World` by the engine itself (not b
 | `InputState` | engine input | `AppState::handle_keyboard_input`, `clear_transient` per frame | game systems, UI panels |
 | `FpsCounter` | engine timing | `AppState::update` (each frame) | UI panels (debug) |
 | `ActiveCamera(Entity)` | ECS pointer | scene startup (`world.create_active_camera`) | `camera_update_system`, render path, resize handler |
-| `SurfaceDimensions` | engine state | `AppState::install_window_state`, `handle_resized` | systems needing aspect ratio (camera projection on resize) |
-| `CameraBindGroupLayout` | GPU handle | `AppState::install_window_state` (forwarded from `EngineState::new`) | scene startup when spawning camera entities |
-| `EventRegistry` | engine infrastructure | `AppState::install_window_state`, `register_event::<T>` calls | `event_swap_system` |
-| `Events<T>` | engine infrastructure (one per event type) | producer systems via `events_mut().send(...)` | consumer systems via `events().read()` |
+| `SurfaceDimensions` | engine state | `AppState::bootstrap`, `handle_resized` | systems needing aspect ratio (camera projection on resize) |
+| `CameraBindGroupLayout` | GPU handle | `AppState::bootstrap` (forwarded from `EngineState::new`) | scene startup when spawning camera entities |
+| `EventRegistry` | engine infrastructure | `AppState::bootstrap`, `register_event::<T>` calls | `event_swap_system` |
+| `Events<T>` | engine infrastructure (one per event type) | producer systems via `events_mut().send(...)` or `Commands::send_event` | consumer systems via `events().read()` |
+| `EntityCount(usize)` | engine timing | `AppState::update` (refreshed each frame from the allocator) | UI panels (debug) — read-only snapshot for code that doesn't have access to the allocator |
 
 **Game-specific resources** (out of scope for this engine doc) live in `src/game/resources/` and are listed here only as examples of the pattern: `Bindings<Action>`, `MovePlayer(bool)`, `FreeCameraEnabled(bool)`, `ShowDebugPanel(bool)`, `TerrainGeneration`, `TerrainModelIds`, `LaserModelId`, `LaserManager`.
 
@@ -203,7 +263,7 @@ Each entity with a `Renderable` component (carrying a `model_id`) and a `Transfo
 
 Implements `winit::ApplicationHandler`. Two responsibilities:
 
-1. **`resumed`** — first window creation. Constructs the window, surface, `EngineState`, `RenderState`, and the initial `Scene`, then calls `AppState::install_window_state`.
+1. **`resumed`** — first window creation. Constructs the window, surface, `EngineState`, `RenderState`, and runs the `GameSetup` bootstrap pipeline via `AppState::bootstrap`.
 2. **`window_event`** — dispatches winit events. Forwards everything to egui first (via `EguiState::on_window_event`), gates input-affecting events on egui's `consumed` flag, and routes the rest to AppState.
 
 Cross-platform-aware via `#[cfg(target_arch = "wasm32")]` blocks (e.g. async GPU init for WASM, debounced canvas resize). The native path is the primary target now.
@@ -214,8 +274,9 @@ Holds runtime state:
 - `instance: wgpu::Instance` (created early so it's available for surface creation)
 - `Option<EngineState>`, `Option<RenderState>`, `Option<Window>` (filled in once the window is created)
 - `Option<World>`, `Option<AssetServer>`, `Option<SystemSchedule>`, `Option<UIRegistry>`, `Option<EguiState>`
+- `entity_allocator: EntityAllocator` and `commands: Commands` — owned, persistent across frames. Both are lent into `SystemContext` each frame so systems can spawn/despawn and queue mutations.
 
-The `Option`s are because `AppState::new` runs before `winit` has produced a window. Everything that needs GPU/window context gets installed in `install_window_state`.
+The `Option`s are because `AppState::new` runs before `winit` has produced a window. Everything that needs GPU/window context gets installed in `bootstrap`. The non-`Option` fields (`entity_allocator`, `commands`) initialise empty in `AppState::new` and stay alive for the lifetime of the app.
 
 `handle_redraw_requested` is the per-frame entry point — see "Frame Lifecycle" below.
 
@@ -263,24 +324,30 @@ GPU model data (vertex/index/instance buffers) is constructed at registration ti
 
 ---
 
-## Scenes
+## Game setup
 
-### `Scene` trait ([scene/scene.rs](../src/engine/scene/scene.rs))
+### `GameSetup` trait ([game_setup.rs](../src/engine/game_setup.rs))
 
-The hook for game code to register systems and UI panels:
+The hook for game code to register systems, UI panels, components, and assets:
 
 ```rust
-pub trait Scene {
-    fn setup_ecs(&self, schedule: &mut SystemSchedule) {}
-    fn setup_ui(&self, ui_registry: &mut UIRegistry) {}
+pub trait GameSetup {
+    type Action;
+    fn setup_ecs(&self, schedule: &mut SystemSchedule);
+    fn setup_ui(&self, ui_registry: &mut UIRegistry);
+    fn register_components(&self, registry: &mut ComponentRegistry);
+    fn load_assets(&self, gpu: &GpuContext, assets: &mut AssetServer, world: &mut World);
+    fn setup(&self, world: &mut World, system_context: &mut SystemContext);
+    fn world_ron(&self) -> Option<&'static str> { None }
+    fn bindings_ron(&self) -> Option<&'static str> { None }
 }
 ```
 
-Each game scene (e.g. `CanyonRunnerScene`) implements this. The engine calls both methods during `install_window_state`.
+Each game (e.g. `CanyonRunnerWorld`) implements this. The engine calls these methods in a fixed order during `bootstrap`. `setup` runs last so it can query/modify entities loaded from the world RON.
 
-### Scene descriptor / RON loading
+### World descriptor / RON loading
 
-`scene/scene_descriptor.rs` implements the custom `Deserialize` chain (`SceneDescriptorSeed → EntityListSeed → EntitySeed → ComponentSeed`) that drives `World` directly from a RON file. Each component name is dispatched through the `ComponentRegistry` to its registered deserializer. `Renderable` is special-cased — model name string is resolved to `model_id` via `AssetServer` at load time.
+`ecs/world_descriptor.rs` implements the custom `Deserialize` chain (`WorldDescriptorSeed → EntityListSeed → EntitySeed → ComponentSeed`) that drives `World` directly from a RON file. The seeds carry the `EntityAllocator` so each spawned entity gets a real ID. Each component name is dispatched through the `ComponentRegistry` to its registered deserializer. `Renderable` is special-cased — model name string is resolved to `model_id` via `AssetServer` at load time.
 
 See `docs/SCENE_SERIALISATION.md` for full details on the dispatch architecture and the rationale behind it.
 
@@ -308,7 +375,7 @@ Mirrors `SystemSchedule` for UI panels. A panel is a function:
 pub type UIPanel = fn(&egui::Context, &mut World);
 ```
 
-Game code registers panels in `Scene::setup_ui`. The registry's `draw_all` is called inside the egui run closure each frame.
+Game code registers panels in `GameSetup::setup_ui`. The registry's `draw_all` is called inside the egui run closure each frame.
 
 Panel state lives as World resources (e.g. `ShowDebugPanel(bool)`), keeping panels stateless functions and matching the rest of the engine's architecture.
 
@@ -327,10 +394,12 @@ What happens during one `handle_redraw_requested`, in order:
 2. update():
    2a. FpsCounter.update()            — bump counter
    2b. Compute delta_time
-   2c. SystemSchedule.run_all:
+   2c. Refresh EntityCount resource from EntityAllocator
+   2d. SystemSchedule.run_all:
        - startup_systems (first frame only)
        - game_systems (player, hover, terrain, laser, ...)
-       - engine_systems (velocity → camera_update → render_sync)
+       - engine_systems (velocity → collision → camera_update → render_sync → event_swap)
+       (between every system: clear Commands buffer → run system → apply queued commands)
 3. egui_state.run(...):
    - ui_registry.draw_all → each registered UIPanel
 4. InputState.clear_transient()       — wipe just_pressed/released after consumers
@@ -358,9 +427,9 @@ Keyboard events arrive before redraw via `App::window_event`, recorded into `Inp
 
 | Want to add… | Touch… |
 |---|---|
-| New gameplay system | `src/game/systems/`, register in `Scene::setup_ecs` |
+| New gameplay system | `src/game/systems/`, register in `GameSetup::setup_ecs` |
 | New component type | `src/game/components/`, derive `Serialize/Deserialize` if it should appear in scene RON, register in `ComponentRegistry` |
-| New UI panel | `src/game/ui/panels/` (or `engine/ui/built_in/` if engine-level), register in `Scene::setup_ui` |
+| New UI panel | `src/game/ui/panels/` (or `engine/ui/built_in/` if engine-level), register in `GameSetup::setup_ui` |
 | New input action | Add variant to `Action` enum, add binding in `assets/bindings.ron` |
 | New world resource | `world.add_resource(...)` somewhere in scene startup |
 | New rendering capability | `src/engine/state/render_state.rs` for pass-level changes; `src/engine/render_pipeline.rs` for new pipelines |

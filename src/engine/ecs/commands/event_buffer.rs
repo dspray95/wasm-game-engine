@@ -26,6 +26,13 @@ impl<T: 'static + Send + Sync> AnyEventBuffer for EventBuffer<T> {
             for event in self.pending.drain(..) {
                 events.send(event);
             }
+        } else if !self.pending.is_empty() {
+            log::error!(
+                "Commands::send_event: Events<{}> not registered; {} event(s) dropped. Did you forget world.register_event?",
+                std::any::type_name::<T>(),
+                self.pending.len()
+            );
+            self.pending.clear();
         }
     }
 

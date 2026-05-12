@@ -1,7 +1,9 @@
 pub struct PlayerScore {
-    score: i32,
-    increment: i32,
-    multiplier: i32,
+    pub score: i32,
+    pub increment: i32,
+    pub multiplier: i32,
+    pub increment_interval_seconds: f32,
+    pub time_since_last_increment: f32,
 }
 
 impl PlayerScore {
@@ -10,6 +12,8 @@ impl PlayerScore {
             score: 0,
             increment: 10,
             multiplier: 1,
+            increment_interval_seconds: 0.75,
+            time_since_last_increment: 0.0,
         }
     }
 }

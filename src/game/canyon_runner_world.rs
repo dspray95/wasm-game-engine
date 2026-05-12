@@ -30,6 +30,7 @@ use crate::{
             enemy_resources::EnemySpawnManager,
             laser_resources::LaserManager,
             move_player::MovePlayer,
+            player_score::PlayerScore,
             terrain_resources::{TerrainGeneration, TerrainModelIds},
         },
         systems::{
@@ -42,6 +43,7 @@ use crate::{
             },
             hover_system::hover_system,
             laser::{laser_hit_system::laser_hit_system, laser_system::laser_system},
+            player_score_system::player_score_system,
             player_system::player_system,
             terrain_system::terrain_system,
         },
@@ -67,6 +69,7 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(explosion_spawn_system);
         schedule.add_game_system(explosion_lifecycle_system);
         schedule.add_game_system(collider_debug_system);
+        schedule.add_game_system(player_score_system);
     }
 
     fn setup_ui(&self, ui_registry: &mut crate::engine::ui::ui_registry::UIRegistry) {
@@ -127,6 +130,7 @@ impl GameSetup for CanyonRunnerWorld {
 
         // Player setup
         world.add_resource(MovePlayer(true));
+        world.add_resource(PlayerScore::new());
 
         // Enemy setup
         world.add_resource(EnemySpawnManager {

@@ -19,14 +19,10 @@ pub fn explosion_spawn_system(world: &mut World, system_context: &mut SystemCont
         .get_resource::<Events<EnemyKilledEvent>>()
         .unwrap()
         .read()
-        .map(|e| {
-            log::info!("Read enemy killed event");
-            e.origin
-        })
+        .map(|e| e.origin)
         .collect();
 
     for origin in enemy_killed_event_positions {
-        log::info!("spawning explosion");
         spawn_explosion(
             world,
             system_context.asset_server.as_deref().unwrap(),

@@ -41,31 +41,33 @@ pub fn laser_hit_system(world: &mut World, system_context: &mut SystemContext) {
         })
         .collect();
 
-    let cmd = &mut system_context.commands;
-
     {
         let lasers = lasers_to_despawn.clone();
-        cmd.update_resource::<LaserManager, _>(move |m| {
-            m.alive_lasers.retain(|e| !lasers.contains(e));
-        });
+        system_context
+            .commands()
+            .update_resource::<LaserManager, _>(move |m| {
+                m.alive_lasers.retain(|e| !lasers.contains(e));
+            });
     }
     {
         let enemies = enemies_to_despawn.clone();
-        cmd.update_resource::<EnemySpawnManager, _>(move |m| {
-            m.enemy_entities.retain(|e| !enemies.contains(e));
-        });
+        system_context
+            .commands()
+            .update_resource::<EnemySpawnManager, _>(move |m| {
+                m.enemy_entities.retain(|e| !enemies.contains(e));
+            });
     }
 
     for entity in lasers_to_despawn.into_iter().chain(enemies_to_despawn) {
-        cmd.despawn(entity);
+        system_context.commands().despawn(entity);
     }
 
     for _ in 0..enemy_killed_events.len() {
-        cmd.send_event(ScoreEvent {
+        system_context.commands().send_event(ScoreEvent {
             score_type: ScoreType::EnemyKilled,
         });
     }
     for event in enemy_killed_events {
-        cmd.send_event(event);
+        system_context.commands().send_event(event);
     }
 }

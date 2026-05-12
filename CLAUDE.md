@@ -36,7 +36,7 @@ cargo test --lib -- --nocapture       # With stdout
 
 ### ECS Core (`src/engine/ecs/`)
 
-The ECS uses **sparse sets** for O(1) insert/remove/lookup with cache-friendly dense iteration. Key types:
+The ECS uses **sparse sets** for O(1) insert/remove/lookup with cache-friendly iteration over a single component. Joining two components (`Renderable` + `Transform`) does two sparse lookups per entity — fine at current scale, would be a contiguous scan in an archetype ECS. See `docs/ECS_IMPL.md` for the full tradeoff. Key types:
 
 - `Entity` — generational ID (index + generation) to prevent stale-handle bugs after despawn
 - `World` — owns all component storage and resources; is the single source of truth
