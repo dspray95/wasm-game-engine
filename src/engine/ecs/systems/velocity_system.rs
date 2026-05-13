@@ -9,7 +9,7 @@ use crate::engine::ecs::{
 /// means no write happens, so the velocity stays at zero.
 pub fn velocity_system(world: &mut World, system_context: &mut SystemContext) {
     let dt = system_context.delta_time;
-    for (transform, velocity) in world.query_iter::<(&mut Transform, &mut Velocity)>() {
+    for (transform, velocity) in world.query_iter_mut::<(&mut Transform, &mut Velocity)>() {
         transform.position.x += velocity.x * dt;
         transform.position.y += velocity.y * dt;
         transform.position.z += velocity.z * dt;

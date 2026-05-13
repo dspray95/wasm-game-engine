@@ -1,9 +1,10 @@
-pub mod canyon_runner_world;
-pub mod cube;
-pub mod systems;
-pub mod components;
-pub mod resources;
-pub mod helpers;
 pub mod assets;
-pub mod input;
+pub mod canyon_runner_world;
+pub mod components;
+pub mod cube;
 pub mod events;
+pub mod helpers;
+pub mod input;
+pub mod resources;
+pub mod systems;
+pub mod ui;

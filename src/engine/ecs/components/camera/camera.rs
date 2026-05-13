@@ -21,6 +21,7 @@ pub struct Camera {
     pub pitch: Rad<f32>,
     pub projection: Projection,
     pub render_pass_data: CameraRenderPassData,
+    pub shake_offset: Vector3<f32>,
 }
 
 impl Camera {
@@ -30,7 +31,13 @@ impl Camera {
         projection: Projection,
         render_pass_data: CameraRenderPassData
     ) -> Self {
-        Self { yaw, pitch, projection, render_pass_data }
+        Self {
+            yaw,
+            pitch,
+            projection,
+            render_pass_data,
+            shake_offset: Vector3::new(0.0, 0.0, 0.0),
+        }
     }
 
     pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {

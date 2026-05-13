@@ -52,7 +52,7 @@ GPU rendering is wgpu-based with instanced draw calls:
 - `render_sync_system` — ECS frame system that groups entities by `model_id`, writes instance transforms to GPU buffers via `queue.write_buffer`
 - `EngineState` — wgpu device/queue/surface setup
 - `RenderState` — manages render passes, depth texture, draw calls
-- `Camera` — singleton (not in ECS) with its own bind group; holds view/projection matrices
+- `Camera` — ECS component; the `ActiveCamera` resource holds the entity ID of the camera currently rendering. Camera entities carry a `Transform` for position and a `Camera` component for view/projection state and the wgpu bind group.
 
 Shaders are WGSL: `src/shader.wgsl` (main), `src/wireframe.wgsl`.
 
@@ -78,7 +78,7 @@ See `docs/ECS_IMPL.md` for the full design document. Current status:
 - **Phase 3** (player/laser via ECS) ✓
 - **Phase 4** (engine foundations) — in progress:
   - **OBJ asset loading + AssetServer** ✓ — `load_model_from_obj_bytes` parses OBJ/MTL via `include_bytes!` at compile time. `AssetServer` wraps `ModelRegistry` with a name→ID `HashMap`, so systems look up models via `asset_server.get_model_id("starfighter")` instead of holding wrapper resources like `StarfighterModelId(usize)`.
-  - **Camera into ECS** — Camera becomes a component on an entity rather than a singleton resource. Add `CameraFollow` component to express tracking relationships. Enables `velocity_system` to move the camera naturally and supports multiple cameras (minimap, reflections) later.
+  - **Camera into ECS** ✓ — `Camera` is now a component; `ActiveCamera` resource selects which entity's camera renders. `CameraFollow` for tracking relationships and support for multiple cameras (minimap, reflections) remain future work.
   - **Scene serialisation (RON)** — `assets/scenes/*.ron` declares models + entity archetypes; a generic loader deserialises and spawns entities, replacing hand-coded startup functions like `canyon_runner_startup`. Requires `#[derive(Serialize, Deserialize)]` on all components plus a tagged-enum dispatch so the loader knows which component type each entry represents. Sits on top of the AssetServer, and shares its component registry with the bincode save path planned below.
   - **egui UI** — integrate `egui` with its `wgpu` backend for in-game UI. Immediate-mode, well-maintained, good fit for debug panels and eventual city-builder HUD. Renders as a separate pass after the main scene.
   - **Input action layer** — mappings loaded from `assets/bindings.ron` at startup; `InputState` exposes `is_action_pressed("strafe_left")` rather than raw `KeyCode`s. Systems declare intent via action names, letting users rebind keys and decoupling game logic from winit.

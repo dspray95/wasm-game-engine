@@ -82,7 +82,7 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
 
     for laser_entity in alive_lasers {
         if let Some((laser, transform, velocity)) =
-            world.query::<(&mut Laser, &mut Transform, &mut Velocity)>(laser_entity.id)
+            world.query_mut::<(&mut Laser, &mut Transform, &mut Velocity)>(laser_entity.id)
         {
             let distance_travelled = (transform.position.z - laser.initial_z).abs();
             if distance_travelled > max_travel_distance {

@@ -28,6 +28,7 @@ use crate::engine::ecs::{
 pub struct Commands {
     despawns: Vec<Entity>,
     component_inserts: HashMap<TypeId, Box<dyn AnyComponentBuffer>>,
+    component_updates: Vec<Box<dyn FnOnce(&mut World)>>,
     component_removes: Vec<(Entity, fn(&mut World, Entity))>,
     event_buffers: HashMap<TypeId, Box<dyn AnyEventBuffer>>,
     resource_updates: Vec<Box<dyn FnOnce(&mut World)>>,
@@ -39,6 +40,7 @@ impl Commands {
         Self {
             despawns: Vec::new(),
             component_inserts: HashMap::new(),
+            component_updates: Vec::new(),
             component_removes: Vec::new(),
             event_buffers: HashMap::new(),
             resource_updates: Vec::new(),
@@ -111,6 +113,37 @@ impl Commands {
             .unwrap()
             .pending
             .push((entity, component));
+    }
+
+    /// Queue a closure that mutates an entity's existing component of type
+    /// `T` at apply time. Errors if the entity doesn't have the component.
+    ///
+    /// The turbofish on `T` is required so the queue knows which component
+    /// type to fetch. The closure owns its captures (`move`) because it
+    /// outlives the system body.
+    ///
+    /// # Example
+    /// ```ignore
+    /// system_context.commands().update_component::<Player, _>(player_entity, move |p| {
+    ///     p.move_enabled = !p.move_enabled;
+    /// });
+    /// ```
+    pub fn update_component<T, F>(&mut self, entity: Entity, mutator: F)
+    where
+        T: 'static,
+        F: FnOnce(&mut T) + 'static,
+    {
+        self.component_updates.push(Box::new(move |world| {
+            if let Some(component) = world.get_component_mut::<T>(entity) {
+                mutator(component);
+            } else {
+                log::error!(
+                    "Commands::update_component: entity {} has no {}; closure dropped",
+                    entity.id,
+                    std::any::type_name::<T>()
+                );
+            }
+        }));
     }
 
     /// Queue a component to be removed from an entity at apply time. If the
@@ -187,15 +220,19 @@ impl Commands {
     /// Drain all queued operations into `world`. Called by the schedule after
     /// each system returns. The order is:
     ///
-    /// 1. Component inserts
-    /// 2. Component removes
-    /// 3. Events
-    /// 4. Resource updates
-    /// 5. Despawns (so events fire while entities still exist in components)
-    /// 6. Custom commands (escape hatch, applied last)
+    /// 1. Component inserts (so subsequent updates can see freshly-added components)
+    /// 2. Component updates (mutate existing components)
+    /// 3. Component removes
+    /// 4. Events
+    /// 5. Resource updates
+    /// 6. Despawns (so events fire while entities still exist in components)
+    /// 7. Custom commands (escape hatch, applied last)
     pub fn apply(&mut self, world: &mut World, allocator: &mut EntityAllocator) {
         for buf in self.component_inserts.values_mut() {
             buf.flush(world);
+        }
+        for update in self.component_updates.drain(..) {
+            update(world);
         }
         for (entity, remover) in self.component_removes.drain(..) {
             remover(world, entity);
@@ -222,6 +259,7 @@ impl Commands {
         for buf in self.component_inserts.values_mut() {
             buf.clear();
         }
+        self.component_updates.clear();
         self.component_removes.clear();
         for buf in self.event_buffers.values_mut() {
             buf.clear();

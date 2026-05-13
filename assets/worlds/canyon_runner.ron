@@ -10,7 +10,7 @@
             "Renderable": (model: "starfighter"),
             "HoverState": (direction: Up, upper_limit: -0.9, lower_limit: -0.99),
             "Collider": (shape: AABB(offset: (x: 0.0, y: 0.0, z: -0.3), half_extents: (x: 1.0, y: 0.5, z: 1.5))),
-            "Player": (),
+            "Player": (z_movement_speed: 10.0, strafe_speed: 4.0, move_player: true),
         },
     ]
 )

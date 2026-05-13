@@ -10,9 +10,9 @@ impl PlayerScore {
     pub fn new() -> Self {
         Self {
             score: 0,
-            increment: 10,
+            increment: 1,
             multiplier: 1,
-            increment_interval_seconds: 0.75,
+            increment_interval_seconds: 0.1,
             time_since_last_increment: 0.0,
         }
     }

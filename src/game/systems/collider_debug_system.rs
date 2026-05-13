@@ -1,17 +1,17 @@
-use cgmath::{ One, Quaternion, Vector3 };
+use cgmath::{One, Quaternion, Vector3};
 
 use crate::{
     engine::ecs::{
         components::{
-            collider::{ Collider, ColliderShape },
+            collider::{Collider, ColliderShape},
             renderable::Renderable,
             transform::Transform,
         },
-        resources::debug::{ DebugVisual, ShowColliderDebug },
+        resources::debug::{DebugVisual, ShowColliderDebug},
         system::SystemContext,
         world::World,
     },
-    game::input::{ actions::Action, world_ext::InputWorldExt },
+    game::input::{actions::Action, world_ext::InputWorldExt},
 };
 
 pub fn collider_debug_system(world: &mut World, system_context: &mut SystemContext) {
@@ -28,7 +28,7 @@ pub fn collider_debug_system(world: &mut World, system_context: &mut SystemConte
         .map(|r| r.0)
         .unwrap_or(false);
 
-    let stale_visual_ids: Vec<u32> = world.get_entities_with::<DebugVisual>();
+    let stale_visual_ids: Vec<u32> = world.get_entity_ids_with::<DebugVisual>();
     for entity_id in stale_visual_ids {
         if let Some(entity) = system_context.entity_allocator.lookup(entity_id) {
             system_context.commands.despawn(entity);
@@ -39,7 +39,11 @@ pub fn collider_debug_system(world: &mut World, system_context: &mut SystemConte
         return;
     }
 
-    let cube_model_id = system_context.asset_server.as_deref().unwrap().get_model_id("cube");
+    let cube_model_id = system_context
+        .asset_server
+        .as_deref()
+        .unwrap()
+        .get_model_id("cube");
 
     let collider_snapshots: Vec<(u32, ColliderShape)> = world
         .iter_component::<Collider>()
@@ -51,25 +55,31 @@ pub fn collider_debug_system(world: &mut World, system_context: &mut SystemConte
         .filter_map(|(entity_id, shape)| {
             let transform = world.get_component_by_id::<Transform>(entity_id)?;
             let (offset, half_extents) = match shape {
-                ColliderShape::AABB { offset, half_extents } =>
-                    (
-                        offset,
-                        Vector3::new(
-                            half_extents.x * transform.scale.x,
-                            half_extents.y * transform.scale.y,
-                            half_extents.z * transform.scale.z
-                        ),
+                ColliderShape::AABB {
+                    offset,
+                    half_extents,
+                } => (
+                    offset,
+                    Vector3::new(
+                        half_extents.x * transform.scale.x,
+                        half_extents.y * transform.scale.y,
+                        half_extents.z * transform.scale.z,
                     ),
+                ),
                 ColliderShape::Sphere { offset, radius } => {
-                    let r =
-                        radius * transform.scale.x.max(transform.scale.y).max(transform.scale.z);
+                    let r = radius
+                        * transform
+                            .scale
+                            .x
+                            .max(transform.scale.y)
+                            .max(transform.scale.z);
                     (offset, Vector3::new(r, r, r))
                 }
             };
             let scaled_offset = Vector3::new(
                 offset.x * transform.scale.x,
                 offset.y * transform.scale.y,
-                offset.z * transform.scale.z
+                offset.z * transform.scale.z,
             );
             let world_offset = transform.rotation * scaled_offset;
             Some((transform.position + world_offset, half_extents))

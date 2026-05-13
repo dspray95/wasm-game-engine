@@ -26,8 +26,9 @@ pub fn camera_update_system(world: &mut World, system_context: &mut SystemContex
         return;
     };
 
-    camera.update_view_projeciton(position);
-    camera.update_position(position);
+    let shaken_position = position + camera.shake_offset;
+    camera.update_view_projeciton(shaken_position);
+    camera.update_position(shaken_position);
 
     system_context.queue
         .unwrap()

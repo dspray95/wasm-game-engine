@@ -172,8 +172,17 @@ impl World {
     }
 
     /// Finds entities with all provided components
-    pub fn get_entities_with<T: 'static>(&self) -> Vec<u32> {
+    pub fn get_entity_ids_with<T: 'static>(&self) -> Vec<u32> {
         self.iter_component::<T>().map(|(id, _)| id).collect()
+    }
+
+    /// Returns full `Entity` handles for every entity that has a component of
+    /// type `T`. Use this when you need to pass to APIs that take `Entity`
+    /// (like `commands.despawn` or `commands.update_component`).
+    pub fn get_entities_with<T: 'static>(&self, allocator: &EntityAllocator) -> Vec<Entity> {
+        self.iter_component::<T>()
+            .filter_map(|(id, _)| allocator.lookup(id))
+            .collect()
     }
 
     pub fn create_active_camera(

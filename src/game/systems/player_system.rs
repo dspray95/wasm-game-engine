@@ -1,23 +1,17 @@
-use cgmath::{ Vector3 };
+use cgmath::Vector3;
 
 use crate::{
-    engine::{
-        ecs::{
-            components::{ transform::Transform, velocity::Velocity },
-            resources::camera::ActiveCamera,
-            system::SystemContext,
-            world::World,
-        },
+    engine::ecs::{
+        components::{transform::Transform, velocity::Velocity},
+        resources::camera::ActiveCamera,
+        system::SystemContext,
+        world::World,
     },
     game::{
         components::player::Player,
-        input::{ actions::Action, world_ext::InputWorldExt },
-        resources::move_player::MovePlayer,
+        input::{actions::Action, world_ext::InputWorldExt},
     },
 };
-
-const Z_MOVEMENT_SPEED: f32 = 10.0;
-const STRAFE_SPEED: f32 = 4.0;
 
 const X_MIN: f32 = 23.5;
 const X_MAX: f32 = 25.5;
@@ -26,41 +20,68 @@ pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
     let input = world.input_state();
     let key_bindings = world.key_bindings();
 
-    let move_player = {
-        let resource = world.get_resource_mut::<MovePlayer>().unwrap();
-        if key_bindings.is_action_just_pressed(&Action::Pause, &input) {
-            resource.0 = !resource.0;
-        }
-        resource.0
+    let Some(player_entity) = world
+        .get_entities_with::<Player>(system_context.entity_allocator)
+        .into_iter()
+        .next()
+    else {
+        return;
     };
 
-    if !move_player {
+    let pause_pressed = key_bindings.is_action_just_pressed(&Action::Pause, &input);
+
+    if pause_pressed {
+        system_context
+            .commands()
+            .update_component::<Player, _>(player_entity, move |p| {
+                p.move_player = !p.move_player;
+            });
+    }
+
+    let Some((player, transform, velocity)) =
+        world.query::<(&Player, &Transform, &Velocity)>(player_entity.id)
+    else {
+        return;
+    };
+
+    // Decide this frame's behaviour from current state.
+    let effective_move = player.move_player ^ pause_pressed;
+    if !effective_move {
         return;
     }
 
-    if
-        let Some((_player, transform, velocity)) = world
-            .query_iter::<(&Player, &Transform, &mut Velocity)>()
-            .next()
-    {
-        velocity.z += Z_MOVEMENT_SPEED;
+    // Move player
+    let z_velocity = velocity.z + player.z_movement_speed;
+    let mut x_velocity = velocity.x;
 
-        let moving_left = key_bindings.is_action_pressed(&Action::MoveLeft, &input);
-        let moving_right = key_bindings.is_action_pressed(&Action::MoveRight, &input);
+    let moving_left = key_bindings.is_action_pressed(&Action::MoveLeft, &input);
+    let moving_right = key_bindings.is_action_pressed(&Action::MoveRight, &input);
 
-        if moving_left && !moving_right && transform.position.x < X_MAX {
-            velocity.x += STRAFE_SPEED;
-        }
-        if moving_right && !moving_left && transform.position.x > X_MIN {
-            velocity.x -= STRAFE_SPEED;
-        }
+    if moving_left && !moving_right && transform.position.x < X_MAX {
+        x_velocity += player.strafe_speed;
+    }
+    if moving_right && !moving_left && transform.position.x > X_MIN {
+        x_velocity -= player.strafe_speed;
     }
 
+    system_context
+        .commands()
+        .update_component::<Velocity, _>(player_entity, move |v| {
+            v.x += x_velocity;
+            v.z += z_velocity;
+        });
+
+    // Move the camera. Routed through commands because the player/transform
+    // refs above are still holding a shared borrow on world, so direct
+    // mutation via get_component_mut would conflict.
     let camera_entity = world.get_resource::<ActiveCamera>().map(|ac| ac.0);
     if let Some(entity) = camera_entity {
-        if let Some(camera_transform) = world.get_component_mut::<Transform>(entity) {
-            let forward = Vector3::new(0.0, 0.0, 1.0);
-            camera_transform.position += forward * Z_MOVEMENT_SPEED * system_context.delta_time;
-        }
+        let z_speed = player.z_movement_speed;
+        let dt = system_context.delta_time;
+        system_context
+            .commands()
+            .update_component::<Transform, _>(entity, move |t| {
+                t.position += Vector3::new(0.0, 0.0, 1.0) * z_speed * dt;
+            });
     }
 }

@@ -27,7 +27,7 @@ pub fn explosion_lifecycle_system(world: &mut World, system_context: &mut System
     }
 
     let mut rng = rand::rng();
-    for (explosion, transform) in world.query_iter::<(&mut Explosion, &mut Transform)>() {
+    for (explosion, transform) in world.query_iter_mut::<(&mut Explosion, &mut Transform)>() {
         if now
             > explosion.last_rotated_at + Duration::from_secs_f32(explosion.time_between_rotations)
         {

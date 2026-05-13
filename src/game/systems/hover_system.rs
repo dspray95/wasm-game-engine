@@ -11,7 +11,7 @@ const HOVER_SPEED: f32 = 0.2;
 
 pub fn hover_system(world: &mut World, _system_context: &mut SystemContext) {
     for (transform, velocity, hover_state) in
-        world.query_iter::<(&Transform, &mut Velocity, &mut HoverState)>()
+        world.query_iter_mut::<(&Transform, &mut Velocity, &mut HoverState)>()
     {
         animate_hover(transform, velocity, hover_state);
     }
