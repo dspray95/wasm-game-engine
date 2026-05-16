@@ -1,6 +1,7 @@
 pub mod assets;
 pub mod canyon_runner_world;
 pub mod components;
+pub mod difficulty;
 pub mod cube;
 pub mod events;
 pub mod helpers;

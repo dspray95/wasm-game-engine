@@ -6,6 +6,8 @@ use crate::{
     },
 };
 
+const BASIC_KILL_SCORE: i32 = 25;
+
 pub fn player_score_system(world: &mut World, system_context: &mut SystemContext) {
     let dt: f32 = system_context.delta_time;
     let basic_kill_count = world
@@ -21,7 +23,9 @@ pub fn player_score_system(world: &mut World, system_context: &mut SystemContext
                 player_score.time_since_last_increment -= player_score.increment_interval_seconds;
                 player_score.score += player_score.increment * player_score.multiplier;
             }
-            player_score.score +=
-                player_score.increment * player_score.multiplier * 10 * basic_kill_count;
+            player_score.score += player_score.increment
+                * player_score.multiplier
+                * BASIC_KILL_SCORE
+                * basic_kill_count;
         });
 }

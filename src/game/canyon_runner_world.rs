@@ -20,6 +20,7 @@ use crate::{
             enemy::Enemy, explosion::Explosion, hover_state::HoverState, laser::Laser,
             player::Player,
         },
+        difficulty::DifficultyCurve,
         events::{
             enemy_killed_event::EnemyKilledEvent, laser_fired_event::LaserFiredEvent,
             score_event::ScoreEvent,
@@ -29,8 +30,8 @@ use crate::{
         resources::{
             enemy_resources::EnemySpawnManager,
             laser_resources::LaserManager,
-            move_player::MovePlayer,
             player_score::PlayerScore,
+            player_speed_scaling::PlayerSpeedScaling,
             screen_effects::ScreenEffects,
             terrain_resources::{TerrainGeneration, TerrainModelIds},
         },
@@ -134,16 +135,30 @@ impl GameSetup for CanyonRunnerWorld {
         world.add_resource(LaserManager::new());
 
         // Player setup
-        world.add_resource(MovePlayer(true));
         world.add_resource(PlayerScore::new());
+        world.add_resource(PlayerSpeedScaling {
+            z_speed: DifficultyCurve {
+                base: 10.0,
+                cap: 50.0,
+                sensitivity: 0.00267,
+            },
+        });
         world.add_resource(ScreenEffects::new());
 
         // Enemy setup
         world.add_resource(EnemySpawnManager {
             n_enemies_spawned: 0,
-            z_gap_between_spanws: 50.0,
-            last_z_pos_spawned_at: 0.0,
+            spawn_interval: DifficultyCurve {
+                base: 3.0,
+                cap: 1.0,
+                sensitivity: -0.000667,
+            },
+            time_since_last_spawn: 0.0,
+            spawn_horizon_z: 80.0,
             canyon_center_x: 24.5,
+            lane_offset: 0.8,
+            column_z_offset: 8.0,
+            despawn_behind_distance: 20.0,
             enemy_spawn_elevation: -1.0,
             enemy_spawn_scale: Vector3 {
                 x: 0.3,

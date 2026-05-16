@@ -10,6 +10,7 @@ use crate::{
     game::{
         components::player::Player,
         input::{actions::Action, world_ext::InputWorldExt},
+        resources::{player_score::PlayerScore, player_speed_scaling::PlayerSpeedScaling},
     },
 };
 
@@ -50,8 +51,17 @@ pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
         return;
     }
 
+    let player_score = world
+        .get_resource::<PlayerScore>()
+        .map(|s| s.score)
+        .unwrap_or(0);
+    let effective_z_speed = match world.get_resource::<PlayerSpeedScaling>() {
+        Some(scaling) => scaling.z_speed.value(player_score),
+        None => player.z_movement_speed,
+    };
+
     // Move player
-    let z_velocity = velocity.z + player.z_movement_speed;
+    let z_velocity = velocity.z + effective_z_speed;
     let mut x_velocity = velocity.x;
 
     let moving_left = key_bindings.is_action_pressed(&Action::MoveLeft, &input);
@@ -76,7 +86,7 @@ pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
     // mutation via get_component_mut would conflict.
     let camera_entity = world.get_resource::<ActiveCamera>().map(|ac| ac.0);
     if let Some(entity) = camera_entity {
-        let z_speed = player.z_movement_speed;
+        let z_speed = effective_z_speed;
         let dt = system_context.delta_time;
         system_context
             .commands()

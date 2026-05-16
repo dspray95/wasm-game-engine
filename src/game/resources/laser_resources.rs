@@ -1,13 +1,12 @@
-use crate::engine::ecs::entity::Entity;
+use crate::{engine::ecs::entity::Entity, game::difficulty::DifficultyCurve};
 use web_time::Instant;
 
 const MAX_TRAVEL_DISTANCE: f32 = 50.0;
-const FIRE_COOLDOWN_SECONDS: f32 = 0.75;
 
 pub struct LaserManager {
     pub alive_lasers: Vec<Entity>,
     pub last_fired_time: Instant,
-    pub fire_cooldown_seconds: f32,
+    pub fire_cooldown: DifficultyCurve,
     pub max_travel_distance: f32,
 }
 
@@ -16,15 +15,19 @@ impl LaserManager {
         Self {
             last_fired_time: Instant::now(),
             alive_lasers: Vec::new(),
-            fire_cooldown_seconds: FIRE_COOLDOWN_SECONDS,
+            fire_cooldown: DifficultyCurve {
+                base: 0.75,
+                cap: 0.375,
+                sensitivity: -0.000025,
+            },
             max_travel_distance: MAX_TRAVEL_DISTANCE,
         }
     }
 
-    pub fn is_allowed_to_fire(&self, current_time: Instant) -> bool {
+    pub fn is_allowed_to_fire(&self, current_time: Instant, cooldown_seconds: f32) -> bool {
         let time_since_last_fire = current_time
             .duration_since(self.last_fired_time)
             .as_secs_f32();
-        time_since_last_fire > self.fire_cooldown_seconds
+        time_since_last_fire > cooldown_seconds
     }
 }

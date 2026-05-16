@@ -19,7 +19,10 @@ use crate::{
             player::Player,
         },
         input::{actions::Action, world_ext::InputWorldExt},
-        resources::laser_resources::LaserManager,
+        resources::{
+            laser_resources::LaserManager, player_score::PlayerScore,
+            player_speed_scaling::PlayerSpeedScaling,
+        },
     },
 };
 
@@ -36,11 +39,17 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
     if tried_to_fire {
         let now = Instant::now();
 
+        let player_z_speed = effective_player_z_speed(world);
+        let player_score = world
+            .get_resource::<PlayerScore>()
+            .map(|s| s.score)
+            .unwrap_or(0);
         let is_allowed_to_fire = {
             let Some(laser_manager) = world.get_resource::<LaserManager>() else {
                 return;
             };
-            laser_manager.is_allowed_to_fire(now)
+            let cooldown_seconds = laser_manager.fire_cooldown.value(player_score);
+            laser_manager.is_allowed_to_fire(now, cooldown_seconds)
         };
         let laser_entity: Option<Entity> = if is_allowed_to_fire {
             Some(spawn_laser(
@@ -53,6 +62,7 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
                     z: 10.0,
                 },
                 now,
+                player_z_speed,
                 system_context.entity_allocator,
             ))
         } else {
@@ -110,6 +120,7 @@ fn spawn_laser(
     position: Vector3<f32>,
     scale: Vector3<f32>,
     fired_at: Instant,
+    player_z_speed: f32,
     allocator: &mut EntityAllocator,
 ) -> Entity {
     let laser_model_id = asset_server.get_model_id("laser");
@@ -130,7 +141,18 @@ fn spawn_laser(
         .with(Laser {
             initial_z: position.z,
             fired_at,
-            travel_speed: DEFAULT_TRAVEL_SPEED,
+            travel_speed: DEFAULT_TRAVEL_SPEED + player_z_speed,
         })
         .build()
+}
+
+fn effective_player_z_speed(world: &World) -> f32 {
+    let score = world
+        .get_resource::<PlayerScore>()
+        .map(|s| s.score)
+        .unwrap_or(0);
+    match world.get_resource::<PlayerSpeedScaling>() {
+        Some(scaling) => scaling.z_speed.value(score),
+        None => 0.0,
+    }
 }
