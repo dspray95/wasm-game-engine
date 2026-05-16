@@ -52,7 +52,10 @@ use crate::{
             screen_effects_system::screen_effects_system,
             terrain_system::terrain_system,
         },
-        ui::score_counter::score_counter,
+        ui::{
+            difficulty_debug::difficulty_debug_panel, health_indicator::health_indicator,
+            score_counter::score_counter,
+        },
     },
 };
 
@@ -83,7 +86,9 @@ impl GameSetup for CanyonRunnerWorld {
 
     fn setup_ui(&self, ui_registry: &mut crate::engine::ui::ui_registry::UIRegistry) {
         ui_registry.add(debug_panel);
+        ui_registry.add(difficulty_debug_panel);
         ui_registry.add(score_counter);
+        ui_registry.add(health_indicator);
     }
 
     fn register_components(&self, registry: &mut ComponentRegistry) {

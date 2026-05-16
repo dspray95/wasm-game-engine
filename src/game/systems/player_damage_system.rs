@@ -21,7 +21,7 @@ use crate::{
         },
         resources::{
             enemy_resources::EnemySpawnManager, player_score::PlayerScore,
-            player_speed_scaling::PlayerSpeedScaling,
+            player_speed_scaling::PlayerSpeedScaling, screen_effects::ScreenEffects,
         },
     },
 };
@@ -97,6 +97,12 @@ pub fn player_damage_system(world: &mut World, system_context: &mut SystemContex
         .commands()
         .update_component::<Player, _>(player_entity, move |p| {
             p.health = new_health;
+        });
+
+    system_context
+        .commands()
+        .update_resource::<ScreenEffects, _>(|effects| {
+            effects.trigger_damage_effect();
         });
 
     if new_health <= 0 {

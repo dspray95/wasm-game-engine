@@ -1,12 +1,10 @@
-use cgmath::{ Deg, InnerSpace, Rad, Vector3 };
+use cgmath::{Deg, InnerSpace, Rad, Vector3, Vector4};
 use wgpu::util::DeviceExt;
 
-use crate::engine::{
-    ecs::components::camera::{
-        constants::{ DEFAULT_NEAR, DEFAULT_FAR, DEFAULT_FOV },
-        projection::Projection,
-        uniform::CameraUniformBuffer,
-    },
+use crate::engine::ecs::components::camera::{
+    constants::{DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR},
+    projection::Projection,
+    uniform::CameraUniformBuffer,
 };
 
 pub struct CameraRenderPassData {
@@ -29,7 +27,7 @@ impl Camera {
         yaw: Rad<f32>,
         pitch: Rad<f32>,
         projection: Projection,
-        render_pass_data: CameraRenderPassData
+        render_pass_data: CameraRenderPassData,
     ) -> Self {
         Self {
             yaw,
@@ -43,20 +41,18 @@ impl Camera {
     pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(
             &(wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
-                ],
+                    count: None,
+                }],
                 label: Some("camera_bind_group_layout"),
-            })
+            }),
         )
     }
 
@@ -67,7 +63,7 @@ impl Camera {
                 label: Some("Camera Buffer"),
                 contents: bytemuck::cast_slice(&[uniform_buffer]),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            })
+            }),
         );
 
         let bind_group_layout = Self::create_bind_group_layout(device);
@@ -75,14 +71,12 @@ impl Camera {
         let bind_group = device.create_bind_group(
             &(wgpu::BindGroupDescriptor {
                 layout: &bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: buffer.as_entire_binding(),
-                    },
-                ],
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                }],
                 label: Some("camera_bind_group"),
-            })
+            }),
         );
 
         CameraRenderPassData {
@@ -94,13 +88,8 @@ impl Camera {
     }
 
     pub fn handle_resized(&mut self, width: u32, height: u32) {
-        self.projection = Projection::new(
-            width,
-            height,
-            Deg(DEFAULT_FOV),
-            DEFAULT_NEAR,
-            DEFAULT_FAR
-        );
+        self.projection =
+            Projection::new(width, height, Deg(DEFAULT_FOV), DEFAULT_NEAR, DEFAULT_FAR);
     }
 
     pub fn build_view_projection_matrix(&self, position: Vector3<f32>) -> cgmath::Matrix4<f32> {
@@ -112,21 +101,44 @@ impl Camera {
         let view = cgmath::Matrix4::look_to_rh(
             cgmath::Point3::new(position.x, position.y, position.z),
             Vector3::new(cos_pitch * cos_yaw, sin_pitch, cos_pitch * sin_yaw).normalize(),
-            Vector3::unit_y()
+            Vector3::unit_y(),
         );
         // Warp the scene with a projeciton matrix
         let projeciton = self.projection.calculate_projection_matrix();
         projeciton * view
     }
 
+    /// Project a world-space point through this camera's view-projection and
+    /// return its normalised device coordinates (`x` and `y` in `[-1, 1]`,
+    /// with `y` pointing up).
+    ///
+    /// Returns `None` if the point is behind or on the camera plane (i.e. the
+    /// homogeneous `w` is non-positive), where perspective division would be
+    /// undefined.
+    pub fn world_to_screen(
+        &self,
+        world_position: Vector3<f32>,
+        camera_position: Vector3<f32>,
+    ) -> Option<(f32, f32)> {
+        let view_projection = self.build_view_projection_matrix(camera_position);
+        let clip = view_projection
+            * Vector4::new(world_position.x, world_position.y, world_position.z, 1.0);
+        if clip.w <= 0.0 {
+            return None;
+        }
+        Some((clip.x / clip.w, clip.y / clip.w))
+    }
+
     pub fn update_position(&mut self, position: Vector3<f32>) {
-        self.render_pass_data.uniform_buffer.update_position([position.x, position.y, position.z]);
+        self.render_pass_data
+            .uniform_buffer
+            .update_position([position.x, position.y, position.z]);
     }
 
     pub fn update_view_projeciton(&mut self, position: Vector3<f32>) {
-        self.render_pass_data.uniform_buffer.update_view_projeciton(
-            self.build_view_projection_matrix(position).into()
-        );
+        self.render_pass_data
+            .uniform_buffer
+            .update_view_projeciton(self.build_view_projection_matrix(position).into());
     }
 
     pub fn translate(&mut self, position: Vector3<f32>, queue: &wgpu::Queue) {
@@ -136,7 +148,7 @@ impl Camera {
         queue.write_buffer(
             &self.render_pass_data.buffer,
             0,
-            bytemuck::cast_slice(&[self.render_pass_data.uniform_buffer])
+            bytemuck::cast_slice(&[self.render_pass_data.uniform_buffer]),
         );
     }
 }

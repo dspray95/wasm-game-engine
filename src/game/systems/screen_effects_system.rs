@@ -5,7 +5,7 @@ use crate::{
     engine::ecs::{components::camera::camera::Camera, system::SystemContext, world::World},
     game::{
         events::score_event::{ScoreEvent, ScoreType},
-        resources::screen_effects::{ScreenEffects, SHAKE_SMALL_MAGNITUDE},
+        resources::screen_effects::ScreenEffects,
     },
 };
 
@@ -23,12 +23,13 @@ pub fn screen_effects_system(world: &mut World, system_context: &mut SystemConte
         effects.trigger_kill_effect();
     }
     let shake_intensity = effects.shake_intensity();
+    let shake_magnitude = effects.shake_magnitude;
 
     let active_camera_entity = world.active_camera();
     if let Some(camera) = world.get_component_mut::<Camera>(active_camera_entity) {
         if shake_intensity > 0.0 {
             let mut rng = rand::rng();
-            let magnitude = SHAKE_SMALL_MAGNITUDE * shake_intensity;
+            let magnitude = shake_magnitude * shake_intensity;
             camera.shake_offset = Vector3::new(
                 rng.random_range(-magnitude..magnitude),
                 rng.random_range(-magnitude..magnitude),
