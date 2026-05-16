@@ -11,22 +11,34 @@ use crate::{
         },
         events::events::Events,
     },
-    game::{components::explosion::Explosion, events::enemy_killed_event::EnemyKilledEvent},
+    game::{
+        components::explosion::Explosion,
+        events::{enemy_killed_event::EnemyKilledEvent, player_died_event::PlayerDiedEvent},
+    },
 };
 
 pub fn explosion_spawn_system(world: &mut World, system_context: &mut SystemContext) {
-    let enemy_killed_event_positions: Vec<Vector3<f32>> = world
+    let mut requests: Vec<(Vector3<f32>, Vector3<f32>)> = world
         .get_resource::<Events<EnemyKilledEvent>>()
         .unwrap()
         .read()
-        .map(|e| e.origin)
+        .map(|e| (e.origin, Vector3::new(0.0, 0.0, 0.0)))
         .collect();
 
-    for origin in enemy_killed_event_positions {
+    requests.extend(
+        world
+            .get_resource::<Events<PlayerDiedEvent>>()
+            .unwrap()
+            .read()
+            .map(|e| (e.origin, e.velocity)),
+    );
+
+    for (origin, velocity) in requests {
         spawn_explosion(
             world,
             system_context.asset_server.as_deref().unwrap(),
             origin,
+            velocity,
             system_context.entity_allocator,
         );
     }
@@ -36,11 +48,12 @@ fn spawn_explosion(
     world: &mut World,
     asset_server: &AssetServer,
     position: Vector3<f32>,
+    velocity: Vector3<f32>,
     allocator: &mut EntityAllocator,
 ) {
     world
         .spawn(allocator)
-        .with(Explosion::new())
+        .with(Explosion::new().with_velocity(velocity))
         .with(Transform {
             position,
             rotation: Quaternion::one(),
@@ -50,8 +63,6 @@ fn spawn_explosion(
                 z: 0.15,
             },
         })
-        .with(Renderable {
-            model_id: asset_server.get_model_id("explosion"),
-        })
+        .with(Renderable::new(asset_server.get_model_id("explosion")))
         .build();
 }

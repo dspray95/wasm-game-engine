@@ -8,7 +8,7 @@ use crate::{
         world::World,
     },
     game::{
-        components::player::Player,
+        components::{dead::Dead, player::Player},
         input::{actions::Action, world_ext::InputWorldExt},
         resources::{player_score::PlayerScore, player_speed_scaling::PlayerSpeedScaling},
     },
@@ -28,6 +28,33 @@ pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
     else {
         return;
     };
+
+    if let Some(dead) = world.get_component::<Dead>(player_entity) {
+        let base_speed = world
+            .get_resource::<PlayerSpeedScaling>()
+            .map(|s| s.z_speed.base)
+            .unwrap_or(0.0);
+        let progress =
+            (dead.ramp_time_remaining / dead.ramp_duration).clamp(0.0, 1.0);
+        let effective_z_speed = base_speed + (dead.speed_at_death - base_speed) * progress;
+        let new_remaining = (dead.ramp_time_remaining - system_context.delta_time).max(0.0);
+        system_context
+            .commands()
+            .update_component::<Dead, _>(player_entity, move |d| {
+                d.ramp_time_remaining = new_remaining;
+            });
+
+        let camera_entity = world.get_resource::<ActiveCamera>().map(|ac| ac.0);
+        if let Some(entity) = camera_entity {
+            let dt = system_context.delta_time;
+            system_context
+                .commands()
+                .update_component::<Transform, _>(entity, move |t| {
+                    t.position += Vector3::new(0.0, 0.0, 1.0) * effective_z_speed * dt;
+                });
+        }
+        return;
+    }
 
     let pause_pressed = key_bindings.is_action_just_pressed(&Action::Pause, &input);
 

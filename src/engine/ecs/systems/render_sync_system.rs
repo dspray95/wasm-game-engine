@@ -47,6 +47,9 @@ fn collect_instance_groups(world: &World) -> HashMap<usize, Vec<InstanceRaw>> {
     let mut groups: HashMap<usize, Vec<InstanceRaw>> = HashMap::new();
 
     for (entity_id, renderable) in world.iter_component::<Renderable>() {
+        if !renderable.visible {
+            continue;
+        }
         if let Some(transform) = world.get_component_by_id::<Transform>(entity_id) {
             groups
                 .entry(renderable.model_id)

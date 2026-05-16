@@ -1,3 +1,4 @@
+use cgmath::Vector3;
 use serde::{Deserialize, Serialize};
 use web_time::Instant;
 
@@ -14,6 +15,12 @@ pub struct Explosion {
     pub time_between_rotations: f32,
     #[serde(skip, default = "instant_now")]
     pub last_rotated_at: Instant,
+    #[serde(default = "zero_velocity")]
+    pub carry_velocity: Vector3<f32>,
+}
+
+fn zero_velocity() -> Vector3<f32> {
+    Vector3::new(0.0, 0.0, 0.0)
 }
 
 impl Explosion {
@@ -23,6 +30,12 @@ impl Explosion {
             lifetime_seconds: DEFUALT_LIFETIME_SECONDS,
             time_between_rotations: DEFAUTL_TIME_BETWEEN_ROTATIONS,
             last_rotated_at: Instant::now(),
+            carry_velocity: Vector3::new(0.0, 0.0, 0.0),
         }
+    }
+
+    pub fn with_velocity(mut self, velocity: Vector3<f32>) -> Self {
+        self.carry_velocity = velocity;
+        self
     }
 }

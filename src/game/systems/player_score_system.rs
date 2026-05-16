@@ -1,6 +1,7 @@
 use crate::{
     engine::ecs::{system::SystemContext, world::World},
     game::{
+        components::{dead::Dead, player::Player},
         events::score_event::{ScoreEvent, ScoreType},
         resources::player_score::PlayerScore,
     },
@@ -9,6 +10,15 @@ use crate::{
 const BASIC_KILL_SCORE: i32 = 25;
 
 pub fn player_score_system(world: &mut World, system_context: &mut SystemContext) {
+    let player_dead = world
+        .iter_component::<Player>()
+        .next()
+        .map(|(id, _)| world.get_component_by_id::<Dead>(id).is_some())
+        .unwrap_or(false);
+    if player_dead {
+        return;
+    }
+
     let dt: f32 = system_context.delta_time;
     let basic_kill_count = world
         .events::<ScoreEvent>()

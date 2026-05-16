@@ -16,6 +16,7 @@ use crate::{
     },
     game::{
         components::{
+            dead::Dead,
             enemy::Enemy,
             hover_state::{HoverDirection, HoverState},
             player::Player,
@@ -54,10 +55,14 @@ impl Lane {
 }
 
 pub fn enemy_spawn_system(world: &mut World, system_context: &mut SystemContext) {
+    let Some(player_entity_id) = world.iter_component::<Player>().next().map(|(id, _)| id) else {
+        return;
+    };
+    if world.get_component_by_id::<Dead>(player_entity_id).is_some() {
+        return;
+    }
     let player_position = world
-        .iter_component::<Player>()
-        .next()
-        .and_then(|(entity_id, _)| world.get_component_by_id::<Transform>(entity_id))
+        .get_component_by_id::<Transform>(player_entity_id)
         .map(|transform| transform.position);
 
     let Some(player_position) = player_position else {

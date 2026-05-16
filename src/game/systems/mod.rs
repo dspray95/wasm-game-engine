@@ -5,6 +5,8 @@ pub mod enemy;
 pub mod explosion;
 pub mod hover_system;
 pub mod laser;
+pub mod player_damage_system;
+pub mod player_invulnerability_system;
 pub mod player_score_system;
 pub mod player_system;
 pub mod screen_effects_system;

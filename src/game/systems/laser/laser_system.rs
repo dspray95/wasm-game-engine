@@ -15,6 +15,8 @@ use crate::{
     },
     game::{
         components::{
+            dead::Dead,
+            invulnerable::Invulnerable,
             laser::{Laser, DEFAULT_TRAVEL_SPEED},
             player::Player,
         },
@@ -35,7 +37,16 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
         .next()
         .map(|(_, transform)| transform.position);
 
-    let tried_to_fire = key_bindings.is_action_pressed(&Action::Fire, &input);
+    let player_can_fire = world
+        .iter_component::<Player>()
+        .next()
+        .map(|(id, _)| {
+            world.get_component_by_id::<Dead>(id).is_none()
+                && world.get_component_by_id::<Invulnerable>(id).is_none()
+        })
+        .unwrap_or(false);
+
+    let tried_to_fire = player_can_fire && key_bindings.is_action_pressed(&Action::Fire, &input);
     if tried_to_fire {
         let now = Instant::now();
 

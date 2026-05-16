@@ -23,7 +23,7 @@ use crate::{
         difficulty::DifficultyCurve,
         events::{
             enemy_killed_event::EnemyKilledEvent, laser_fired_event::LaserFiredEvent,
-            score_event::ScoreEvent,
+            player_died_event::PlayerDiedEvent, score_event::ScoreEvent,
         },
         helpers::terrain_generation::get_initial_terrain,
         input::actions::Action,
@@ -45,6 +45,8 @@ use crate::{
             },
             hover_system::hover_system,
             laser::{laser_hit_system::laser_hit_system, laser_system::laser_system},
+            player_damage_system::player_damage_system,
+            player_invulnerability_system::player_invulnerability_system,
             player_score_system::player_score_system,
             player_system::player_system,
             screen_effects_system::screen_effects_system,
@@ -71,6 +73,8 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(enemy_spawn_system);
         schedule.add_game_system(laser_hit_system);
         schedule.add_game_system(explosion_spawn_system);
+        schedule.add_game_system(player_damage_system);
+        schedule.add_game_system(player_invulnerability_system);
         schedule.add_game_system(explosion_lifecycle_system);
         schedule.add_game_system(collider_debug_system);
         schedule.add_game_system(player_score_system);
@@ -122,6 +126,7 @@ impl GameSetup for CanyonRunnerWorld {
         // Event registration
         world.register_event::<LaserFiredEvent>();
         world.register_event::<EnemyKilledEvent>();
+        world.register_event::<PlayerDiedEvent>();
         world.register_event::<ScoreEvent>();
 
         let asset_server: &mut AssetServer = system_context.asset_server.as_mut().unwrap();
