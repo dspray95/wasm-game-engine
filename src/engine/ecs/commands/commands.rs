@@ -209,6 +209,20 @@ impl Commands {
     ///     .with(Renderable { model_id })
     ///     .build();
     /// ```
+    /// Queue a `set_parent(child, parent)` operation. At flush time, calls
+    /// `World::set_parent`, which handles old-parent removal, new-parent
+    /// `Children` insertion, and cycle detection.
+    ///
+    /// Use this when a system needs to reparent or initially parent an
+    /// entity that already exists. For spawn-time parenting prefer
+    /// `commands.spawn(...).as_child_of(parent).build()` once that builder
+    /// surface is added.
+    pub fn set_parent(&mut self, child: Entity, parent: Entity) {
+        self.component_updates.push(Box::new(move |world| {
+            world.set_parent(child, parent);
+        }));
+    }
+
     pub fn spawn<'a>(&'a mut self, allocator: &mut EntityAllocator) -> EntityCommands<'a> {
         let entity = allocator.spawn();
         EntityCommands {

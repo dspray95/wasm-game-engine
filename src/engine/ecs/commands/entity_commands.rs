@@ -11,6 +11,13 @@ impl<'a> EntityCommands<'a> {
         self
     }
 
+    /// Queue a `set_parent` call for this entity at flush time. Mirror of
+    /// `EntityBuilder::as_child_of` for the commands path.
+    pub fn as_child_of(self, parent: Entity) -> Self {
+        self.commands.set_parent(self.entity, parent);
+        self
+    }
+
     pub fn build(self) -> Entity {
         self.entity
     }

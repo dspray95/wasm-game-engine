@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::engine::{
     ecs::{
-        components::{renderable::Renderable, transform::Transform},
+        components::{renderable::Renderable, world_transform::WorldTransform},
         system::SystemContext,
         world::World,
     },
@@ -50,11 +50,11 @@ fn collect_instance_groups(world: &World) -> HashMap<usize, Vec<InstanceRaw>> {
         if !renderable.visible {
             continue;
         }
-        if let Some(transform) = world.get_component_by_id::<Transform>(entity_id) {
+        if let Some(world_transform) = world.get_component_by_id::<WorldTransform>(entity_id) {
             groups
                 .entry(renderable.model_id)
                 .or_default()
-                .push(transform.to_raw());
+                .push(world_transform.to_raw());
         }
     }
 
@@ -64,14 +64,22 @@ fn collect_instance_groups(world: &World) -> HashMap<usize, Vec<InstanceRaw>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::ecs::components::transform::Transform;
+    use crate::engine::ecs::components::world_transform::WorldTransform;
     use crate::engine::ecs::entity::EntityAllocator;
 
     fn world_with_components() -> (World, EntityAllocator) {
         let mut world = World::new();
-        world.register_component::<Transform>();
+        world.register_component::<WorldTransform>();
         world.register_component::<Renderable>();
         (world, EntityAllocator::default())
+    }
+
+    fn world_transform_at(x: f32, y: f32, z: f32) -> WorldTransform {
+        let mut t = WorldTransform::identity();
+        t.position.x = x;
+        t.position.y = y;
+        t.position.z = z;
+        t
     }
 
     #[test]
@@ -81,7 +89,7 @@ mod tests {
     }
 
     #[test]
-    fn entity_without_transform_is_excluded() {
+    fn entity_without_world_transform_is_excluded() {
         let (mut world, mut alloc) = world_with_components();
         let e = alloc.spawn();
         world.add_component(e, Renderable::new(0));
@@ -92,7 +100,7 @@ mod tests {
     fn entity_without_renderable_is_excluded() {
         let (mut world, mut alloc) = world_with_components();
         let e = alloc.spawn();
-        world.add_component(e, Transform::new());
+        world.add_component(e, WorldTransform::identity());
         assert!(collect_instance_groups(&world).is_empty());
     }
 
@@ -100,7 +108,7 @@ mod tests {
     fn single_entity_produces_one_group_with_one_instance() {
         let (mut world, mut alloc) = world_with_components();
         let e = alloc.spawn();
-        world.add_component(e, Transform::new().with_position(1.0, 2.0, 3.0));
+        world.add_component(e, world_transform_at(1.0, 2.0, 3.0));
         world.add_component(e, Renderable::new(0));
 
         let groups = collect_instance_groups(&world);
@@ -113,7 +121,7 @@ mod tests {
         let (mut world, mut alloc) = world_with_components();
         for _ in 0..3 {
             let e = alloc.spawn();
-            world.add_component(e, Transform::new());
+            world.add_component(e, WorldTransform::identity());
             world.add_component(e, Renderable::new(0));
         }
         let groups = collect_instance_groups(&world);
@@ -125,7 +133,7 @@ mod tests {
         let (mut world, mut alloc) = world_with_components();
         for model_id in [0, 1, 2] {
             let e = alloc.spawn();
-            world.add_component(e, Transform::new());
+            world.add_component(e, WorldTransform::identity());
             world.add_component(e, Renderable::new(model_id));
         }
         let groups = collect_instance_groups(&world);
@@ -139,7 +147,7 @@ mod tests {
     fn despawned_entity_is_not_included() {
         let (mut world, mut alloc) = world_with_components();
         let e = alloc.spawn();
-        world.add_component(e, Transform::new());
+        world.add_component(e, WorldTransform::identity());
         world.add_component(e, Renderable::new(0));
         world.despawn(e, &mut alloc);
         assert!(collect_instance_groups(&world).is_empty());

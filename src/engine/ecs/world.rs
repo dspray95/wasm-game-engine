@@ -13,6 +13,8 @@ use crate::engine::{
                 constants::{DEFAULT_FAR, DEFAULT_FOV, DEFAULT_NEAR},
                 projection::Projection,
             },
+            children::Children,
+            parent::Parent,
             transform::Transform,
         },
         entity::{Entity, EntityAllocator},
@@ -129,9 +131,81 @@ impl World {
     }
 
     pub fn despawn(&mut self, entity: Entity, entity_allocator: &mut EntityAllocator) {
+        // Hierarchy cascade: collect children first (cloning so we drop the
+        // borrow before recursing) and despawn them too. Multi-level deep
+        // trees recurse naturally.
+        let children: Vec<Entity> = self
+            .get_component::<Children>(entity)
+            .map(|c| c.0.clone())
+            .unwrap_or_default();
+        for child in children {
+            self.despawn(child, entity_allocator);
+        }
+
+        // If this entity was itself a child, remove it from its parent's
+        // Children list so the parent doesn't dangle a stale reference.
+        if let Some(parent) = self.get_component::<Parent>(entity).map(|p| p.0) {
+            if let Some(parent_children) = self.get_component_mut::<Children>(parent) {
+                parent_children.0.retain(|e| e.id != entity.id);
+            }
+        }
+
         entity_allocator.despawn(&entity);
         for storage in self.components.values_mut() {
             storage.remove(entity.id);
+        }
+    }
+
+    /// Parent `child` to `parent`. Handles the bookkeeping in three places:
+    /// removes `child` from any previous parent's `Children`, inserts/updates
+    /// the `Parent` component on `child`, and pushes `child` into the new
+    /// parent's `Children` (creating the component if absent).
+    ///
+    /// Refuses (logs an error, no-ops) if the relationship would create a
+    /// cycle — i.e. if `parent` is already a descendant of `child`.
+    pub fn set_parent(&mut self, child: Entity, parent: Entity) {
+        // Cycle check: walk up from `parent` via Parent components; refuse if
+        // we reach `child`.
+        let mut cursor = parent;
+        let mut hops = 0;
+        loop {
+            if cursor.id == child.id {
+                log::error!(
+                    "set_parent: refusing to create cycle (child {} would be an ancestor of itself)",
+                    child.id
+                );
+                return;
+            }
+            match self.get_component::<Parent>(cursor).map(|p| p.0) {
+                Some(next) => cursor = next,
+                None => break,
+            }
+            hops += 1;
+            if hops > 64 {
+                log::error!(
+                    "set_parent: hierarchy depth exceeded 64 walking up from {} — likely already a cycle",
+                    parent.id
+                );
+                return;
+            }
+        }
+
+        // Drop child from its old parent's Children list, if any.
+        if let Some(old_parent) = self.get_component::<Parent>(child).map(|p| p.0) {
+            if let Some(siblings) = self.get_component_mut::<Children>(old_parent) {
+                siblings.0.retain(|e| e.id != child.id);
+            }
+        }
+
+        self.add_component(child, Parent(parent));
+
+        // Push into new parent's Children, creating it if needed.
+        if let Some(parent_children) = self.get_component_mut::<Children>(parent) {
+            if !parent_children.0.iter().any(|e| e.id == child.id) {
+                parent_children.0.push(child);
+            }
+        } else {
+            self.add_component(parent, Children(vec![child]));
         }
     }
 
@@ -264,6 +338,22 @@ pub struct EntityBuilder<'w> {
 impl<'w> EntityBuilder<'w> {
     pub fn with<T: 'static>(self, component: T) -> Self {
         self.world.add_component(self.entity, component);
+        self
+    }
+
+    /// Make the spawning entity a child of `parent`. Inserts `Parent` on the
+    /// new entity and registers it in `parent`'s `Children`. Chain inside the
+    /// existing builder:
+    ///
+    /// ```ignore
+    /// world.spawn(alloc)
+    ///     .with(Renderable::new(model))
+    ///     .with(Transform::new())
+    ///     .as_child_of(parent_entity)
+    ///     .build();
+    /// ```
+    pub fn as_child_of(self, parent: Entity) -> Self {
+        self.world.set_parent(self.entity, parent);
         self
     }
 

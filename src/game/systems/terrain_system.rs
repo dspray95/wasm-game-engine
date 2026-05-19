@@ -1,7 +1,7 @@
 use crate::{
     engine::{
         ecs::{
-            components::transform::Transform,
+            components::world_transform::WorldTransform,
             resources::camera::ActiveCamera,
             system::SystemContext,
             world::World,
@@ -17,7 +17,7 @@ use crate::{
 pub fn terrain_system(world: &mut World, system_context: &mut SystemContext) {
     let camera_z = world
         .get_resource::<ActiveCamera>()
-        .and_then(|ac| world.get_component::<Transform>(ac.0))
+        .and_then(|ac| world.get_component::<WorldTransform>(ac.0))
         .map(|transform| transform.position.z)
         .unwrap_or(0.0);
 

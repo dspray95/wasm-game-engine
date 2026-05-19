@@ -6,6 +6,7 @@ use crate::{
             collider::{Collider, ColliderShape},
             renderable::Renderable,
             transform::Transform,
+            world_transform::WorldTransform,
         },
         resources::debug::{DebugVisual, ShowColliderDebug},
         system::SystemContext,
@@ -53,7 +54,7 @@ pub fn collider_debug_system(world: &mut World, system_context: &mut SystemConte
     let visuals: Vec<(Vector3<f32>, Vector3<f32>)> = collider_snapshots
         .into_iter()
         .filter_map(|(entity_id, shape)| {
-            let transform = world.get_component_by_id::<Transform>(entity_id)?;
+            let transform = world.get_component_by_id::<WorldTransform>(entity_id)?;
             let (offset, half_extents) = match shape {
                 ColliderShape::AABB {
                     offset,

@@ -4,7 +4,7 @@ use crate::engine::{
     ecs::{
         components::{
             collider::{Collider, ColliderShape},
-            transform::Transform,
+            world_transform::WorldTransform,
         },
         entity::{Entity, EntityAllocator},
         events::collision_event::CollisionEvent,
@@ -51,13 +51,13 @@ fn collect_colliders(
 ) -> Vec<(Entity, Vector3<f32>, Collider)> {
     let mut out = Vec::new();
     for (entity_id, collider) in world.iter_component::<Collider>() {
-        if let Some(transform) = world.get_component_by_id::<Transform>(entity_id) {
+        if let Some(world_transform) = world.get_component_by_id::<WorldTransform>(entity_id) {
             if let Some(entity) = allocator.lookup(entity_id) {
                 let (world_center, scaled) = resolve_collider(
                     collider,
-                    transform.position,
-                    transform.rotation,
-                    transform.scale,
+                    world_transform.position,
+                    world_transform.rotation,
+                    world_transform.scale,
                 );
                 out.push((entity, world_center, scaled));
             }

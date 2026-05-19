@@ -1,10 +1,8 @@
-use crate::engine::{
-    ecs::{
-        components::{ camera::camera::Camera, transform::Transform },
-        resources::camera::ActiveCamera,
-        system::SystemContext,
-        world::World,
-    },
+use crate::engine::ecs::{
+    components::{camera::camera::Camera, world_transform::WorldTransform},
+    resources::camera::ActiveCamera,
+    system::SystemContext,
+    world::World,
 };
 
 /// Always sync CPU state → GPU buffer every frame. The camera may have been moved
@@ -16,11 +14,12 @@ pub fn camera_update_system(world: &mut World, system_context: &mut SystemContex
     let active_camera_entity = active_camera.0;
 
     // We need to keep the cameras view projection and world position on the GPU in sync with
-    // its entity's Transform position
-    let Some(transform) = world.get_component::<Transform>(active_camera_entity) else {
+    // its entity's WorldTransform position (composed by hierarchy_system; for an unparented
+    // camera this just mirrors the local Transform).
+    let Some(world_transform) = world.get_component::<WorldTransform>(active_camera_entity) else {
         return;
     };
-    let position = transform.position;
+    let position = world_transform.position;
 
     let Some(camera) = world.get_component_mut::<Camera>(active_camera_entity) else {
         return;

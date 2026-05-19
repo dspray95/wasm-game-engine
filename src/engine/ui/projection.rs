@@ -1,7 +1,7 @@
 use cgmath::Vector3;
 
 use crate::engine::ecs::{
-    components::{camera::camera::Camera, transform::Transform},
+    components::{camera::camera::Camera, world_transform::WorldTransform},
     resources::camera::ActiveCamera,
     world::World,
 };
@@ -24,7 +24,7 @@ pub fn world_to_screen(
 ) -> Option<egui::Pos2> {
     let camera_entity = world.get_resource::<ActiveCamera>()?.0;
     let camera_position = world
-        .get_component_by_id::<Transform>(camera_entity.id)?
+        .get_component_by_id::<WorldTransform>(camera_entity.id)?
         .position;
     let camera = world.get_component_by_id::<Camera>(camera_entity.id)?;
 

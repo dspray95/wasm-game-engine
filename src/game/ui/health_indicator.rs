@@ -2,7 +2,7 @@ use egui::Color32;
 
 use crate::{
     engine::{
-        ecs::{components::transform::Transform, world::World},
+        ecs::{components::world_transform::WorldTransform, world::World},
         ui::projection::world_to_screen,
     },
     game::components::player::Player,
@@ -23,7 +23,7 @@ pub fn health_indicator(context: &egui::Context, world: &mut World) {
         return;
     };
     let Some(player_position) = world
-        .get_component_by_id::<Transform>(player_entity_id)
+        .get_component_by_id::<WorldTransform>(player_entity_id)
         .map(|t| t.position)
     else {
         return;

@@ -9,6 +9,7 @@ use crate::{
             renderable::Renderable,
             transform::Transform,
             velocity::Velocity,
+            world_transform::WorldTransform,
         },
         entity::{Entity, EntityAllocator},
         system::SystemContext,
@@ -62,7 +63,7 @@ pub fn enemy_spawn_system(world: &mut World, system_context: &mut SystemContext)
         return;
     }
     let player_position = world
-        .get_component_by_id::<Transform>(player_entity_id)
+        .get_component_by_id::<WorldTransform>(player_entity_id)
         .map(|transform| transform.position);
 
     let Some(player_position) = player_position else {
@@ -93,7 +94,7 @@ pub fn enemy_spawn_system(world: &mut World, system_context: &mut SystemContext)
     let entities_to_despawn: Vec<Entity> = existing_enemies
         .into_iter()
         .filter_map(|entity| {
-            let transform = world.get_component_by_id::<Transform>(entity.id)?;
+            let transform = world.get_component_by_id::<WorldTransform>(entity.id)?;
             (transform.position.z < despawn_threshold).then_some(entity)
         })
         .collect();

@@ -5,8 +5,8 @@ use crate::engine::{
         entity::EntityAllocator,
         systems::{
             camera_update_system::camera_update_system, collision_system::collision_system,
-            event_swap_system::event_swap_system, render_sync_system::render_sync_system,
-            velocity_system::velocity_system,
+            event_swap_system::event_swap_system, hierarchy_system::hierarchy_system,
+            render_sync_system::render_sync_system, velocity_system::velocity_system,
         },
         world::World,
     },
@@ -66,6 +66,7 @@ impl SystemSchedule {
             game_systems: Vec::new(),
             engine_systems: vec![
                 velocity_system,
+                hierarchy_system,
                 collision_system,
                 camera_update_system,
                 render_sync_system,
