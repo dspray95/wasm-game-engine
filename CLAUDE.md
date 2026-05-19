@@ -1,126 +1,120 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code working in this repo.
 
-## Build & Run
+## Project status
 
-This is a Rust project that compiles to WebAssembly via wasm-pack.
+**citizen-engine** is a custom Rust 3D game engine, built ground-up (not a Bevy wrapper). It powers two games:
 
-```bash
-make setup    # Install http-server and build WASM (first time)
-make build    # Compile to WebAssembly → pkg/
-make serve    # Serve on http://localhost:8000
-make run      # build + serve
-```
+1. **Canyon Runner** — the engine's first game, currently in polish. Compiles to WASM and runs in-browser.
+2. **(unnamed) city builder** — the engine's primary long-term target. Native-only. Work begins after canyon runner ships.
 
-The raw wasm-pack command (used by Makefile):
-```bash
-RUSTFLAGS='--cfg getrandom_backend="wasm_js"' wasm-pack build --target web --out-dir pkg
-```
+This is no longer a learning project. Decisions should weigh long-term cost: dependency choices, save-format versioning, public API stability, binary size all matter.
 
-Note: Native `cargo run` is currently non-functional. The game runs in-browser only.
-
-## Tests
-
-Tests live inline in their module files. Run with:
+## Build & run
 
 ```bash
-cargo test --lib                      # All unit tests
-cargo test --lib <test_name>          # Single test by name
-cargo test --lib -- --nocapture       # With stdout
+cargo run                                # Native build, runs canyon runner
+cargo test --lib                         # Unit tests
+cargo test --lib <name>                  # Single test
+cargo test --lib -- --nocapture          # With stdout
 ```
+
+WASM is currently a canyon-runner-only target (the city builder will be native):
+
+```bash
+make setup          # Install http-server, first-time setup
+make run            # wasm-pack build + serve on :8000
+```
+
+Raw WASM build: `RUSTFLAGS='--cfg getrandom_backend="wasm_js"' wasm-pack build --target web --out-dir pkg`.
 
 ## Architecture
 
-**citizen-engine** is a Rust/WASM 3D game engine being built toward a city-builder simulator. It currently runs a "canyon runner" demo. The engine is built around a custom ECS (Entity Component System) — this is an intentional learning project, not a wrapper around Bevy or similar.
+### ECS (`src/engine/ecs/`)
 
-### ECS Core (`src/engine/ecs/`)
+Custom ECS using **sparse sets** for O(1) insert/remove/lookup with cache-friendly iteration over a single component. Joining two components does two sparse lookups per entity — fine at current scale, would be a contiguous scan in archetype-style. See `docs/ECS_IMPL.md` for the full design tradeoff.
 
-The ECS uses **sparse sets** for O(1) insert/remove/lookup with cache-friendly iteration over a single component. Joining two components (`Renderable` + `Transform`) does two sparse lookups per entity — fine at current scale, would be a contiguous scan in an archetype ECS. See `docs/ECS_IMPL.md` for the full tradeoff. Key types:
+- `Entity` — generational ID, prevents stale-handle bugs after despawn
+- `World` — owns all component storage and resources
+- `SparseSet<T>` — per-component-type storage
+- `SystemSchedule` — startup systems once, then frame systems each tick
+- `Commands` — deferred mutation buffer on `SystemContext`; queue spawn/despawn, component insert/update/remove, resource update, event send. Flushed after each system returns. **Default way to mutate from a system.**
+- `Events<T>` — double-buffered queues, swapped each frame. Producers and consumers don't need to be ordered.
+- `ComponentRegistry` — typed RON deserialisation; required for any component appearing in scene files.
 
-- `Entity` — generational ID (index + generation) to prevent stale-handle bugs after despawn
-- `World` — owns all component storage and resources; is the single source of truth
-- `SparseSet<T>` — backing storage per component type
-- `SystemSchedule` — runs startup systems once, then frame systems each tick (input → logic → render_sync)
-- `Resources` — type-erased map on `World` (e.g., `InputState`)
+**Not yet implemented**: transform hierarchy (`Parent` + composed world transform). Discussed in detail; deferred until needed.
 
 ### Rendering (`src/engine/model/`, `src/engine/state/`)
 
-GPU rendering is wgpu-based with instanced draw calls:
+- `ModelRegistry` + `AssetServer` — name → model_id lookup; pre-allocated GPU instance buffers per model
+- `render_sync_system` — groups entities by `model_id`, writes instance transforms via `queue.write_buffer`
+- `Camera` is an ECS component; `ActiveCamera` resource selects which entity renders
+- `engine::ui::projection::world_to_screen` — projects world points to screen pixels for diegetic UI
+- Shaders: `src/shader.wgsl` (main), `src/wireframe.wgsl` (debug overlays)
+- egui rendered as a separate pass after the scene; games register panels via `UIRegistry`
 
-- `ModelRegistry` — central registry of models, each with pre-allocated GPU instance buffers
-- `render_sync_system` — ECS frame system that groups entities by `model_id`, writes instance transforms to GPU buffers via `queue.write_buffer`
-- `EngineState` — wgpu device/queue/surface setup
-- `RenderState` — manages render passes, depth texture, draw calls
-- `Camera` — ECS component; the `ActiveCamera` resource holds the entity ID of the camera currently rendering. Camera entities carry a `Transform` for position and a `Camera` component for view/projection state and the wgpu bind group.
+### Game layout
 
-Shaders are WGSL: `src/shader.wgsl` (main), `src/wireframe.wgsl`.
+- `Scene` trait separates engine infrastructure from game content
+- Canyon runner entry: `src/game/canyon_runner_world.rs`
+- Scene RON: `assets/worlds/canyon_runner.ron`
+- Input bindings: `assets/bindings.ron` — systems query named `Action`s, not raw `KeyCode`s
 
-### Scene Abstraction (`src/engine/scene/`, `src/game/`)
+## City builder direction (primary engine target)
 
-`Scene` trait separates game content from engine infrastructure. `CanyonRunnerScene` is the current implementation. Game-specific systems (player movement, laser spawning, terrain cycling) live in `src/game/systems/`.
+The simulation model is **cell-aggregated with hybrid individuals** — not Cities: Skylines-style per-citizen. This shapes architectural decisions:
 
-### ECS ↔ Rendering Bridge
+- The cell grid is a **typed resource** (`Grid<Cell>`), not modelled as entities. Wrong granularity for ECS.
+- Buildings, vehicles, named NPCs are ECS entities.
+- Two clocks: render at vsync, simulation at fixed timestep (~10 Hz). Save-determinism and frame-rate independence both require this.
+- Save layering: cell grid (packed binary) + removal overlay + placed entity records.
 
-The key data flow:
+### Engine work pending for the city builder
 
-```
-InputState (resource) → game systems → ECS transforms → render_sync_system → GPU instance buffers → wgpu draw
-```
+Rough priority order:
 
-Each entity with a `Renderable` component (carrying a `model_id`) and a `Transform` component is picked up by `render_sync_system` and batched into the appropriate model's instance buffer.
+1. **Transform hierarchy** — lightweight `Parent { local_offset, local_rotation }` first, full `WorldTransform` split when justified by use cases
+2. **Fixed-timestep simulation tick** — separate from frame schedule
+3. **`Grid<Cell>` resource pattern** + cell-aware spatial broadphase (replaces current naive O(n²) collision)
+4. **LOD / culling** — distance-based mesh swaps, chunk culling, instancing of repeated assets
+5. **Async asset loading** — move off `include_bytes!` for non-canyon assets; binary-size cost too high at city scale
+6. **Audio** — `kira` or `rodio` for native; absent currently
+7. **Pathfinding** — hybrid individuals (vehicles, named NPCs) need it; probably the `pathfinding` crate
+8. **Save format with versioning** — bincode + schema version byte at head; migrations inevitable
+9. ECS Archetypes - When performance profiling calls for it
+10. #[derive] for systems, components, events - an auto-register macro so we don't need to manually register everything. before=system_a type flag for ordering, checks for cyclical systems on build 
 
-### ECS Roadmap
-
-See `docs/ECS_IMPL.md` for the full design document. Current status:
-- **Phase 1** (ECS core) ✓
-- **Phase 2** (render bridge) ✓
-- **Phase 3** (player/laser via ECS) ✓
-- **Phase 4** (engine foundations) — substantially complete; remaining items called out below:
-  - **OBJ asset loading + AssetServer** ✓ — `load_model_from_obj_bytes` parses OBJ/MTL via `include_bytes!` at compile time. `AssetServer` wraps `ModelRegistry` with a name→ID `HashMap`, so systems look up models via `asset_server.get_model_id("starfighter")` instead of holding wrapper resources.
-  - **Camera into ECS** ✓ — `Camera` is a component; `ActiveCamera` resource selects which entity's camera renders. `CameraFollow` for tracking relationships and support for multiple cameras (minimap, reflections) remain future work.
-  - **Scene serialisation (RON)** ✓ — `assets/worlds/canyon_runner.ron` declares models + entity archetypes; `ComponentRegistry` dispatches tagged enums to per-type deserialisers via `#[derive(Serialize, Deserialize)]` on all components. Replaces hand-coded startup functions. Shares its registry with the planned bincode save path.
-  - **egui UI** ✓ — integrated with the wgpu backend; renders as a separate pass after the main scene. `UIRegistry` lets games register additional panels (e.g. `score_counter`, `debug_panel`).
-  - **Input action layer** ✓ — `assets/bindings.ron` loaded at startup; `InputState`/`KeyBindings` expose `is_action_pressed(&Action::Fire, &input)` rather than raw `KeyCode`s. Systems declare intent via the `Action` enum, decoupled from winit.
-  - **Collision detection** ✓ — `Collider` component (AABB; sphere variant declared but not yet implemented) and `collision_system` push `CollisionEvent`s into the event system. Broadphase is currently naive O(n²); swap in a spatial grid once entity counts grow.
-  - **Debug overlay** ✓ — egui panel showing FPS, entity count, and game-side difficulty curves (player speed, enemy spawn interval, laser cooldown). Togglable via `F1`. `collider_debug_system` (`F2`) overlays wireframe AABBs.
-  - **Event system** ✓ — generic `Events<T>` resource with double-buffered queues swapped each frame so producers and consumers live in different systems without ordering constraints. Used for `CollisionEvent`, `EnemyKilledEvent`, `PlayerDiedEvent`, `LaserFiredEvent`, `ScoreEvent`.
-  - **Commands** ✓ (new since the original roadmap) — `Commands` deferred-mutation buffer on `SystemContext`; systems queue spawn/despawn, component insert/update/remove, resource update, and event send operations; the schedule flushes after each system returns. Resolves overlapping `&mut World` borrow conflicts and is now the default way systems mutate world state.
-  - **Transform hierarchy** — *not yet implemented*. `Parent(Entity)` component plus a `hierarchy_system` that composes child local transforms with parent world transforms before `render_sync_system` runs. Needed for attaching props to ships, wheels to vehicles, signage to buildings.
-- **Phase 5** (city-builder foundation) — planned
+Anything outside this list should be flagged before being built.
 
 ## Serialisation
 
-### Formats
-- **RON** (Rusty Object Notation) is the preferred format for human-editable data — building templates, terrain configs, entity archetypes, input bindings. It understands Rust types natively (structs, enums, Options) and supports comments.
-- **bincode** is the preferred format for runtime save files (city saves, game state). Compact and fast; players never read it directly.
-- Avoid YAML (indentation-sensitive, subtle type coercion bugs). JSON is acceptable for interop with external tools only.
+- **RON** for human-editable data: building defs, scene archetypes, input bindings, tuning curves
+- **bincode** for runtime save state: compact, fast, never edited by hand, always versioned
+- Avoid YAML. JSON only for external tool interop.
 
-### City Builder Save System (planned)
-The city-builder will need full world serialisation — every entity and its components at save time. The intended approach:
+### Save layering (planned, designed not built)
 
-1. Derive `serde::Serialize`/`Deserialize` on all components
-2. Build a **component registry** on `World` — a `HashMap<TypeId, Box<dyn SerialiseStorage>>` that maps each storage to a type-erased serialise/deserialise function
-3. At save time: iterate all entities, serialise each component storage → write to bincode
-4. At load time: deserialise each storage → respawn entities with their components
-5. Authored data (building definitions, terrain configs) lives in RON files under `assets/`
+For city builder. Three layers, in one file:
 
-The hard part is the type-erased component registry — `World` is currently unaware of which types it stores beyond `TypeId`. A proc macro or explicit registration step will be needed. See Bevy's `Reflect` trait for prior art.
+1. **Authored density mask** — 2D array per cell describing natural vegetation/prop density. Immutable at runtime. Trees placed deterministically from `(seed, cell, idx)` on load.
+2. **Removal overlay** — `Vec<(cell, idx)>` recording what the player has destroyed. Grows with activity, not world size.
+3. **Placed entity records** — packed bincode of relevant sparse-set dense arrays. Player-built buildings, planted trees, named NPCs, vehicles.
 
-### Save File Layering (planned)
-Saving every tree/rock/prop as a full ECS entity does not scale — a large map has hundreds of thousands of them. Cities: Skylines-style games handle this with packed binary arrays, but we can go further by splitting persistent state into three layers:
+Load = regen from mask → skip removals → instantiate records. File size scales with player activity rather than world area. A replanted tree in a natural cell is a layer-3 entity, not a cancellation of the removal — player-planted carries different semantics.
 
-1. **Authored density mask** — a 2D array (e.g. 1 byte per cell) describing natural vegetation/prop density. Immutable at runtime, small, loads instantly. Trees are placed deterministically from `(seed, cell_coords, tree_index)` on load.
-2. **Removal overlay** — `Vec<(cell_x, cell_y, tree_idx)>` recording which procedural trees the player removed. Grows with player destruction, not world size. On load, procedural regen runs then skips these positions.
-3. **Placed entities** — full packed records for everything the player built (buildings, roads, planted trees, citizens, vehicles). Serialised as bincode of the relevant sparse-set dense arrays.
+## Coding style
 
-Save file = mask + overlay + packed records. Load = regen from mask → skip removals → instantiate records. File size scales with *player activity* rather than world size, and the player-facing fiction of "every tree is persistent" holds for anything they interacted with. Pure background scenery is allowed to reshuffle imperceptibly between sessions.
+- **No abbreviations in variable names.** `system_context` not `ctx`, `delta_time` not `dt` (except as a short-lived local), `entity_id` not `id` where context doesn't disambiguate.
+- Prefer editing existing files over creating new ones.
+- Comments only where the *why* is non-obvious: constraints, invariants, workarounds for specific bugs, surprising behaviour. Skip "what" comments — let identifiers do that.
+- Tests inline in their module files (`#[cfg(test)] mod tests`).
+- Don't add error handling, fallbacks, or validation for impossible scenarios. Trust internal code; only validate at system boundaries.
 
-A replanted tree in a natural cell becomes a new placed entity (layer 3), not a cancellation of the removal — player-planted trees carry different semantics (species choice, "planted by player" flag for gameplay).
+## Things to avoid
 
-### Input Bindings (planned)
-Input action mappings will be stored in `assets/bindings.ron` and loaded at startup into `InputState`. Systems query named actions (`"strafe_left"`, `"fire"`) rather than raw `KeyCode`s directly. Use `include_str!("../assets/bindings.ron")` for WASM compatibility (no filesystem access in browser).
-
-## Coding Style
-
-- **No abbreviations in variable names.** Use the full descriptive name: `system_context` not `ctx`, `delta_time` not `dt` (except as a short-lived local after extracting from `system_context.delta_time`), `entity_id` not `id` where the meaning isn't obvious from context.
+- **Don't model the cell grid as entities.** Wrong granularity; would create 10⁵+ entities at city scale.
+- **Don't add per-citizen entities for the city builder.** The simulation is cell-aggregated.
+- **Don't pull in Bevy or other ECS frameworks.** The custom ECS is the engine's value proposition.
+- **Don't write planning/decision documents unless explicitly asked.** Use the conversation. The roadmap above is the plan.
+- **Don't add features speculatively.** The priority list is the priority list.
