@@ -6,7 +6,10 @@ use crate::{
         ecs::{
             component_registry::ComponentRegistry,
             components::{renderable::Renderable, transform::Transform},
-            resources::debug::{ShowColliderDebug, ShowDebugPanel},
+            resources::{
+                debug::{ShowColliderDebug, ShowDebugPanel},
+                toasts::ToastQueue,
+            },
             system::{SystemContext, SystemSchedule},
             world::World,
         },
@@ -39,6 +42,7 @@ use crate::{
             camera_control_system::camera_control_system,
             camera_fov_system::camera_fov_system,
             collider_debug_system::collider_debug_system,
+            debug_toast_system::debug_toast_system,
             enemy::enemy_spawn_system::enemy_spawn_system,
             explosion::{
                 explosion_lifecycle_system::explosion_lifecycle_system,
@@ -60,7 +64,7 @@ use crate::{
         },
         ui::{
             difficulty_debug::difficulty_debug_panel, health_indicator::health_indicator,
-            score_counter::score_counter,
+            score_counter::score_counter, toast_panel::toast_panel,
         },
     },
 };
@@ -92,6 +96,7 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(explosion_lifecycle_system);
         schedule.add_game_system(vfx_system);
         schedule.add_game_system(collider_debug_system);
+        schedule.add_game_system(debug_toast_system);
         schedule.add_game_system(player_score_system);
         schedule.add_game_system(screen_effects_system);
     }
@@ -101,6 +106,7 @@ impl GameSetup for CanyonRunnerWorld {
         ui_registry.add(difficulty_debug_panel);
         ui_registry.add(score_counter);
         ui_registry.add(health_indicator);
+        ui_registry.add(toast_panel);
     }
 
     fn register_components(&self, registry: &mut ComponentRegistry) {
@@ -166,6 +172,7 @@ impl GameSetup for CanyonRunnerWorld {
             },
         });
         world.add_resource(ScreenEffects::new());
+        world.add_resource(ToastQueue::new());
 
         // Enemy setup
         world.add_resource(EnemySpawnManager {

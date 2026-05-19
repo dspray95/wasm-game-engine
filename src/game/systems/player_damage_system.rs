@@ -8,6 +8,7 @@ use crate::{
             components::{renderable::Renderable, world_transform::WorldTransform},
             entity::Entity,
             events::collision_event::CollisionEvent,
+            resources::toasts::push_hud_toast,
             system::SystemContext,
             systems::collision_system::filter_collision_pairs,
             world::World,
@@ -125,6 +126,7 @@ pub fn player_damage_system(world: &mut World, system_context: &mut SystemContex
         if let Some(visual) = shield_visual {
             system_context.commands().despawn(visual);
         }
+        push_hud_toast(system_context.commands(), "SHIELD BROKEN");
         return;
     }
 
@@ -140,6 +142,7 @@ pub fn player_damage_system(world: &mut World, system_context: &mut SystemContex
 
     if hyperdrive_active {
         clear_all_powerups(world, system_context, player_entity);
+        push_hud_toast(system_context.commands(), "CHAIN RESET");
     }
 
     if new_health <= 0 {

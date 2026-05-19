@@ -11,6 +11,7 @@ use crate::{
             },
             entity::{Entity, EntityAllocator},
             events::collision_event::CollisionEvent,
+            resources::toasts::push_hud_toast,
             system::SystemContext,
             systems::collision_system::filter_collision_pairs,
             world::World,
@@ -83,14 +84,20 @@ pub fn pickup_collect_system(world: &mut World, system_context: &mut SystemConte
             let mut rng = rand::rng();
             grant_shield(system_context, player_entity, &mut rng);
             refresh_active_timers(world, system_context, player_entity);
+            push_hud_toast(system_context.commands, "SHIELD ENABLED");
+            push_hud_toast(system_context.commands, "LASER NEXT");
         }
         PowerUpKind::Laser => {
             grant_double_fire_rate(system_context, player_entity);
             refresh_active_timers(world, system_context, player_entity);
+            push_hud_toast(system_context.commands, "LASER ENABLED");
+            push_hud_toast(system_context.commands, "HYPERDRIVE NEXT");
         }
         PowerUpKind::Hyperdrive => {
             grant_hyperdrive(system_context, player_entity);
             refresh_active_timers(world, system_context, player_entity);
+            push_hud_toast(system_context.commands, "HYPERDRIVE ENABLED");
+            push_hud_toast(system_context.commands, "BOMB READY");
         }
         PowerUpKind::Bomb => {
             // Bomb caps the chain: nuke everything on screen, clear every
@@ -98,6 +105,7 @@ pub fn pickup_collect_system(world: &mut World, system_context: &mut SystemConte
             // next pickup gives Shield again.
             trigger_bomb(world, system_context);
             clear_all_powerups(world, system_context, player_entity);
+            push_hud_toast(system_context.commands, "BOMB!");
         }
     }
 }

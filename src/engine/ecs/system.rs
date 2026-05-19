@@ -6,7 +6,8 @@ use crate::engine::{
         systems::{
             camera_update_system::camera_update_system, collision_system::collision_system,
             event_swap_system::event_swap_system, hierarchy_system::hierarchy_system,
-            render_sync_system::render_sync_system, velocity_system::velocity_system,
+            render_sync_system::render_sync_system, toast_system::toast_system,
+            velocity_system::velocity_system,
         },
         world::World,
     },
@@ -69,6 +70,7 @@ impl SystemSchedule {
                 hierarchy_system,
                 collision_system,
                 camera_update_system,
+                toast_system,
                 render_sync_system,
                 event_swap_system,
             ],

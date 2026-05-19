@@ -2,6 +2,7 @@ pub mod camera_control_system;
 pub mod camera_fov_system;
 pub mod collider_debug_system;
 pub mod collision_log_system;
+pub mod debug_toast_system;
 pub mod enemy;
 pub mod explosion;
 pub mod hover_system;

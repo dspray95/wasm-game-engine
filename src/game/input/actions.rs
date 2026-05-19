@@ -18,4 +18,6 @@ pub enum Action {
     //Builtins
     ToggleDebugPanel,
     ToggleColliderDebug,
+    //Debug
+    TestToast,
 }
