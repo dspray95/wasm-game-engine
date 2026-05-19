@@ -1,0 +1,7 @@
+newmtl Fuselage
+Kd 1.0 1.0 1.0
+d 0.7
+
+newmtl Cockpit
+Kd 1.0 1.0 1.0
+d 0.7

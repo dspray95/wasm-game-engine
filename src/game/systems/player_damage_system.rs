@@ -5,24 +5,28 @@ use cgmath::Vector3;
 use crate::{
     engine::{
         ecs::{
-            components::{renderable::Renderable, transform::Transform},
+            components::{renderable::Renderable, world_transform::WorldTransform},
             entity::Entity,
-            events::collision_event::CollisionEvent, system::SystemContext,
-            systems::collision_system::filter_collision_pairs, world::World,
+            events::collision_event::CollisionEvent,
+            system::SystemContext,
+            systems::collision_system::filter_collision_pairs,
+            world::World,
         },
         events::events::Events,
     },
     game::{
         components::{
-            dead::Dead, enemy::Enemy, invulnerable::Invulnerable, player::Player,
+            dead::Dead, enemy::Enemy, hyperdrive::Hyperdrive, invulnerable::Invulnerable,
+            player::Player, shield::Shield,
         },
         events::{
-            enemy_killed_event::EnemyKilledEvent, player_died_event::PlayerDiedEvent,
+            enemy_killed_event::EnemyKilledEvent,
+            player_died_event::PlayerDiedEvent,
+            score_event::{ScoreEvent, ScoreType},
         },
-        resources::{
-            enemy_resources::EnemySpawnManager, player_score::PlayerScore,
-            player_speed_scaling::PlayerSpeedScaling, screen_effects::ScreenEffects,
-        },
+        helpers::player_speed::effective_player_z_speed,
+        resources::{enemy_resources::EnemySpawnManager, screen_effects::ScreenEffects},
+        systems::pickup_collect_system::clear_all_powerups,
     },
 };
 
@@ -63,20 +67,25 @@ pub fn player_damage_system(world: &mut World, system_context: &mut SystemContex
     }
 
     let enemies_to_despawn: HashSet<Entity> = hits.iter().map(|(_, enemy)| *enemy).collect();
-    let new_health = player_health - 1;
+    let shield_visual = world
+        .get_component::<Shield>(player_entity)
+        .map(|s| s.visual_entity);
+    let shielded = shield_visual.is_some();
+    let hyperdrive_active = world.get_component::<Hyperdrive>(player_entity).is_some();
 
     let player_position = world
-        .get_component::<Transform>(player_entity)
+        .get_component::<WorldTransform>(player_entity)
         .map(|t| t.position);
 
     let enemy_kill_events: Vec<EnemyKilledEvent> = enemies_to_despawn
         .iter()
         .filter_map(|enemy| {
             world
-                .get_component_by_id::<Transform>(enemy.id)
+                .get_component_by_id::<WorldTransform>(enemy.id)
                 .map(|t| EnemyKilledEvent { origin: t.position })
         })
         .collect();
+    let enemy_kill_count = enemy_kill_events.len();
 
     {
         let enemies = enemies_to_despawn.clone();
@@ -95,18 +104,46 @@ pub fn player_damage_system(world: &mut World, system_context: &mut SystemContex
 
     system_context
         .commands()
-        .update_component::<Player, _>(player_entity, move |p| {
-            p.health = new_health;
-        });
-
-    system_context
-        .commands()
         .update_resource::<ScreenEffects, _>(|effects| {
             effects.trigger_damage_effect();
         });
 
+    if shielded {
+        // Hit while shielded: consume the shield only. No HP loss, no
+        // invulnerable grace period — the player needs to immediately
+        // worry about the *next* hit. Other powerups (Laser, Hyperdrive)
+        // stay active. Each enemy the shield broke through still counts
+        // as a clean kill for score.
+        for _ in 0..enemy_kill_count {
+            system_context.commands().send_event(ScoreEvent {
+                score_type: ScoreType::EnemyKilled,
+            });
+        }
+        system_context
+            .commands()
+            .remove_component::<Shield>(player_entity);
+        if let Some(visual) = shield_visual {
+            system_context.commands().despawn(visual);
+        }
+        return;
+    }
+
+    // Unshielded hit — HP comes off. If Hyperdrive was active, this is the
+    // "again" damage that resets the whole chain (rule 4): clear every
+    // remaining powerup as the catastrophic cost.
+    let new_health = player_health - 1;
+    system_context
+        .commands()
+        .update_component::<Player, _>(player_entity, move |p| {
+            p.health = new_health;
+        });
+
+    if hyperdrive_active {
+        clear_all_powerups(world, system_context, player_entity);
+    }
+
     if new_health <= 0 {
-        let speed_at_death = current_player_speed(world);
+        let speed_at_death = effective_player_z_speed(world);
         if let Some(origin) = player_position {
             system_context.commands().send_event(PlayerDiedEvent {
                 origin,
@@ -138,16 +175,5 @@ pub fn player_damage_system(world: &mut World, system_context: &mut SystemContex
                 flash_phase_timer: FLASH_PHASE_SECONDS,
             },
         );
-    }
-}
-
-fn current_player_speed(world: &World) -> f32 {
-    let score = world
-        .get_resource::<PlayerScore>()
-        .map(|s| s.score)
-        .unwrap_or(0);
-    match world.get_resource::<PlayerSpeedScaling>() {
-        Some(scaling) => scaling.z_speed.value(score),
-        None => 0.0,
     }
 }

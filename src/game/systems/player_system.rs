@@ -9,8 +9,9 @@ use crate::{
     },
     game::{
         components::{dead::Dead, player::Player},
+        helpers::player_speed::effective_player_z_speed,
         input::{actions::Action, world_ext::InputWorldExt},
-        resources::{player_score::PlayerScore, player_speed_scaling::PlayerSpeedScaling},
+        resources::player_speed_scaling::PlayerSpeedScaling,
     },
 };
 
@@ -78,13 +79,13 @@ pub fn player_system(world: &mut World, system_context: &mut SystemContext) {
         return;
     }
 
-    let player_score = world
-        .get_resource::<PlayerScore>()
-        .map(|s| s.score)
-        .unwrap_or(0);
-    let effective_z_speed = match world.get_resource::<PlayerSpeedScaling>() {
-        Some(scaling) => scaling.z_speed.value(player_score),
-        None => player.z_movement_speed,
+    // Reads the score-driven curve and applies any active speed-modifying
+    // powerups (Hyperdrive). Falls back to the local Transform speed if the
+    // scaling resource is missing.
+    let effective_z_speed = if world.get_resource::<PlayerSpeedScaling>().is_some() {
+        effective_player_z_speed(world)
+    } else {
+        player.z_movement_speed
     };
 
     // Move player

@@ -40,4 +40,12 @@ impl Projection {
     pub fn calculate_projection_matrix(&self) -> Matrix4<f32> {
         OPENGL_TO_WGPU_MATRIX * perspective(self.fov_y, self.aspect, self.z_near, self.z_far)
     }
+
+    pub fn fov_y(&self) -> Rad<f32> {
+        self.fov_y
+    }
+
+    pub fn set_fov_y(&mut self, fov: Rad<f32>) {
+        self.fov_y = fov;
+    }
 }

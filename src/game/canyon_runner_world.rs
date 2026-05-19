@@ -37,6 +37,7 @@ use crate::{
         },
         systems::{
             camera_control_system::camera_control_system,
+            camera_fov_system::camera_fov_system,
             collider_debug_system::collider_debug_system,
             enemy::enemy_spawn_system::enemy_spawn_system,
             explosion::{
@@ -45,12 +46,17 @@ use crate::{
             },
             hover_system::hover_system,
             laser::{laser_hit_system::laser_hit_system, laser_system::laser_system},
+            pickup_collect_system::pickup_collect_system,
+            pickup_system::pickup_system,
             player_damage_system::player_damage_system,
             player_invulnerability_system::player_invulnerability_system,
             player_score_system::player_score_system,
             player_system::player_system,
+            powerup_lifecycle_system::powerup_lifecycle_system,
             screen_effects_system::screen_effects_system,
+            shield_system::shield_system,
             terrain_system::terrain_system,
+            vfx_system::vfx_system,
         },
         ui::{
             difficulty_debug::difficulty_debug_panel, health_indicator::health_indicator,
@@ -69,6 +75,7 @@ impl GameSetup for CanyonRunnerWorld {
 
     fn setup_ecs(&self, schedule: &mut SystemSchedule) {
         schedule.add_game_system(camera_control_system);
+        schedule.add_game_system(camera_fov_system);
         schedule.add_game_system(hover_system);
         schedule.add_game_system(player_system);
         schedule.add_game_system(terrain_system);
@@ -76,9 +83,14 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(enemy_spawn_system);
         schedule.add_game_system(laser_hit_system);
         schedule.add_game_system(explosion_spawn_system);
+        schedule.add_game_system(pickup_system);
+        schedule.add_game_system(pickup_collect_system);
+        schedule.add_game_system(shield_system);
+        schedule.add_game_system(powerup_lifecycle_system);
         schedule.add_game_system(player_damage_system);
         schedule.add_game_system(player_invulnerability_system);
         schedule.add_game_system(explosion_lifecycle_system);
+        schedule.add_game_system(vfx_system);
         schedule.add_game_system(collider_debug_system);
         schedule.add_game_system(player_score_system);
         schedule.add_game_system(screen_effects_system);

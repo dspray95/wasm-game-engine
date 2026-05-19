@@ -7,7 +7,10 @@ use crate::{
     engine::{
         assets::server::AssetServer,
         ecs::{
-            components::{renderable::Renderable, transform::Transform, velocity::Velocity},
+            components::{
+                renderable::Renderable, transform::Transform, velocity::Velocity,
+                world_transform::WorldTransform,
+            },
             entity::{Entity, EntityAllocator},
             system::SystemContext,
             world::World,
@@ -16,15 +19,15 @@ use crate::{
     game::{
         components::{
             dead::Dead,
+            double_fire_rate::DoubleFireRate,
+            glitch_vfx::GlitchVfx,
             invulnerable::Invulnerable,
             laser::{Laser, DEFAULT_TRAVEL_SPEED},
             player::Player,
         },
+        helpers::player_speed::effective_player_z_speed,
         input::{actions::Action, world_ext::InputWorldExt},
-        resources::{
-            laser_resources::LaserManager, player_score::PlayerScore,
-            player_speed_scaling::PlayerSpeedScaling,
-        },
+        resources::{laser_resources::LaserManager, player_score::PlayerScore},
     },
 };
 
@@ -33,7 +36,7 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
     let key_bindings = world.key_bindings();
 
     let player_position = world
-        .query_iter::<(&Player, &Transform)>()
+        .query_iter::<(&Player, &WorldTransform)>()
         .next()
         .map(|(_, transform)| transform.position);
 
@@ -55,11 +58,19 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
             .get_resource::<PlayerScore>()
             .map(|s| s.score)
             .unwrap_or(0);
+        let double_fire_rate = world
+            .iter_component::<Player>()
+            .next()
+            .map(|(id, _)| world.get_component_by_id::<DoubleFireRate>(id).is_some())
+            .unwrap_or(false);
         let is_allowed_to_fire = {
             let Some(laser_manager) = world.get_resource::<LaserManager>() else {
                 return;
             };
-            let cooldown_seconds = laser_manager.fire_cooldown.value(player_score);
+            let mut cooldown_seconds = laser_manager.fire_cooldown.value(player_score);
+            if double_fire_rate {
+                cooldown_seconds *= 0.5;
+            }
             laser_manager.is_allowed_to_fire(now, cooldown_seconds)
         };
         let laser_entity: Option<Entity> = if is_allowed_to_fire {
@@ -87,6 +98,17 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
             };
             laser_manager.alive_lasers.push(laser);
             laser_manager.last_fired_time = now;
+
+            // Attach glitch siblings if DoubleFireRate is active. They parent
+            // to the laser so they move with it and despawn-cascade with it.
+            if double_fire_rate {
+                spawn_laser_glitch_pair(
+                    world,
+                    system_context.asset_server.as_deref().unwrap(),
+                    laser,
+                    system_context.entity_allocator,
+                );
+            }
         }
     }
 
@@ -125,6 +147,40 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
     }
 }
 
+// Local-space offset; gets multiplied by the laser's scale (~10) during
+// hierarchy composition, so 0.005 here ≈ 0.05 world units of shoogle.
+const LASER_GLITCH_MAX_OFFSET: f32 = 0.001;
+
+fn spawn_laser_glitch_pair(
+    world: &mut World,
+    asset_server: &AssetServer,
+    laser_entity: Entity,
+    allocator: &mut EntityAllocator,
+) {
+    let cyan_id = asset_server.get_model_id("laser_glitch_cyan");
+    let white_id = asset_server.get_model_id("laser_glitch_white");
+    spawn_laser_glitch_child(world, cyan_id, laser_entity, allocator);
+    spawn_laser_glitch_child(world, white_id, laser_entity, allocator);
+}
+
+fn spawn_laser_glitch_child(
+    world: &mut World,
+    model_id: usize,
+    laser_entity: Entity,
+    allocator: &mut EntityAllocator,
+) {
+    world
+        .spawn(allocator)
+        .with(Renderable::new(model_id))
+        .with(Transform::new())
+        .with(GlitchVfx {
+            max_offset: LASER_GLITCH_MAX_OFFSET,
+            flash: None,
+        })
+        .as_child_of(laser_entity)
+        .build();
+}
+
 fn spawn_laser(
     world: &mut World,
     asset_server: &AssetServer,
@@ -157,13 +213,3 @@ fn spawn_laser(
         .build()
 }
 
-fn effective_player_z_speed(world: &World) -> f32 {
-    let score = world
-        .get_resource::<PlayerScore>()
-        .map(|s| s.score)
-        .unwrap_or(0);
-    match world.get_resource::<PlayerSpeedScaling>() {
-        Some(scaling) => scaling.z_speed.value(score),
-        None => 0.0,
-    }
-}
