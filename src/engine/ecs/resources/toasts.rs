@@ -1,6 +1,18 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use cgmath::Vector3;
 
 use crate::engine::ecs::commands::commands::Commands;
+
+/// Monotonically-increasing toast id. Each toast gets a fresh value at
+/// construction so the rendering layer can key per-toast state (e.g. egui's
+/// `animate_value_with_time`) by something stable across frames, independent
+/// of the toast's index in `ToastQueue.toasts`.
+static NEXT_TOAST_ID: AtomicU64 = AtomicU64::new(0);
+
+fn next_toast_id() -> u64 {
+    NEXT_TOAST_ID.fetch_add(1, Ordering::Relaxed)
+}
 
 pub const DEFAULT_LIFETIME: f32 = 2.5;
 pub const DEFAULT_FADE_IN: f32 = 0.15;
@@ -20,25 +32,43 @@ pub enum ToastAnchor {
 }
 
 pub struct Toast {
+    pub id: u64,
     pub text: String,
     pub elapsed: f32,
     pub lifetime: f32,
     pub fade_in_seconds: f32,
     pub fade_out_seconds: f32,
     pub anchor: ToastAnchor,
+    /// Seconds to wait before the toast starts ticking + rendering. While
+    /// `delay > 0` the toast is dormant: it doesn't appear in the stack and
+    /// its `elapsed` doesn't advance. Used to space out related pushes (e.g.
+    /// "SHIELD ENABLED" then "LASER NEXT" half a second later).
+    pub delay: f32,
 }
 
 impl Toast {
     /// Convenience constructor for a HUD-stacked toast with default timings.
     pub fn hud(text: impl Into<String>) -> Self {
         Self {
+            id: next_toast_id(),
             text: text.into(),
             elapsed: 0.0,
             lifetime: DEFAULT_LIFETIME,
             fade_in_seconds: DEFAULT_FADE_IN,
             fade_out_seconds: DEFAULT_FADE_OUT,
             anchor: ToastAnchor::HudStack,
+            delay: 0.0,
         }
+    }
+
+    /// Builder: delay the toast's appearance by `seconds`.
+    pub fn with_delay(mut self, seconds: f32) -> Self {
+        self.delay = seconds;
+        self
+    }
+
+    pub fn is_dormant(&self) -> bool {
+        self.delay > 0.0
     }
 
     /// 0.0 → 1.0, sampled by the rendering panel each frame.
@@ -65,6 +95,14 @@ impl ToastQueue {
             toasts: Vec::new(),
             max_visible_hud: DEFAULT_MAX_VISIBLE_HUD,
         }
+    }
+
+    /// Remove every toast whose text matches `text` exactly. Use when a
+    /// scheduled (often dormant) toast becomes stale — e.g. "LASER NEXT"
+    /// pushed by a Shield grab is moot once the player has actually grabbed
+    /// the Laser pickup before that toast appeared.
+    pub fn clear_matching(&mut self, text: &str) {
+        self.toasts.retain(|t| t.text != text);
     }
 
     /// Append a toast. If pushing a `HudStack` toast brings the HUD stack
@@ -122,5 +160,28 @@ pub fn push_hud_toast(commands: &mut Commands, text: impl Into<String>) {
     let text = text.into();
     commands.update_resource::<ToastQueue, _>(move |queue| {
         queue.push(Toast::hud(text));
+    });
+}
+
+/// Same as `push_hud_toast` but the toast stays dormant for `delay` seconds
+/// before it enters the stack. Useful for spacing out related notifications.
+pub fn push_hud_toast_delayed(
+    commands: &mut Commands,
+    text: impl Into<String>,
+    delay: f32,
+) {
+    let text = text.into();
+    commands.update_resource::<ToastQueue, _>(move |queue| {
+        queue.push(Toast::hud(text).with_delay(delay));
+    });
+}
+
+/// Remove every toast matching `text` exactly via the standard commands
+/// buffer. Used to evict stale dormant toasts when their scheduled message
+/// no longer applies.
+pub fn clear_hud_toasts(commands: &mut Commands, text: impl Into<String>) {
+    let text = text.into();
+    commands.update_resource::<ToastQueue, _>(move |queue| {
+        queue.clear_matching(&text);
     });
 }

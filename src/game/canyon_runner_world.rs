@@ -39,6 +39,7 @@ use crate::{
             terrain_resources::{TerrainGeneration, TerrainModelIds},
         },
         systems::{
+            bomb_system::bomb_system,
             camera_control_system::camera_control_system,
             camera_fov_system::camera_fov_system,
             collider_debug_system::collider_debug_system,
@@ -51,6 +52,7 @@ use crate::{
             hover_system::hover_system,
             laser::{laser_hit_system::laser_hit_system, laser_system::laser_system},
             pickup_collect_system::pickup_collect_system,
+            pickup_glitch_system::pickup_glitch_system,
             pickup_system::pickup_system,
             player_damage_system::player_damage_system,
             player_invulnerability_system::player_invulnerability_system,
@@ -65,6 +67,7 @@ use crate::{
         ui::{
             difficulty_debug::difficulty_debug_panel, health_indicator::health_indicator,
             score_counter::score_counter, toast_panel::toast_panel,
+            white_flash_overlay::white_flash_overlay,
         },
     },
 };
@@ -88,7 +91,9 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(laser_hit_system);
         schedule.add_game_system(explosion_spawn_system);
         schedule.add_game_system(pickup_system);
+        schedule.add_game_system(pickup_glitch_system);
         schedule.add_game_system(pickup_collect_system);
+        schedule.add_game_system(bomb_system);
         schedule.add_game_system(shield_system);
         schedule.add_game_system(powerup_lifecycle_system);
         schedule.add_game_system(player_damage_system);
@@ -107,6 +112,7 @@ impl GameSetup for CanyonRunnerWorld {
         ui_registry.add(score_counter);
         ui_registry.add(health_indicator);
         ui_registry.add(toast_panel);
+        ui_registry.add(white_flash_overlay);
     }
 
     fn register_components(&self, registry: &mut ComponentRegistry) {

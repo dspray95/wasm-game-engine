@@ -19,6 +19,7 @@ pub fn screen_effects_system(world: &mut World, system_context: &mut SystemConte
     let effects = world.get_resource_mut::<ScreenEffects>().unwrap();
     effects.glitch_timer = (effects.glitch_timer - delta_time).max(0.0);
     effects.shake_timer = (effects.shake_timer - delta_time).max(0.0);
+    effects.white_flash_timer = (effects.white_flash_timer - delta_time).max(0.0);
     if enemy_killed_this_frame {
         effects.trigger_kill_effect();
     }

@@ -1,3 +1,4 @@
+pub mod bomb_system;
 pub mod camera_control_system;
 pub mod camera_fov_system;
 pub mod collider_debug_system;
@@ -8,6 +9,7 @@ pub mod explosion;
 pub mod hover_system;
 pub mod laser;
 pub mod pickup_collect_system;
+pub mod pickup_glitch_system;
 pub mod pickup_system;
 pub mod player_damage_system;
 pub mod player_invulnerability_system;

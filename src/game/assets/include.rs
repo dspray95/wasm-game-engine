@@ -14,6 +14,10 @@ pub const EXPLOSION_MODEL_MTL: &[u8] = include_bytes!("../../../assets/models/ex
 
 pub const PICKUP_MODEL_OBJ: &[u8] = include_bytes!("../../../assets/models/pickup.obj");
 pub const PICKUP_MODEL_MTL: &[u8] = include_bytes!("../../../assets/models/pickup.mtl");
+pub const PICKUP_WHITE_MTL: &[u8] =
+    include_bytes!("../../../assets/models/pickup-white.mtl");
+pub const PICKUP_GLITCH_CYAN_MTL: &[u8] =
+    include_bytes!("../../../assets/models/pickup-glitch-cyan.mtl");
 
 pub const SHIELD_MODEL_OBJ: &[u8] = include_bytes!("../../../assets/models/shield.obj");
 pub const SHIELD_MODEL_MTL: &[u8] = include_bytes!("../../../assets/models/shield.mtl");

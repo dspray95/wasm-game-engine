@@ -6,12 +6,10 @@ use rand::Rng;
 use crate::{
     engine::{
         ecs::{
-            components::{
-                renderable::Renderable, transform::Transform, world_transform::WorldTransform,
-            },
+            components::{renderable::Renderable, transform::Transform},
             entity::{Entity, EntityAllocator},
             events::collision_event::CollisionEvent,
-            resources::toasts::push_hud_toast,
+            resources::toasts::{clear_hud_toasts, push_hud_toast, push_hud_toast_delayed},
             system::SystemContext,
             systems::collision_system::filter_collision_pairs,
             world::World,
@@ -20,18 +18,13 @@ use crate::{
     },
     game::{
         components::{
-            double_fire_rate::DoubleFireRate, glitch_vfx::GlitchVfx, hyperdrive::Hyperdrive,
-            pickup::Pickup, player::Player, shield::Shield,
-        },
-        events::{
-            enemy_killed_event::EnemyKilledEvent,
-            score_event::{ScoreEvent, ScoreType},
+            bomb_charging::BombCharging, double_fire_rate::DoubleFireRate, glitch_vfx::GlitchVfx,
+            hyperdrive::Hyperdrive, invulnerable::Invulnerable, pickup::Pickup, player::Player,
+            shield::Shield,
         },
         resources::{
-            enemy_resources::EnemySpawnManager,
             player_score::PlayerScore,
             powerup_progression::{next_powerup_kind, PowerUpKind},
-            screen_effects::ScreenEffects,
         },
     },
 };
@@ -40,6 +33,9 @@ use crate::{
 // the same expiry — they tick down in lockstep and the stack collapses cleanly
 // rather than peeling layers off at staggered moments.
 pub const POWERUP_DURATION_SECONDS: f32 = 7.5;
+/// Delay between the "X ENABLED" toast and its "Y NEXT" companion so they
+/// read as two beats rather than a single line.
+const FOLLOWUP_TOAST_DELAY: f32 = 0.5;
 pub const SHIELD_DURATION_SECONDS: f32 = POWERUP_DURATION_SECONDS;
 pub const HYPERDRIVE_DURATION_SECONDS: f32 = POWERUP_DURATION_SECONDS;
 pub const DOUBLE_FIRE_RATE_DURATION_SECONDS: f32 = POWERUP_DURATION_SECONDS;
@@ -50,6 +46,13 @@ pub const DOUBLE_FIRE_RATE_DURATION_SECONDS: f32 = POWERUP_DURATION_SECONDS;
 const PLAYER_GLITCH_MAX_OFFSET: f32 = 0.4;
 const SHIELD_SCALE: f32 = 1.25;
 const SHIELD_FLASH_PHASE_SECONDS: f32 = 0.1;
+/// Wind-up between grabbing a bomb pickup and the detonation. `bomb_system`
+/// owns the ramp + fire; we just attach the timer here.
+pub const BOMB_CHARGE_SECONDS: f32 = 2.0;
+/// Flash period applied via `Invulnerable` during the wind-up — reuses the
+/// existing flashing behaviour so the player gets the "I am invincible right
+/// now" visual.
+const BOMB_FLASH_PHASE_SECONDS: f32 = 0.08;
 
 pub fn pickup_collect_system(world: &mut World, system_context: &mut SystemContext) {
     let Some(player_entity) = world
@@ -72,6 +75,12 @@ pub fn pickup_collect_system(world: &mut World, system_context: &mut SystemConte
         return;
     }
 
+    // Mid-bomb-charge: pickup interactions are paused entirely so the player
+    // can't grab another bomb on top of the wind-up.
+    if world.get_component::<BombCharging>(player_entity).is_some() {
+        return;
+    }
+
     let pickups_to_despawn: HashSet<Entity> = hits.iter().map(|(_, pickup)| *pickup).collect();
     for pickup in &pickups_to_despawn {
         system_context.commands.despawn(*pickup);
@@ -85,27 +94,48 @@ pub fn pickup_collect_system(world: &mut World, system_context: &mut SystemConte
             grant_shield(system_context, player_entity, &mut rng);
             refresh_active_timers(world, system_context, player_entity);
             push_hud_toast(system_context.commands, "SHIELD ENABLED");
-            push_hud_toast(system_context.commands, "LASER NEXT");
+            push_hud_toast_delayed(system_context.commands, "LASER NEXT", FOLLOWUP_TOAST_DELAY);
         }
         PowerUpKind::Laser => {
             grant_double_fire_rate(system_context, player_entity);
             refresh_active_timers(world, system_context, player_entity);
+            // Drop the stale "LASER NEXT" that the previous Shield grab queued.
+            clear_hud_toasts(system_context.commands, "LASER NEXT");
             push_hud_toast(system_context.commands, "LASER ENABLED");
-            push_hud_toast(system_context.commands, "HYPERDRIVE NEXT");
+            push_hud_toast_delayed(
+                system_context.commands,
+                "HYPERDRIVE NEXT",
+                FOLLOWUP_TOAST_DELAY,
+            );
         }
         PowerUpKind::Hyperdrive => {
             grant_hyperdrive(system_context, player_entity);
             refresh_active_timers(world, system_context, player_entity);
+            clear_hud_toasts(system_context.commands, "HYPERDRIVE NEXT");
             push_hud_toast(system_context.commands, "HYPERDRIVE ENABLED");
-            push_hud_toast(system_context.commands, "BOMB READY");
+            push_hud_toast_delayed(system_context.commands, "BOMB READY", FOLLOWUP_TOAST_DELAY);
         }
         PowerUpKind::Bomb => {
-            // Bomb caps the chain: nuke everything on screen, clear every
-            // active powerup as "payment", chain resets to empty stack so the
-            // next pickup gives Shield again.
-            trigger_bomb(world, system_context);
-            clear_all_powerups(world, system_context, player_entity);
-            push_hud_toast(system_context.commands, "BOMB!");
+            // Bomb is a 2-second wind-up, not an instant nuke. Attach the
+            // charge timer and an Invulnerable so the player flashes and
+            // can't be hit during the build-up. `bomb_system` reads
+            // BombCharging, ramps the shake, and detonates at expiry.
+            system_context.commands.add_component(
+                player_entity,
+                BombCharging {
+                    time_remaining: BOMB_CHARGE_SECONDS,
+                    total_seconds: BOMB_CHARGE_SECONDS,
+                },
+            );
+            system_context.commands.add_component(
+                player_entity,
+                Invulnerable {
+                    time_remaining: BOMB_CHARGE_SECONDS,
+                    flash_phase_timer: BOMB_FLASH_PHASE_SECONDS,
+                },
+            );
+            clear_hud_toasts(system_context.commands, "BOMB READY");
+            push_hud_toast(system_context.commands, "BOMB INCOMING");
         }
     }
 }
@@ -113,11 +143,7 @@ pub fn pickup_collect_system(world: &mut World, system_context: &mut SystemConte
 /// Bump every active powerup's `time_remaining` back to its full duration so
 /// the stack stays synchronised. Called after every grant so existing
 /// powerups don't expire mid-stack-build.
-fn refresh_active_timers(
-    world: &World,
-    system_context: &mut SystemContext,
-    player_entity: Entity,
-) {
+fn refresh_active_timers(world: &World, system_context: &mut SystemContext, player_entity: Entity) {
     if world.get_component::<Shield>(player_entity).is_some() {
         system_context
             .commands
@@ -187,40 +213,6 @@ pub fn clear_all_powerups(
             .commands
             .remove_component::<DoubleFireRate>(player_entity);
     }
-}
-
-/// Instant clear of every alive enemy — sends an EnemyKilledEvent + ScoreEvent
-/// per enemy (reusing the existing explosion + score plumbing), despawns them,
-/// and triggers a beefy screen shake.
-fn trigger_bomb(world: &World, system_context: &mut SystemContext) {
-    let enemy_entities: Vec<Entity> = world
-        .get_resource::<EnemySpawnManager>()
-        .map(|m| m.enemy_entities.clone())
-        .unwrap_or_default();
-
-    for enemy in &enemy_entities {
-        if let Some(transform) = world.get_component_by_id::<WorldTransform>(enemy.id) {
-            system_context.commands.send_event(EnemyKilledEvent {
-                origin: transform.position,
-            });
-            system_context.commands.send_event(ScoreEvent {
-                score_type: ScoreType::EnemyKilled,
-            });
-        }
-        system_context.commands.despawn(*enemy);
-    }
-
-    system_context
-        .commands
-        .update_resource::<EnemySpawnManager, _>(|m| {
-            m.enemy_entities.clear();
-        });
-
-    system_context
-        .commands
-        .update_resource::<ScreenEffects, _>(|s| {
-            s.trigger_damage_effect();
-        });
 }
 
 fn grant_shield(system_context: &mut SystemContext, player_entity: Entity, rng: &mut impl Rng) {

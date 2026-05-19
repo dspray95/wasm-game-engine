@@ -1,3 +1,4 @@
+pub mod bomb_charging;
 pub mod dead;
 pub mod double_fire_rate;
 pub mod enemy;
@@ -5,6 +6,7 @@ pub mod explosion;
 pub mod glitch_vfx;
 pub mod hover_state;
 pub mod hyperdrive;
+pub mod hyperdrive_pickup_glitch;
 pub mod invulnerable;
 pub mod laser;
 pub mod pickup;

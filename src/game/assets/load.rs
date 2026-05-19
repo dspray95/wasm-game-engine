@@ -7,7 +7,8 @@ use crate::{
     game::assets::include::{
         CUBE_PREFAB_MTL, CUBE_PREFAB_OBJ, EXPLOSION_MODEL_MTL, EXPLOSION_MODEL_OBJ,
         LASER_GLITCH_CYAN_MTL, LASER_GLITCH_WHITE_MTL, LASER_MODEL_MTL, LASER_MODEL_OBJ,
-        PICKUP_MODEL_MTL, PICKUP_MODEL_OBJ, SHIELD_MODEL_MTL, SHIELD_MODEL_OBJ,
+        PICKUP_GLITCH_CYAN_MTL, PICKUP_MODEL_MTL, PICKUP_MODEL_OBJ, PICKUP_WHITE_MTL,
+        SHIELD_MODEL_MTL, SHIELD_MODEL_OBJ,
         STARFIGHTER_ENEMY_MTL, STARFIGHTER_GLITCH_CYAN_MTL, STARFIGHTER_GLITCH_WHITE_MTL,
         STARFIGHTER_MODEL_OBJ, STARFIGHTER_PLAYER_MTL,
     },
@@ -77,6 +78,26 @@ pub fn load_and_register_world_models(
         "pickup",
         PICKUP_MODEL_OBJ,
         PICKUP_MODEL_MTL,
+        gpu_context,
+        None,
+        32,
+        asset_server,
+    );
+    // Pickup variants used while Hyperdrive is active: the base swaps to a
+    // pure-white version and a cyan glitch sibling is spawned alongside.
+    load_obj(
+        "pickup_white",
+        PICKUP_MODEL_OBJ,
+        PICKUP_WHITE_MTL,
+        gpu_context,
+        None,
+        32,
+        asset_server,
+    );
+    load_obj(
+        "pickup_glitch_cyan",
+        PICKUP_MODEL_OBJ,
+        PICKUP_GLITCH_CYAN_MTL,
         gpu_context,
         None,
         32,

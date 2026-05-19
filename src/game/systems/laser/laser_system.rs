@@ -149,7 +149,7 @@ pub fn laser_system(world: &mut World, system_context: &mut SystemContext) {
 
 // Local-space offset; gets multiplied by the laser's scale (~10) during
 // hierarchy composition, so 0.005 here ≈ 0.05 world units of shoogle.
-const LASER_GLITCH_MAX_OFFSET: f32 = 0.001;
+const LASER_GLITCH_MAX_OFFSET: f32 = 0.005;
 
 fn spawn_laser_glitch_pair(
     world: &mut World,
@@ -212,4 +212,3 @@ fn spawn_laser(
         })
         .build()
 }
-
