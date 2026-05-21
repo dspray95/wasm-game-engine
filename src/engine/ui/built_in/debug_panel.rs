@@ -43,7 +43,7 @@ pub fn debug_panel(context: &egui::Context, world: &mut World) {
         .resizable(false)
         .movable(false)
         .title_bar(false)
-        .frame(egui::Frame::window(&context.style()).shadow(egui::Shadow::NONE))
+        .frame(egui::Frame::window(&context.global_style()).shadow(egui::Shadow::NONE))
         .show(context, |ui| {
             ui.label(egui::RichText::new(format!("FPS: {:.1}", fps)).color(Color32::WHITE));
             ui.label(

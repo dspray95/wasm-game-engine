@@ -38,9 +38,11 @@ impl EguiState {
         let renderer = egui_wgpu::Renderer::new(
             device,
             surface_format,
-            None, // No depth in egui
-            1,    // Render 1x to resolved surface
-            false,
+            egui_wgpu::RendererOptions {
+                msaa_samples: 1,
+                depth_stencil_format: None,
+                ..Default::default()
+            },
         );
 
         Self {
@@ -64,6 +66,7 @@ impl EguiState {
         build_ui: impl FnMut(&egui::Context),
     ) -> egui::FullOutput {
         let raw_input = self.winit_state.take_egui_input(window);
+        #[allow(deprecated)]
         let full_output = self.context.run(raw_input, build_ui);
 
         self.winit_state
@@ -113,6 +116,7 @@ impl EguiState {
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: surface_view,
                         resolve_target: None,
+                        depth_slice: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Load,
                             store: wgpu::StoreOp::Store,
@@ -121,6 +125,7 @@ impl EguiState {
                     depth_stencil_attachment: None,
                     timestamp_writes: None,
                     occlusion_query_set: None,
+                    multiview_mask: None,
                 }),
             );
 

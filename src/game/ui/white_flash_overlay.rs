@@ -17,7 +17,7 @@ pub fn white_flash_overlay(context: &egui::Context, world: &mut World) {
     }
 
     let alpha = (intensity * 255.0).round().clamp(0.0, 255.0) as u8;
-    let screen = context.screen_rect();
+    let screen = context.content_rect();
 
     egui::Area::new(egui::Id::new("white_flash_overlay"))
         .fixed_pos(screen.left_top())

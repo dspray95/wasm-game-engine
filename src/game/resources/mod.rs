@@ -1,4 +1,7 @@
 pub mod enemy_resources;
+pub mod game_over_state;
+pub mod high_scores;
+pub mod profanity;
 pub mod laser_resources;
 pub mod player_score;
 pub mod player_speed_scaling;

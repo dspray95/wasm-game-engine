@@ -43,7 +43,7 @@ Custom ECS using **sparse sets** for O(1) insert/remove/lookup with cache-friend
 - `Events<T>` — double-buffered queues, swapped each frame. Producers and consumers don't need to be ordered.
 - `ComponentRegistry` — typed RON deserialisation; required for any component appearing in scene files.
 
-**Not yet implemented**: transform hierarchy (`Parent` + composed world transform). Discussed in detail; deferred until needed.
+**Component storage is lazy.** `World::add_component::<T>` auto-creates the `SparseSet<T>` on first insert via `entry(...).or_insert_with(...)`, so runtime-only components (Shield, Hyperdrive, BombCharging, GlitchVfx, etc.) need no explicit `world.register_component::<T>()` call to work. Only components that appear in scene RON need explicit registration via `ComponentRegistry`. A `register_component` method exists for eager allocation in unit tests but is not load-bearing for gameplay code. When save format work begins, a separate registry enumerating *all* persistable components will become necessary.
 
 ### Rendering (`src/engine/model/`, `src/engine/state/`)
 
@@ -74,16 +74,18 @@ The simulation model is **cell-aggregated with hybrid individuals** — not Citi
 
 Rough priority order:
 
-1. **Transform hierarchy** — lightweight `Parent { local_offset, local_rotation }` first, full `WorldTransform` split when justified by use cases
-2. **Fixed-timestep simulation tick** — separate from frame schedule
-3. **`Grid<Cell>` resource pattern** + cell-aware spatial broadphase (replaces current naive O(n²) collision)
-4. **LOD / culling** — distance-based mesh swaps, chunk culling, instancing of repeated assets
-5. **Async asset loading** — move off `include_bytes!` for non-canyon assets; binary-size cost too high at city scale
-6. **Audio** — `kira` or `rodio` for native; absent currently
-7. **Pathfinding** — hybrid individuals (vehicles, named NPCs) need it; probably the `pathfinding` crate
-8. **Save format with versioning** — bincode + schema version byte at head; migrations inevitable
-9. ECS Archetypes - When performance profiling calls for it
-10. #[derive] for systems, components, events - an auto-register macro so we don't need to manually register everything. before=system_a type flag for ordering, checks for cyclical systems on build 
+1. **Fixed-timestep simulation tick** — separate from frame schedule
+2. **`Grid<Cell>` resource pattern** + cell-aware spatial broadphase (replaces current naive O(n²) collision)
+3. **LOD / culling** — distance-based mesh swaps, chunk culling, instancing of repeated assets
+4. **Async asset loading** — move off `include_bytes!` for non-canyon assets; binary-size cost too high at city scale
+5. **Audio** — `kira` or `rodio` for native; absent currently
+6. **Pathfinding** — hybrid individuals (vehicles, named NPCs) need it; probably the `pathfinding` crate
+7. **Save format with versioning** — bincode + schema version byte at head; migrations inevitable. Requires a registry enumerating all persistable components (currently `ComponentRegistry` covers only RON-authored ones — storage for runtime-only components is lazy and unenumerated).
+8. ECS Archetypes - When performance profiling calls for it
+9. #[derive] for systems, components, events - an auto-register macro so we don't need to manually register everything. before=system_a type flag for ordering, checks for cyclical systems on build
+
+**Already shipped (was on the roadmap)**:
+- Transform hierarchy (`Parent` + `Children` + `WorldTransform` split + cascade despawn + `as_child_of` builder API)
 
 Anything outside this list should be flagged before being built.
 

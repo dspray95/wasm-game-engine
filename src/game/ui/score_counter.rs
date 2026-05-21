@@ -2,12 +2,24 @@ use egui::Color32;
 
 use crate::{
     engine::ecs::world::World,
-    game::resources::{player_score::PlayerScore, screen_effects::ScreenEffects},
+    game::resources::{
+        game_over_state::{GameOverPhase, GameOverState},
+        player_score::PlayerScore,
+        screen_effects::ScreenEffects,
+    },
 };
 
 const MAX_GLITCH_OFFSET_PIXELS: f32 = 6.0;
 
 pub fn score_counter(context: &egui::Context, world: &mut World) {
+    let phase = world
+        .get_resource::<GameOverState>()
+        .map(|s| s.phase)
+        .unwrap_or(GameOverPhase::Playing);
+    if !matches!(phase, GameOverPhase::Playing | GameOverPhase::DeathRamping) {
+        return;
+    }
+
     let score = world
         .get_resource::<PlayerScore>()
         .map(|player_score| player_score.score)

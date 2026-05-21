@@ -35,7 +35,7 @@ pub fn health_indicator(context: &egui::Context, world: &mut World) {
     // pixels (not world units) because the camera sits close to the ship's y
     // level — any meaningful world-space offset below the player would
     // project off the bottom of the screen at this FOV.
-    let Some(player_screen) = world_to_screen(world, player_position, context.screen_rect()) else {
+    let Some(player_screen) = world_to_screen(world, player_position, context.content_rect()) else {
         return;
     };
     let screen_x = player_screen.x;

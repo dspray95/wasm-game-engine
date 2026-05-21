@@ -35,7 +35,7 @@ pub fn difficulty_debug_panel(context: &egui::Context, world: &mut World) {
         .resizable(false)
         .movable(false)
         .title_bar(false)
-        .frame(egui::Frame::window(&context.style()).shadow(egui::Shadow::NONE))
+        .frame(egui::Frame::window(&context.global_style()).shadow(egui::Shadow::NONE))
         .show(context, |ui| {
             ui.label(egui::RichText::new(format!("Score: {}", score)).color(Color32::WHITE));
             if let Some((current, base, cap)) = player_speed {

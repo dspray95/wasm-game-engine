@@ -61,12 +61,13 @@ impl EngineState {
                         wgpu::Limits::default()
                     },
                     memory_hints: Default::default(),
+                    experimental_features: Default::default(),
+                    trace: Default::default(),
                 }),
-                None
             ).await
             .expect("Failed to create device");
         device.on_uncaptured_error(
-            Box::new(|error| {
+            std::sync::Arc::new(|error| {
                 log::error!("Uncaptured WebGPU device error: {:?}", error);
             })
         );
@@ -173,11 +174,11 @@ impl EngineState {
             &(wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
-                    &camera_bind_group_layout,
-                    &light_bind_group_layout,
-                    &color_bind_group_layout,
+                    Some(&camera_bind_group_layout),
+                    Some(&light_bind_group_layout),
+                    Some(&color_bind_group_layout),
                 ],
-                push_constant_ranges: &[],
+                immediate_size: 0,
             })
         );
 

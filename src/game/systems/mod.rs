@@ -6,6 +6,7 @@ pub mod collision_log_system;
 pub mod debug_toast_system;
 pub mod enemy;
 pub mod explosion;
+pub mod game_over_system;
 pub mod hover_system;
 pub mod laser;
 pub mod pickup_collect_system;

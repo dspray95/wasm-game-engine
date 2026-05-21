@@ -49,7 +49,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
 
         Self {
             instance: Some(instance),
@@ -273,7 +273,7 @@ impl AppState {
             return;
         }
         if let Some(engine_state) = self.engine_state.as_ref() {
-            engine_state.device.poll(wgpu::Maintain::Wait);
+            let _ = engine_state.device.poll(wgpu::PollType::wait_indefinitely());
         }
 
         self.update();
@@ -316,7 +316,7 @@ impl AppState {
 
     pub fn release_gpu_resources(&mut self) {
         if let Some(engine_state) = &self.engine_state {
-            engine_state.device.poll(wgpu::Maintain::Wait);
+            let _ = engine_state.device.poll(wgpu::PollType::wait_indefinitely());
         }
         self.engine_state = None;
         self.egui_state = None;

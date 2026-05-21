@@ -27,12 +27,16 @@ impl RenderState {
     ) {
         // Mesh Rendering //
         let surface_texture = match render_context.surface.get_current_texture() {
-            Ok(texture) => texture,
-            Err(wgpu::SurfaceError::Timeout | wgpu::SurfaceError::Outdated | wgpu::SurfaceError::Lost) => {
+            wgpu::CurrentSurfaceTexture::Success(texture)
+            | wgpu::CurrentSurfaceTexture::Suboptimal(texture) => texture,
+            wgpu::CurrentSurfaceTexture::Timeout
+            | wgpu::CurrentSurfaceTexture::Outdated
+            | wgpu::CurrentSurfaceTexture::Lost
+            | wgpu::CurrentSurfaceTexture::Occluded => {
                 return;
             }
-            Err(e) => {
-                log::error!("Surface error: {:?}", e);
+            wgpu::CurrentSurfaceTexture::Validation => {
+                log::error!("Surface validation error");
                 return;
             }
         };
@@ -53,6 +57,7 @@ impl RenderState {
                         Some(wgpu::RenderPassColorAttachment {
                             view: &render_context.msaa_texture_view,
                             resolve_target: Some(&surface_view),
+                            depth_slice: None,
                             ops: wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(self.clear_color),
                                 store: wgpu::StoreOp::Store,
@@ -76,6 +81,7 @@ impl RenderState {
                         Some(wgpu::RenderPassColorAttachment {
                             view: &render_context.msaa_texture_view, // render into MSAA texture
                             resolve_target: Some(&surface_view), // resolve to swap chain
+                            depth_slice: None,
                             ops: wgpu::Operations {
                                 load: wgpu::LoadOp::Load,
                                 store: wgpu::StoreOp::Store,
@@ -92,6 +98,7 @@ impl RenderState {
                     }),
                     occlusion_query_set: None,
                     timestamp_writes: None,
+                    multiview_mask: None,
                 })
             );
 
