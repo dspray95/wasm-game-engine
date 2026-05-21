@@ -1,6 +1,6 @@
-use crate::engine::state::context::{ EguiContext, RenderContext };
-use crate::engine::{ model::model::Model };
 use crate::engine::model::model::DrawModel;
+use crate::engine::model::model::Model;
+use crate::engine::state::context::{EguiContext, RenderContext};
 
 pub struct RenderState {
     clear_color: wgpu::Color,
@@ -23,7 +23,7 @@ impl RenderState {
         &mut self,
         render_context: RenderContext,
         ecs_models: &[Model],
-        egui_context: EguiContext
+        egui_context: EguiContext,
     ) {
         // Mesh Rendering //
         let surface_texture = match render_context.surface.get_current_texture() {
@@ -41,32 +41,32 @@ impl RenderState {
             }
         };
 
-        let surface_view = surface_texture.texture.create_view(
-            &wgpu::TextureViewDescriptor::default()
-        );
+        let surface_view = surface_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut command_encoder = render_context.device.create_command_encoder(
-            &(wgpu::CommandEncoderDescriptor { label: Some("Render Encoder") })
+            &(wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            }),
         );
 
         {
             // Clear pass
             command_encoder.begin_render_pass(
                 &(wgpu::RenderPassDescriptor {
-                    color_attachments: &[
-                        Some(wgpu::RenderPassColorAttachment {
-                            view: &render_context.msaa_texture_view,
-                            resolve_target: Some(&surface_view),
-                            depth_slice: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(self.clear_color),
-                                store: wgpu::StoreOp::Store,
-                            },
-                        }),
-                    ],
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &render_context.msaa_texture_view,
+                        resolve_target: Some(&surface_view),
+                        depth_slice: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(self.clear_color),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
                     depth_stencil_attachment: None,
                     ..Default::default()
-                })
+                }),
             );
         }
 
@@ -77,17 +77,15 @@ impl RenderState {
             let mut render_pass: wgpu::RenderPass<'_> = command_encoder.begin_render_pass(
                 &(wgpu::RenderPassDescriptor {
                     label: Some("Render Pass"),
-                    color_attachments: &[
-                        Some(wgpu::RenderPassColorAttachment {
-                            view: &render_context.msaa_texture_view, // render into MSAA texture
-                            resolve_target: Some(&surface_view), // resolve to swap chain
-                            depth_slice: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Load,
-                                store: wgpu::StoreOp::Store,
-                            },
-                        }),
-                    ],
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &render_context.msaa_texture_view, // render into MSAA texture
+                        resolve_target: Some(&surface_view),     // resolve to swap chain
+                        depth_slice: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                         view: &render_context.msaa_depth_texture_view,
                         depth_ops: Some(wgpu::Operations {
@@ -99,7 +97,7 @@ impl RenderState {
                     occlusion_query_set: None,
                     timestamp_writes: None,
                     multiview_mask: None,
-                })
+                }),
             );
 
             // Render pass
@@ -118,7 +116,7 @@ impl RenderState {
                                     camera_bind_group,
                                     render_context.light_bind_group,
                                     &mesh.color_bind_group,
-                                    true
+                                    true,
                                 );
                             }
                             None => {
@@ -143,7 +141,7 @@ impl RenderState {
                                 camera_bind_group,
                                 render_context.light_bind_group,
                                 &mesh.color_bind_group,
-                                false
+                                false,
                             );
                         }
                         None => {
@@ -166,7 +164,7 @@ impl RenderState {
                                     camera_bind_group,
                                     render_context.light_bind_group,
                                     &mesh.color_bind_group,
-                                    false
+                                    false,
                                 );
                             }
                             None => {
@@ -185,7 +183,7 @@ impl RenderState {
             &mut command_encoder,
             &surface_view,
             egui_context.window,
-            egui_context.full_output
+            egui_context.full_output,
         );
 
         render_context.queue.submit(Some(command_encoder.finish()));

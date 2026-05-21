@@ -1,4 +1,4 @@
-use egui::Color32;
+use egui_styled::prelude::*;
 
 use crate::{
     engine::ecs::world::World,
@@ -8,29 +8,37 @@ use crate::{
             high_scores::{sanitize_initials, HighScores, INITIALS_LEN},
             profanity::ProfanityList,
         },
-        ui::game_over_panel::fonts::PanelFonts,
+        ui::theme::CanyonColors,
     },
 };
 
-pub fn draw(ui: &mut egui::Ui, fonts: &PanelFonts, world: &mut World, final_score: i32) {
-    ui.label(
-        egui::RichText::new("ENTER INITIALS")
-            .font(fonts.title.clone())
-            .color(Color32::from_rgb(255, 0, 200)),
-    );
+pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
+    let theme = ui.ctx().styled_theme();
+    let colors = ui.ctx().design_data::<CanyonColors>();
+    let title_font = theme.font_display(theme.font_size_md);
+    let row_font = theme.font_display(theme.font_size_sm);
+
+    Styled::label("ENTER INITIALS")
+        .font(title_font)
+        .text_color(colors.input_magenta)
+        .show(ui);
 
     let mut buffer = world
         .get_resource::<GameOverState>()
         .map(|state| state.initials_buffer.clone())
         .unwrap_or_default();
 
-    let response = ui.add(
-        egui::TextEdit::singleline(&mut buffer)
-            .char_limit(INITIALS_LEN)
-            .font(fonts.row.clone())
-            .desired_width(120.0)
-            .horizontal_align(egui::Align::Center),
-    );
+    let response = Styled::text_edit(&mut buffer)
+        .char_limit(INITIALS_LEN)
+        .font(row_font.clone())
+        .desired_width(120.0)
+        .horizontal_align(egui::Align::Center)
+        .bg(colors.panel_surface)
+        .text_color(colors.text)
+        .border(1.0, colors.input_border)
+        .focus_border(1.0, colors.input_magenta)
+        .corner_radius(theme.rounding_sm)
+        .show(ui);
 
     let cleaned: String = buffer
         .chars()
@@ -38,10 +46,12 @@ pub fn draw(ui: &mut egui::Ui, fonts: &PanelFonts, world: &mut World, final_scor
         .map(|character| character.to_ascii_uppercase())
         .take(INITIALS_LEN)
         .collect();
+
     let previous_buffer = world
         .get_resource::<GameOverState>()
         .map(|state| state.initials_buffer.clone())
         .unwrap_or_default();
+
     let buffer_changed = cleaned != previous_buffer;
     if let Some(state) = world.get_resource_mut::<GameOverState>() {
         state.initials_buffer = cleaned.clone();
@@ -58,12 +68,17 @@ pub fn draw(ui: &mut egui::Ui, fonts: &PanelFonts, world: &mut World, final_scor
     let enter_pressed = response.has_focus()
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
 
-    ui.add_space(8.0);
-    let submit_clicked = ui
-        .add_sized(
-            [180.0, 36.0],
-            egui::Button::new(egui::RichText::new("SUBMIT").font(fonts.row.clone())),
-        )
+    ui.add_space(theme.spacing_md);
+    let submit_clicked = Styled::button(egui::RichText::new("SUBMIT").font(row_font.clone()))
+        .bg(egui::Color32::TRANSPARENT)
+        .hover_bg(colors.panel_elevated)
+        .text_color(colors.hud_cyan)
+        .border(1.0, colors.hud_cyan)
+        .hover_border(1.0, colors.hud_cyan_bright)
+        .corner_radius(theme.rounding_sm)
+        .padding(egui::Margin::symmetric(20, 8))
+        .min_width(180.0)
+        .show(ui)
         .clicked();
 
     if (enter_pressed || submit_clicked) && !cleaned.is_empty() {
@@ -74,12 +89,11 @@ pub fn draw(ui: &mut egui::Ui, fonts: &PanelFonts, world: &mut World, final_scor
         .get_resource::<GameOverState>()
         .and_then(|state| state.entry_error);
     if let Some(message) = entry_error {
-        ui.add_space(4.0);
-        ui.label(
-            egui::RichText::new(message)
-                .font(fonts.row.clone())
-                .color(Color32::from_rgb(255, 80, 80)),
-        );
+        ui.add_space(theme.spacing_sm);
+        Styled::label(message)
+            .font(row_font)
+            .text_color(colors.danger_red)
+            .show(ui);
     }
 }
 

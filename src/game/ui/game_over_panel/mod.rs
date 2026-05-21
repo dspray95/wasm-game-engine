@@ -1,5 +1,4 @@
 mod backdrop;
-mod fonts;
 mod initials_entry;
 mod leaderboard;
 mod play_again;
@@ -12,8 +11,6 @@ use crate::{
         high_scores::HighScores,
     },
 };
-
-use fonts::PanelFonts;
 
 pub fn game_over_panel(context: &egui::Context, world: &mut World) {
     let phase = world
@@ -45,24 +42,22 @@ pub fn game_over_panel(context: &egui::Context, world: &mut World) {
 
     backdrop::draw(context);
 
-    let fonts = PanelFonts::new();
-
     egui::Area::new(egui::Id::new("game_over_panel"))
         .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
         .show(context, |ui| {
             ui.vertical_centered(|ui| {
                 ui.add_space(8.0);
-                score_display::draw(ui, &fonts, final_score);
+                score_display::draw(ui, final_score);
                 ui.add_space(16.0);
 
                 if phase == GameOverPhase::EnteringInitials {
-                    initials_entry::draw(ui, &fonts, world, final_score);
+                    initials_entry::draw(ui, world, final_score);
                     ui.add_space(16.0);
                 }
 
-                leaderboard::draw(ui, &fonts, &entries, submitted_index);
+                leaderboard::draw(ui, &entries, submitted_index);
                 ui.add_space(20.0);
-                play_again::draw(ui, &fonts, world);
+                play_again::draw(ui, world);
             });
         });
 }

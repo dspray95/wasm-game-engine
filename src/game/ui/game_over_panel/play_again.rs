@@ -1,16 +1,16 @@
-use egui::Color32;
+use egui_styled::prelude::*;
 
 use crate::{
     engine::ecs::world::World,
     game::{
         resources::game_over_state::{GameOverPhase, GameOverState},
-        ui::game_over_panel::fonts::PanelFonts,
+        ui::theme::CanyonColors,
     },
 };
 
 const BLINK_PERIOD_SECONDS: f64 = 1.0;
 
-pub fn draw(ui: &mut egui::Ui, fonts: &PanelFonts, world: &mut World) {
+pub fn draw(ui: &mut egui::Ui, world: &mut World) {
     // Skip during initials entry — Enter is bound to submit there, and the
     // prompt would compete visually with the SUBMIT button.
     let phase = world
@@ -19,6 +19,10 @@ pub fn draw(ui: &mut egui::Ui, fonts: &PanelFonts, world: &mut World) {
     if phase != Some(GameOverPhase::Showing) {
         return;
     }
+
+    let theme = ui.ctx().styled_theme();
+    let colors = ui.ctx().design_data::<CanyonColors>();
+    let row_font = theme.font_display(theme.font_size_sm);
 
     // Square-wave blink: visible for the first half of each period, hidden
     // for the second. egui's input time is monotonic from app start.
@@ -30,7 +34,7 @@ pub fn draw(ui: &mut egui::Ui, fonts: &PanelFonts, world: &mut World) {
     // visible — `ui.label` would re-measure per frame and bump everything
     // above it.
     let text = "PRESS [ENTER] TO PLAY AGAIN";
-    let row_height = fonts.row.size + 4.0;
+    let row_height = row_font.size + 4.0;
     let (rect, _response) =
         ui.allocate_exact_size(egui::vec2(ui.available_width(), row_height), egui::Sense::hover());
     if visible {
@@ -38,8 +42,8 @@ pub fn draw(ui: &mut egui::Ui, fonts: &PanelFonts, world: &mut World) {
             rect.center(),
             egui::Align2::CENTER_CENTER,
             text,
-            fonts.row.clone(),
-            Color32::WHITE,
+            row_font,
+            colors.text,
         );
     }
 

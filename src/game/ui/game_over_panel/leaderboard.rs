@@ -1,21 +1,22 @@
-use egui::Color32;
+use egui_styled::prelude::*;
 
-use crate::game::{
-    resources::high_scores::MAX_ENTRIES, ui::game_over_panel::fonts::PanelFonts,
-};
+use crate::game::{resources::high_scores::MAX_ENTRIES, ui::theme::CanyonColors};
 
 pub fn draw(
     ui: &mut egui::Ui,
-    fonts: &PanelFonts,
     entries: &[(String, i32)],
     submitted_index: Option<usize>,
 ) {
-    ui.label(
-        egui::RichText::new("HIGH SCORES")
-            .font(fonts.title.clone())
-            .color(Color32::from_rgb(0, 220, 255)),
-    );
-    ui.add_space(4.0);
+    let theme = ui.ctx().styled_theme();
+    let colors = ui.ctx().design_data::<CanyonColors>();
+    let title_font = theme.font_display(theme.font_size_md);
+    let row_font = theme.font_display(theme.font_size_sm);
+
+    Styled::label("HIGH SCORES")
+        .font(title_font)
+        .text_color(colors.hud_cyan)
+        .show(ui);
+    ui.add_space(theme.spacing_sm);
 
     for slot in 0..MAX_ENTRIES {
         let (initials, score) = entries
@@ -23,15 +24,15 @@ pub fn draw(
             .cloned()
             .unwrap_or_else(|| ("---".to_string(), 0));
         let color = if submitted_index == Some(slot) {
-            Color32::from_rgb(255, 215, 0)
+            colors.highlight_gold
+        } else if entries.get(slot).is_some() {
+            colors.text
         } else {
-            Color32::WHITE
+            colors.text_muted
         };
-        let text = format!("{:>2}.  {}   {:09}", slot + 1, initials, score);
-        ui.label(
-            egui::RichText::new(text)
-                .font(fonts.row.clone())
-                .color(color),
-        );
+        Styled::label(format!("{:>2}.  {}   {:09}", slot + 1, initials, score))
+            .font(row_font.clone())
+            .text_color(color)
+            .show(ui);
     }
 }

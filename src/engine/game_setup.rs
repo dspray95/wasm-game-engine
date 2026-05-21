@@ -42,4 +42,9 @@ pub trait GameSetup {
     /// One-time hook for game-specific setup that doesn't fit elsewhere
     /// (loading game-specific GPU assets, setting up game resources).
     fn setup(&self, _world: &mut World, _system_context: &mut SystemContext) {}
+
+    /// Install game-specific design tokens on the egui context at startup —
+    /// e.g. `ctx.set_styled_theme(...)` and `ctx.set_design_data(MyColors {...})`.
+    /// Default is a no-op; engine widgets fall back to `StyledTheme::default()`.
+    fn apply_design(&self, _context: &egui::Context) {}
 }

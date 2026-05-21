@@ -183,6 +183,7 @@ impl AppState {
             engine_state.surface_config.format,
             self.window.as_ref().unwrap(),
         );
+        game_setup.apply_design(&egui_state.context);
 
         // Step 12: commit locals to self
         self.world = Some(world);

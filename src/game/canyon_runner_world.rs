@@ -109,6 +109,12 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(game_over_system);
     }
 
+    fn apply_design(&self, context: &egui::Context) {
+        use egui_styled::prelude::*;
+        context.set_styled_theme(crate::game::ui::theme::canyon_runner());
+        context.set_design_data(crate::game::ui::theme::canyon_colors());
+    }
+
     fn setup_ui(&self, ui_registry: &mut crate::engine::ui::ui_registry::UIRegistry) {
         ui_registry.add(debug_panel);
         ui_registry.add(difficulty_debug_panel);

@@ -1,16 +1,16 @@
-use egui::Color32;
+use egui_styled::prelude::*;
 
-use crate::game::ui::game_over_panel::fonts::PanelFonts;
+use crate::game::ui::theme::CanyonColors;
 
-pub fn draw(ui: &mut egui::Ui, fonts: &PanelFonts, final_score: i32) {
-    ui.label(
-        egui::RichText::new("YOUR SCORE")
-            .font(fonts.title.clone())
-            .color(Color32::from_rgb(0, 220, 255)),
-    );
-    ui.label(
-        egui::RichText::new(format!("{:09}", final_score))
-            .font(fonts.score.clone())
-            .color(Color32::WHITE),
-    );
+pub fn draw(ui: &mut egui::Ui, final_score: i32) {
+    let theme = ui.ctx().styled_theme();
+    let colors = ui.ctx().design_data::<CanyonColors>();
+    Styled::label("YOUR SCORE")
+        .font(theme.font_display(theme.font_size_md))
+        .text_color(colors.hud_cyan)
+        .show(ui);
+    Styled::label(format!("{:09}", final_score))
+        .font(theme.font_display(theme.font_size_xl))
+        .text_color(colors.text)
+        .show(ui);
 }
