@@ -13,8 +13,7 @@ use crate::{
 };
 
 pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
-    let theme = ui.ctx().styled_theme();
-    let colors = ui.ctx().design_data::<CanyonColors>();
+    let (theme, colors) = ui.ctx().design::<CanyonColors>();
     let title_font = theme.font_display(theme.font_size_md);
     let row_font = theme.font_display(theme.font_size_sm);
 

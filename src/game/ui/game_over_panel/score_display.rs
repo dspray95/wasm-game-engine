@@ -3,8 +3,7 @@ use egui_styled::prelude::*;
 use crate::game::ui::theme::CanyonColors;
 
 pub fn draw(ui: &mut egui::Ui, final_score: i32) {
-    let theme = ui.ctx().styled_theme();
-    let colors = ui.ctx().design_data::<CanyonColors>();
+    let (theme, colors) = ui.ctx().design::<CanyonColors>();
     Styled::label("YOUR SCORE")
         .font(theme.font_display(theme.font_size_md))
         .text_color(colors.hud_cyan)

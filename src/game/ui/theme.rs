@@ -6,8 +6,6 @@ use egui_styled::theme::StyledTheme;
 /// library default. Colors live in [`CanyonColors`].
 pub fn canyon_runner() -> StyledTheme {
     StyledTheme {
-        // Tighter type than the default (12/14/18/24) — the pixel font reads
-        // chunkier per-em, and the arcade aesthetic wants smaller body text.
         font_size_sm: 11.0,
         font_size_md: 12.0,
         font_size_xl: 28.0,
@@ -50,6 +48,12 @@ pub struct CanyonColors {
     pub highlight_gold: Color32,
     /// Red — input error ("NOT ALLOWED").
     pub danger_red: Color32,
+
+    /// Bright red — the player's remaining health pips beneath the ship.
+    /// Lost pips are derived from this via `.darken().with_alpha()` rather
+    /// than being a separate named token; that keeps the two visually
+    /// related when the alive color is tuned.
+    pub health_alive: Color32,
 }
 
 impl Default for CanyonColors {
@@ -70,6 +74,8 @@ impl Default for CanyonColors {
 
             highlight_gold: Color32::from_rgb(255, 215, 0),
             danger_red: Color32::from_rgb(255, 80, 80),
+
+            health_alive: Color32::from_rgb(220, 60, 60),
         }
     }
 }

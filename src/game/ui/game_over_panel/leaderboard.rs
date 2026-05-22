@@ -3,8 +3,7 @@ use egui_styled::prelude::*;
 use crate::game::{resources::high_scores::MAX_ENTRIES, ui::theme::CanyonColors};
 
 pub fn draw(ui: &mut egui::Ui, entries: &[(String, i32)], submitted_index: Option<usize>) {
-    let theme = ui.ctx().styled_theme();
-    let colors = ui.ctx().design_data::<CanyonColors>();
+    let (theme, colors) = ui.ctx().design::<CanyonColors>();
     let title_font = theme.font_display(theme.font_size_md);
     let row_font = theme.font_display(theme.font_size_sm);
 
