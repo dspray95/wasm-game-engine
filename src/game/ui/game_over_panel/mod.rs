@@ -4,6 +4,8 @@ mod leaderboard;
 mod play_again;
 mod score_display;
 
+use egui_styled::prelude::*;
+
 use crate::{
     engine::ecs::world::World,
     game::resources::{
@@ -42,22 +44,22 @@ pub fn game_over_panel(context: &egui::Context, world: &mut World) {
 
     backdrop::draw(context);
 
-    egui::Area::new(egui::Id::new("game_over_panel"))
+    let theme = context.styled_theme();
+
+    Styled::area()
+        .id("game_over_panel")
         .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
         .show(context, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.add_space(8.0);
-                score_display::draw(ui, final_score);
-                ui.add_space(16.0);
-
-                if phase == GameOverPhase::EnteringInitials {
-                    initials_entry::draw(ui, world, final_score);
-                    ui.add_space(16.0);
-                }
-
-                leaderboard::draw(ui, &entries, submitted_index);
-                ui.add_space(20.0);
-                play_again::draw(ui, world);
-            });
+            Styled::column()
+                .gap(theme.spacing_lg)
+                .align(egui::Align::Center)
+                .show(ui, |ui| {
+                    score_display::draw(ui, final_score);
+                    if phase == GameOverPhase::EnteringInitials {
+                        initials_entry::draw(ui, world, final_score);
+                    }
+                    leaderboard::draw(ui, &entries, submitted_index);
+                    play_again::draw(ui, world);
+                });
         });
 }

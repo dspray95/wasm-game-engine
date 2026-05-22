@@ -2,11 +2,7 @@ use egui_styled::prelude::*;
 
 use crate::game::{resources::high_scores::MAX_ENTRIES, ui::theme::CanyonColors};
 
-pub fn draw(
-    ui: &mut egui::Ui,
-    entries: &[(String, i32)],
-    submitted_index: Option<usize>,
-) {
+pub fn draw(ui: &mut egui::Ui, entries: &[(String, i32)], submitted_index: Option<usize>) {
     let theme = ui.ctx().styled_theme();
     let colors = ui.ctx().design_data::<CanyonColors>();
     let title_font = theme.font_display(theme.font_size_md);
@@ -15,8 +11,8 @@ pub fn draw(
     Styled::label("HIGH SCORES")
         .font(title_font)
         .text_color(colors.hud_cyan)
+        .margin_bottom(theme.spacing_sm)
         .show(ui);
-    ui.add_space(theme.spacing_sm);
 
     for slot in 0..MAX_ENTRIES {
         let (initials, score) = entries

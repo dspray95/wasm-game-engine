@@ -18,15 +18,15 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
     let title_font = theme.font_display(theme.font_size_md);
     let row_font = theme.font_display(theme.font_size_sm);
 
-    Styled::label("ENTER INITIALS")
-        .font(title_font)
-        .text_color(colors.input_magenta)
-        .show(ui);
-
     let mut buffer = world
         .get_resource::<GameOverState>()
         .map(|state| state.initials_buffer.clone())
         .unwrap_or_default();
+
+    Styled::label("ENTER INITIALS")
+        .font(title_font)
+        .text_color(colors.input_magenta)
+        .show(ui);
 
     let response = Styled::text_edit(&mut buffer)
         .char_limit(INITIALS_LEN)
@@ -39,6 +39,20 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
         .focus_border(1.0, colors.input_magenta)
         .corner_radius(theme.rounding_sm)
         .show(ui);
+
+    let submit_clicked = Styled::button("SUBMIT")
+        .font(row_font.clone())
+        .bg(egui::Color32::TRANSPARENT)
+        .hover_bg(colors.panel_elevated)
+        .text_color(colors.hud_cyan)
+        .border(1.0, colors.hud_cyan)
+        .hover_border(1.0, colors.hud_cyan_bright)
+        .corner_radius(theme.rounding_sm)
+        .min_width(180.0)
+        .min_height(36.0)
+        .margin_top(theme.spacing_md)
+        .show(ui)
+        .clicked();
 
     let cleaned: String = buffer
         .chars()
@@ -68,19 +82,6 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
     let enter_pressed = response.has_focus()
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
 
-    ui.add_space(theme.spacing_md);
-    let submit_clicked = Styled::button(egui::RichText::new("SUBMIT").font(row_font.clone()))
-        .bg(egui::Color32::TRANSPARENT)
-        .hover_bg(colors.panel_elevated)
-        .text_color(colors.hud_cyan)
-        .border(1.0, colors.hud_cyan)
-        .hover_border(1.0, colors.hud_cyan_bright)
-        .corner_radius(theme.rounding_sm)
-        .padding(egui::Margin::symmetric(20, 8))
-        .min_width(180.0)
-        .show(ui)
-        .clicked();
-
     if (enter_pressed || submit_clicked) && !cleaned.is_empty() {
         submit(world, &cleaned, final_score);
     }
@@ -89,10 +90,10 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
         .get_resource::<GameOverState>()
         .and_then(|state| state.entry_error);
     if let Some(message) = entry_error {
-        ui.add_space(theme.spacing_sm);
         Styled::label(message)
             .font(row_font)
             .text_color(colors.danger_red)
+            .margin_top(theme.spacing_sm)
             .show(ui);
     }
 }

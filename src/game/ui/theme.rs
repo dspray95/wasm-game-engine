@@ -1,31 +1,22 @@
-use egui::{Color32, CornerRadius, FontFamily};
+use egui::{Color32, FontFamily};
 use egui_styled::theme::StyledTheme;
 
-/// Canyon Runner geometry + typography tokens. Colors live in
-/// [`CanyonColors`] — the lib stopped trying to dictate color vocabulary.
+/// Canyon Runner geometry + typography tokens. Only deltas from
+/// `StyledTheme::default()` are listed — anything not mentioned uses the
+/// library default. Colors live in [`CanyonColors`].
 pub fn canyon_runner() -> StyledTheme {
     StyledTheme {
-        rounding_sm: CornerRadius::same(2),
-        rounding_md: CornerRadius::same(4),
-        rounding_lg: CornerRadius::same(8),
-        rounding_full: CornerRadius::same(u8::MAX),
-
-        spacing_xs: 2.0,
-        spacing_sm: 4.0,
-        spacing_md: 8.0,
-        spacing_lg: 16.0,
-        spacing_xl: 32.0,
-
+        // Tighter type than the default (12/14/18/24) — the pixel font reads
+        // chunkier per-em, and the arcade aesthetic wants smaller body text.
         font_size_sm: 11.0,
         font_size_md: 12.0,
-        font_size_lg: 18.0,
         font_size_xl: 28.0,
 
         // `display` is the pixel font registered in
         // `engine::ui::egui_state::EguiState::new` as `FontFamily::Name("display")`.
         font_family_display: FontFamily::Name("display".into()),
-        font_family_body: FontFamily::Proportional,
-        font_family_mono: FontFamily::Monospace,
+
+        ..Default::default()
     }
 }
 
