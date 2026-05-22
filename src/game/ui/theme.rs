@@ -1,6 +1,19 @@
 use egui::{Color32, FontFamily};
 use egui_styled::theme::StyledTheme;
 
+/// Empirical horizontal correction for centered text rendered in the
+/// `display` family (`re-do.ttf`). The pixel font's glyphs sit shifted left
+/// within their advance cells, so egui's text centring lands the layout box
+/// correctly but the visible pixels appear left-of-centre. Adding this
+/// value to a target x-position pushes the visible content back toward the
+/// intended centre.
+///
+/// The right long-term fix is to re-export `re-do.ttf` with corrected
+/// horizontal bearings (FontForge can do this in ~15 minutes). Until then,
+/// this constant is the workaround — apply it wherever the display font
+/// is centred on a known point.
+pub const DISPLAY_FONT_VISUAL_X_CORRECTION: f32 = 8.0;
+
 /// Canyon Runner geometry + typography tokens. Only deltas from
 /// `StyledTheme::default()` are listed — anything not mentioned uses the
 /// library default. Colors live in [`CanyonColors`].

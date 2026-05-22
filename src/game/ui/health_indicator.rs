@@ -5,19 +5,17 @@ use crate::{
         ecs::{components::world_transform::WorldTransform, world::World},
         ui::projection::world_to_screen,
     },
-    game::{components::player::Player, ui::theme::CanyonColors},
+    game::{
+        components::player::Player,
+        ui::theme::{CanyonColors, DISPLAY_FONT_VISUAL_X_CORRECTION},
+    },
 };
 
 const MAX_HP: i32 = 3;
 const PIP_GLYPH: &str = "^";
 const PIP_FONT_SIZE: f32 = 22.0;
 const PIP_GAP: f32 = 8.0;
-const SCREEN_OFFSET_BELOW_PLAYER_PIXELS: f32 = 50.0;
-
-/// Width estimate for the row of pips, used to center the area on the
-/// player's screen position. Slightly under-estimates the true rendered
-/// width — the row will still be approximately centered on the player.
-const ROW_WIDTH_ESTIMATE: f32 = MAX_HP as f32 * (PIP_FONT_SIZE * 0.55 + PIP_GAP);
+const SCREEN_OFFSET_BELOW_PLAYER_PIXELS: f32 = 70.0;
 
 pub fn health_indicator(context: &egui::Context, world: &mut World) {
     let Some((player_entity_id, health)) = world
@@ -51,12 +49,17 @@ pub fn health_indicator(context: &egui::Context, world: &mut World) {
     let alive = colors.health_alive;
     let lost = alive.darken(0.6).with_alpha(220);
 
-    let area_x = player_screen.x - ROW_WIDTH_ESTIMATE / 2.0;
-    let area_y = player_screen.y + SCREEN_OFFSET_BELOW_PLAYER_PIXELS;
+    let target = egui::pos2(
+        player_screen.x + DISPLAY_FONT_VISUAL_X_CORRECTION,
+        player_screen.y + SCREEN_OFFSET_BELOW_PLAYER_PIXELS,
+    );
 
+    // `fixed_pos_centered` measures the row on frame N and places it
+    // centered on the target on frame N+1. Explicit `id` keeps the cached
+    // size attached across frames (auto-ids can shift).
     Styled::area()
         .id("health_indicator")
-        .fixed_pos(egui::pos2(area_x, area_y))
+        .fixed_pos_centered(target)
         .order(egui::Order::Foreground)
         .show(context, |ui| {
             Styled::row().gap(PIP_GAP).show(ui, |ui| {

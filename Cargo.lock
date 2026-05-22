@@ -733,8 +733,6 @@ dependencies = [
 [[package]]
 name = "egui_styled"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8282796477ee88fd4077220f1b0dbd2850f55c9615ac066f9849849e17b09877"
 dependencies = [
  "egui",
 ]
