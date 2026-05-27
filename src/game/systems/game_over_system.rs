@@ -8,6 +8,7 @@ use crate::{
         world::World,
     },
     game::{
+        systems::high_score_sync_system::request_fetch,
         components::{
             bomb_charging::BombCharging,
             dead::Dead,
@@ -90,6 +91,7 @@ pub fn game_over_system(world: &mut World, system_context: &mut SystemContext) {
                         GameOverPhase::Showing
                     };
                 }
+                request_fetch(world);
             }
         }
         GameOverPhase::EnteringInitials | GameOverPhase::Showing => {

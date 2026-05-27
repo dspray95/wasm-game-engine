@@ -81,17 +81,21 @@ impl EguiState {
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         surface_view: &wgpu::TextureView,
-        window: &Window,
+        _window: &Window,
+        surface_size: [u32; 2],
         full_output: egui::FullOutput,
     ) {
+        // Drive egui's scissor from the actual surface dimensions, not
+        // window.inner_size(). On web, winit's reported inner_size can disagree
+        // with the canvas backing-store size that wgpu's surface uses, leading
+        // to "scissor rect not contained in render target" validation errors.
         let pixels_per_point = self.winit_state.egui_ctx().pixels_per_point();
         let clipped_primitives = self
             .context
             .tessellate(full_output.shapes, pixels_per_point);
 
-        let window_size = window.inner_size();
         let screen_descriptor = egui_wgpu::ScreenDescriptor {
-            size_in_pixels: [window_size.width, window_size.height],
+            size_in_pixels: surface_size,
             pixels_per_point,
         };
 

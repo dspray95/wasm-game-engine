@@ -1,4 +1,6 @@
+pub mod async_tasks;
 pub mod enemy_resources;
+pub mod firestore;
 pub mod game_over_state;
 pub mod high_scores;
 pub mod profanity;

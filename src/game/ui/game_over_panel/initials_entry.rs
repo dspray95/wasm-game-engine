@@ -8,6 +8,7 @@ use crate::{
             high_scores::{sanitize_initials, HighScores, INITIALS_LEN},
             profanity::ProfanityList,
         },
+        systems::high_score_sync_system::request_submit,
         ui::theme::CanyonColors,
     },
 };
@@ -116,6 +117,7 @@ fn submit(world: &mut World, raw_initials: &str, final_score: i32) {
             high_scores.save();
             index
         });
+    request_submit(world, initials, final_score);
     if let Some(state) = world.get_resource_mut::<GameOverState>() {
         state.phase = GameOverPhase::Showing;
         state.submitted_index = placed_index;

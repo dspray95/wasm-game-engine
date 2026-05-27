@@ -14,16 +14,12 @@ const INITIAL_WINDOW_HEIGHT: u32 = 1080;
 
 pub struct App {
     app_state: Rc<RefCell<AppState>>,
-    #[cfg(target_arch = "wasm32")]
-    resize_timer_id: Rc<RefCell<Option<i32>>>,
 }
 
 impl App {
     pub fn new() -> Self {
         Self {
             app_state: Rc::new(RefCell::new(AppState::new())),
-            #[cfg(target_arch = "wasm32")]
-            resize_timer_id: Rc::new(RefCell::new(None)),
         }
     }
 }
@@ -159,70 +155,27 @@ impl ApplicationHandler for App {
                 }
             }
             #[cfg(target_arch = "wasm32")]
-            WindowEvent::Resized(_) => {
-                use wasm_bindgen::{ prelude::Closure, JsCast };
-                use web_sys::{ window, HtmlCanvasElement };
-                let app_state_clone = Rc::clone(&self.app_state);
-                let resize_timer_id_clone = Rc::clone(&self.resize_timer_id);
-
-                // Get the current window. This needs to be done before the closure
-                // because the closure runs later, and `self` will be out of scope.
-                // We'll pass the canvas dimensions directly to avoid capturing `self`'s window field.
-                let canvas = window()
+            WindowEvent::Resized(new_size) => {
+                // On web, wgpu's surface texture size comes from the canvas's
+                // backing-store attributes (canvas.width/height), not from what
+                // we pass to surface.configure(). Winit doesn't synchronise those
+                // with what it reports as inner_size, so we set them explicitly
+                // here to match the size we configure the surface with.
+                use wasm_bindgen::JsCast;
+                if let Some(canvas) = web_sys::window()
                     .and_then(|w| w.document())
                     .and_then(|d| d.get_element_by_id("wgpu-canvas"))
-                    .and_then(|e| e.dyn_into::<HtmlCanvasElement>().ok())
-                    .expect("Canvas not found for resize debounce");
-
-                let current_width = canvas.client_width() as u32;
-                let current_height = canvas.client_height() as u32;
-                let mut self_timer_id_borrow = self.resize_timer_id.borrow_mut();
-
-                // Clear any previous debounce timer
-                if let Some(timer_id) = self_timer_id_borrow.take() {
-                    window().unwrap().clear_timeout_with_handle(timer_id);
-                    log::debug!("Cleared previous resize timer: {}", timer_id);
+                    .and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok())
+                {
+                    canvas.set_width(new_size.width);
+                    canvas.set_height(new_size.height);
                 }
-
-                // Set a new debounce timer
-                let timeout_ms = 500;
-                let closure = Closure::once_into_js({
-                    let resize_timer_id_clone_for_closure = Rc::clone(&resize_timer_id_clone);
-                    move || {
-                        if
-                            let Some(canvas) = window()
-                                .and_then(|w| w.document())
-                                .and_then(|d| d.get_element_by_id("wgpu-canvas"))
-                                .and_then(|e| e.dyn_into::<web_sys::HtmlCanvasElement>().ok())
-                        {
-                            let final_width = canvas.client_width() as u32;
-                            let final_height = canvas.client_height() as u32;
-
-                            if let Ok(mut state) = app_state_clone.try_borrow_mut() {
-                                state.handle_resized(final_width, final_height);
-                                if let Some(window_arc) = state.window.as_ref() {
-                                    window_arc.request_redraw();
-                                }
-                            } else {
-                                log::warn!(
-                                    "Could not process debounced resize - AppState is borrowed"
-                                );
-                            }
-                        }
-                        *resize_timer_id_clone_for_closure.borrow_mut() = None;
+                if let Ok(mut state) = self.app_state.try_borrow_mut() {
+                    state.handle_resized(new_size.width, new_size.height);
+                    if let Some(window_arc) = state.window.as_ref() {
+                        window_arc.request_redraw();
                     }
-                });
-
-                let timer_id = window()
-                    .unwrap()
-                    .set_timeout_with_callback_and_timeout_and_arguments_0(
-                        &closure.as_ref().unchecked_ref(),
-                        timeout_ms
-                    )
-                    .expect("Failed to set resize timeout");
-
-                // Prevent the Closure from being dropped immediately, will be dropped when the timeout fires
-                *self_timer_id_borrow = Some(timer_id);
+                }
             }
             #[cfg(not(target_arch = "wasm32"))]
             WindowEvent::Resized(new_size) => {
@@ -252,9 +205,17 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
     use std::sync::Arc;
     let window = Arc::new(window);
 
+    // Trust winit's inner_size() as the source of truth for surface size — egui
+    // scissors against window.inner_size(), so any divergence between the surface
+    // and inner_size produces "scissor rect not contained in render target" errors.
+    let size = window.inner_size();
+    let width = size.width.max(1);
+    let height = size.height.max(1);
+    // Force the canvas backing store to match. wgpu's surface texture on web is
+    // bound to canvas.width/height, not whatever we pass to surface.configure().
     let canvas = window.canvas().unwrap();
-    let width = canvas.client_width() as u32;
-    let height = canvas.client_height() as u32;
+    canvas.set_width(width);
+    canvas.set_height(height);
 
     let instance = app_state.borrow().instance.as_ref().unwrap().clone();
     let surface = instance.create_surface(window.clone()).expect("Failed to create surface");
@@ -265,16 +226,14 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
 
     let render_state = crate::engine::state::render_state::RenderState::new();
 
-    let scene: Box<crate::game::canyon_runner_world::CanyonRunnerWorld> = Box::new(
-        crate::game::canyon_runner_world::CanyonRunnerWorld
-    );
+    let game_setup = crate::game::canyon_runner_world::CanyonRunnerWorld;
 
     if let Ok(mut state) = app_state.try_borrow_mut() {
-        state.install_window_state(
+        state.bootstrap(
             window.clone(),
             engine_state,
             render_state,
-            scene,
+            game_setup,
             camera_bind_group_layout
         );
         window.request_redraw();

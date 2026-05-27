@@ -183,6 +183,7 @@ impl RenderState {
             &mut command_encoder,
             &surface_view,
             egui_context.window,
+            [render_context.surface_config.width, render_context.surface_config.height],
             egui_context.full_output,
         );
 

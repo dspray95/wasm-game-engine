@@ -31,6 +31,7 @@ use crate::{
         helpers::terrain_generation::get_initial_terrain,
         input::actions::Action,
         resources::{
+            async_tasks::AsyncHighScoreTask,
             enemy_resources::EnemySpawnManager,
             game_over_state::GameOverState,
             high_scores::HighScores,
@@ -48,6 +49,7 @@ use crate::{
             collider_debug_system::collider_debug_system,
             enemy::enemy_spawn_system::enemy_spawn_system,
             game_over_system::game_over_system,
+            high_score_sync_system::{high_score_sync_system, request_fetch},
             explosion::{
                 explosion_lifecycle_system::explosion_lifecycle_system,
                 explosion_spawn_system::explosion_spawn_system,
@@ -107,6 +109,7 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(player_score_system);
         schedule.add_game_system(screen_effects_system);
         schedule.add_game_system(game_over_system);
+        schedule.add_game_system(high_score_sync_system);
     }
 
     fn apply_design(&self, context: &egui::Context) {
@@ -181,6 +184,7 @@ impl GameSetup for CanyonRunnerWorld {
         // Player setup
         world.add_resource(PlayerScore::new());
         world.add_resource(HighScores::load());
+        world.add_resource(AsyncHighScoreTask::new());
         world.add_resource(GameOverState::new());
         world.add_resource(ProfanityList::from_ron(include_str!(
             "../../assets/profanity.ron"
@@ -244,6 +248,8 @@ impl GameSetup for CanyonRunnerWorld {
 
         world.add_resource(terrain_generation);
         world.add_resource(TerrainModelIds(terrain_model_ids));
+
+        request_fetch(world);
     }
 }
 

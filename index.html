@@ -26,6 +26,57 @@
 <canvas id="wgpu-canvas"></canvas>
 
 <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+  import {
+    getFirestore,
+    collection,
+    addDoc,
+    getDocs,
+    query,
+    orderBy,
+    limit,
+  } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+  async function initFirebase() {
+    let config;
+    try {
+      const response = await fetch("./firebase-config.json");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      config = await response.json();
+    } catch (error) {
+      console.warn("Firebase: failed to load firebase-config.json — remote scores disabled.", error);
+      return;
+    }
+
+    const app = initializeApp(config);
+    const db = getFirestore(app);
+
+    window.fetchHighScores = async function (maxEntries) {
+      const q = query(
+        collection(db, "high_scores"),
+        orderBy("score", "desc"),
+        limit(maxEntries)
+      );
+      const snapshot = await getDocs(q);
+      const entries = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return { initials: data.initials, score: data.score };
+      });
+      return JSON.stringify(entries);
+    };
+
+    window.submitHighScore = async function (initials, score) {
+      await addDoc(collection(db, "high_scores"), {
+        initials,
+        score,
+        timestamp: Date.now(),
+      });
+      return true;
+    };
+  }
+
+  await initFirebase();
+
   import init, { start } from './pkg/wasm_game_engine.js';
   init().then(() => {
     start();
