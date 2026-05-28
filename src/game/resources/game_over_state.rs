@@ -15,6 +15,10 @@ pub struct GameOverState {
     pub submitted_index: Option<usize>,
     pub restart_requested: bool,
     pub entry_error: Option<&'static str>,
+    // Gate the play-again Enter on a fresh press: armed only once Enter has been
+    // released since entering Showing, so a held/repeated Enter carried over from
+    // the initials submit can't restart immediately.
+    pub restart_armed: bool,
 }
 
 impl GameOverState {
@@ -26,6 +30,7 @@ impl GameOverState {
             submitted_index: None,
             restart_requested: false,
             entry_error: None,
+            restart_armed: false,
         }
     }
 
@@ -36,5 +41,6 @@ impl GameOverState {
         self.submitted_index = None;
         self.restart_requested = false;
         self.entry_error = None;
+        self.restart_armed = false;
     }
 }

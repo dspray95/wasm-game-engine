@@ -1,5 +1,5 @@
 setup:
-	RUSTFLAGS='--cfg getrandom_backend="wasm_js"' wasm-pack build --target web --out-dir pkg
+	cargo install wasm-pack
 	npm install -g http-server
 
 build:

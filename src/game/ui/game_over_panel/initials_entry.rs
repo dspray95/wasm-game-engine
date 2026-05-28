@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
+pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32, visible: bool) {
     let (theme, colors) = ui.ctx().design::<CanyonColors>();
     let title_font = theme.font_display(theme.font_size_md);
     let row_font = theme.font_display(theme.font_size_sm);
@@ -26,6 +26,7 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
     Styled::label("ENTER INITIALS")
         .font(title_font)
         .text_color(colors.input_magenta)
+        .visible(visible)
         .show(ui);
 
     let response = Styled::text_edit(&mut buffer)
@@ -33,11 +34,18 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
         .font(row_font.clone())
         .desired_width(120.0)
         .horizontal_align(egui::Align::Center)
-        .bg(colors.panel_surface)
+        .bg(colors.background)
         .text_color(colors.text)
-        .border(1.0, colors.input_border)
-        .focus_border(1.0, colors.input_magenta)
+        .border(0.0, egui::Color32::TRANSPARENT)
+        .focus_border(0.0, egui::Color32::TRANSPARENT)
         .corner_radius(theme.rounding_sm)
+        .padding(egui::Margin {
+            left: 2,
+            right: 2,
+            top: 10,
+            bottom: 7,
+        })
+        .visible(visible)
         .show(ui);
 
     let submit_clicked = Styled::button("SUBMIT")
@@ -45,12 +53,15 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
         .bg(egui::Color32::TRANSPARENT)
         .hover_bg(colors.panel_elevated)
         .text_color(colors.hud_cyan)
-        .border(1.0, colors.hud_cyan)
-        .hover_border(1.0, colors.hud_cyan_bright)
-        .corner_radius(theme.rounding_sm)
+        .border(4.0, colors.hud_cyan)
+        .hover_border(4.0, colors.hud_cyan_bright)
+        .corner_radius(0)
         .min_width(180.0)
         .min_height(36.0)
         .margin_top(theme.spacing_md)
+        .shadow(egui::vec2(3.0, -2.0), 4.0, colors.input_magenta)
+        .shadow(egui::vec2(-2.0, 3.0), 4.0, egui::Color32::WHITE)
+        .visible(visible)
         .show(ui)
         .clicked();
 
@@ -73,13 +84,16 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32) {
             state.entry_error = None;
         }
     }
-    response.request_focus();
+    if visible {
+        response.request_focus();
+    }
 
     // `lost_focus()` never fires while we re-grab focus every frame, so detect
     // Enter against the live focus state instead. `consume_key` strips the
     // event from the queue so the play-again prompt (which listens for Enter
     // in the Showing phase) can't fire on the same frame the player submits.
-    let enter_pressed = response.has_focus()
+    let enter_pressed = visible
+        && response.has_focus()
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
 
     if (enter_pressed || submit_clicked) && !cleaned.is_empty() {

@@ -55,9 +55,7 @@ pub fn game_over_panel(context: &egui::Context, world: &mut World) {
                 .align(egui::Align::Center)
                 .show(ui, |ui| {
                     score_display::draw(ui, final_score);
-                    if phase == GameOverPhase::EnteringInitials {
-                        initials_entry::draw(ui, world, final_score);
-                    }
+                    initials_entry::draw(ui, world, final_score, phase == GameOverPhase::EnteringInitials);
                     leaderboard::draw(ui, &entries, submitted_index);
                     play_again::draw(ui, world);
                 });
