@@ -19,6 +19,9 @@ pub struct GameOverState {
     // released since entering Showing, so a held/repeated Enter carried over from
     // the initials submit can't restart immediately.
     pub restart_armed: bool,
+    /// Timestamp (egui seconds) when the score reveal animation began. Set lazily
+    /// on first draw; cleared on reset so each new game-over re-runs the reveal.
+    pub reveal_start_time: Option<f64>,
 }
 
 impl GameOverState {
@@ -31,6 +34,7 @@ impl GameOverState {
             restart_requested: false,
             entry_error: None,
             restart_armed: false,
+            reveal_start_time: None,
         }
     }
 
@@ -42,5 +46,6 @@ impl GameOverState {
         self.restart_requested = false;
         self.entry_error = None;
         self.restart_armed = false;
+        self.reveal_start_time = None;
     }
 }

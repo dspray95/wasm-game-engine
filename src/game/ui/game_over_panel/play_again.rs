@@ -9,7 +9,7 @@ use crate::{
 };
 
 const BLINK_PERIOD_SECONDS: f64 = 1.0;
-const STATIC_GLITCH_OFFSET_PIXELS: f32 = 6.0;
+const STATIC_GLITCH_OFFSET_PIXELS: f32 = 2.0;
 
 pub fn draw(ui: &mut egui::Ui, world: &mut World) {
     let phase = world
@@ -32,50 +32,43 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World) {
         .align(egui::Align::Center)
         .gap(0.0)
         .min_height(row_height * 2.0)
-        .margin_top(20.0)
+        .margin_top(100.0)
         .visible(showing && blink)
         .show(ui, |ui| {
             Styled::label("PRESS ")
                 .font(row_font.clone())
                 .text_color(colors.text)
-                .wrap(false)
+                .extend()
                 .show(ui);
 
-            let enter_text = "[ENTER]";
-            let galley = ui.painter().layout_no_wrap(
-                enter_text.to_owned(),
-                row_font.clone(),
-                colors.text,
-            );
-            let (rect, _response) =
-                ui.allocate_exact_size(galley.size(), egui::Sense::hover());
-            let origin = rect.left_top();
-            ui.painter().text(
-                origin + egui::vec2(-STATIC_GLITCH_OFFSET_PIXELS, 0.0),
-                egui::Align2::LEFT_TOP,
-                enter_text,
-                row_font.clone(),
-                colors.hud_cyan,
-            );
-            ui.painter().text(
-                origin + egui::vec2(STATIC_GLITCH_OFFSET_PIXELS, 0.0),
-                egui::Align2::LEFT_TOP,
-                enter_text,
-                row_font.clone(),
-                colors.input_magenta,
-            );
-            ui.painter().text(
-                origin,
-                egui::Align2::LEFT_TOP,
-                enter_text,
-                row_font.clone(),
-                colors.text,
-            );
+            Styled::stack()
+                .layer_offset(egui::vec2(-STATIC_GLITCH_OFFSET_PIXELS, 0.0), |ui| {
+                    Styled::label("[ENTER]")
+                        .font(row_font.clone())
+                        .text_color(colors.hud_cyan)
+                        .extend()
+                        .show(ui);
+                })
+                .layer_offset(egui::vec2(STATIC_GLITCH_OFFSET_PIXELS, 0.0), |ui| {
+                    Styled::label("[ENTER]")
+                        .font(row_font.clone())
+                        .text_color(colors.input_magenta)
+                        .extend()
+                        .show(ui);
+                })
+                .layer(|ui| {
+                    Styled::label("[ENTER]")
+                        .font(row_font.clone())
+                        .text_color(colors.text)
+                        .extend()
+                        .show(ui);
+                })
+                .show(ui);
 
             Styled::label(" TO PLAY AGAIN")
                 .font(row_font)
                 .text_color(colors.text)
-                .wrap(false)
+                .extend()
                 .show(ui);
         });
 

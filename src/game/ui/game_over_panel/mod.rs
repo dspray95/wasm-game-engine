@@ -28,6 +28,13 @@ pub fn game_over_panel(context: &egui::Context, world: &mut World) {
         .get_resource::<GameOverState>()
         .map(|state| state.final_score)
         .unwrap_or(0);
+
+    let now = context.input(|input| input.time);
+    let reveal_start = world
+        .get_resource_mut::<GameOverState>()
+        .map(|state| *state.reveal_start_time.get_or_insert(now))
+        .unwrap_or(now);
+    let reveal_elapsed = (now - reveal_start) as f32;
     let submitted_index = world
         .get_resource::<GameOverState>()
         .and_then(|state| state.submitted_index);
@@ -54,7 +61,7 @@ pub fn game_over_panel(context: &egui::Context, world: &mut World) {
                 .gap(theme.spacing_lg)
                 .align(egui::Align::Center)
                 .show(ui, |ui| {
-                    score_display::draw(ui, final_score);
+                    score_display::draw(ui, final_score, reveal_elapsed);
                     initials_entry::draw(ui, world, final_score, phase == GameOverPhase::EnteringInitials);
                     leaderboard::draw(ui, &entries, submitted_index);
                     play_again::draw(ui, world);
