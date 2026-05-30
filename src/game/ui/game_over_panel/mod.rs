@@ -20,7 +20,7 @@ pub fn game_over_panel(context: &egui::Context, world: &mut World) {
         .map(|state| state.phase)
         .unwrap_or(GameOverPhase::Playing);
 
-    if matches!(phase, GameOverPhase::Playing | GameOverPhase::DeathRamping) {
+    if matches!(phase, GameOverPhase::PreStart | GameOverPhase::Playing | GameOverPhase::DeathRamping) {
         return;
     }
 

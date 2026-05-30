@@ -1,4 +1,5 @@
 use egui::{Color32, FontFamily};
+use egui_styled::prelude::*;
 use egui_styled::theme::StyledTheme;
 
 /// Empirical horizontal correction for centered text rendered in the
@@ -95,4 +96,27 @@ impl Default for CanyonColors {
 
 pub fn canyon_colors() -> CanyonColors {
     CanyonColors::default()
+}
+
+/// Chromatic-aberration preset: an RGB split painted as two opposite-offset
+/// glyph shadows (signature cyan to the left, magenta to the right). `offset`
+/// is the horizontal split in pixels — pass a constant for a static split or
+/// an animated value for a shimmer. Compose onto any label with `.apply()`:
+///
+/// ```ignore
+/// Styled::label("[ENTER]")
+///     .text_color(Color32::WHITE)
+///     .apply(chromatic_aberration(&colors, 2.0))
+///     .show(ui);
+/// ```
+pub fn chromatic_aberration(
+    colors: &CanyonColors,
+    offset: f32,
+) -> impl Fn(StyledLabel) -> StyledLabel + 'static {
+    let (cyan, magenta) = (colors.hud_cyan, colors.input_magenta);
+    move |label| {
+        label
+            .text_shadow(egui::vec2(-offset, 0.0), cyan)
+            .text_shadow(egui::vec2(offset, 0.0), magenta)
+    }
 }

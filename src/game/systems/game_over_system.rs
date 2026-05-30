@@ -54,6 +54,9 @@ pub fn game_over_system(world: &mut World, system_context: &mut SystemContext) {
         .unwrap_or(GameOverPhase::Playing);
 
     match phase {
+        GameOverPhase::PreStart => {
+            return;
+        }
         GameOverPhase::Playing => {
             if let Some(entity) = player_entity {
                 if world.get_component::<Dead>(entity).is_some() {

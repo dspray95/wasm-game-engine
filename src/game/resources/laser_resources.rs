@@ -18,7 +18,9 @@ impl LaserManager {
             fire_cooldown: DifficultyCurve {
                 base: 0.75,
                 cap: 0.375,
-                sensitivity: -0.000025,
+                warmup_score: 0.0,
+                full_scale_score: 1500.0,
+                exponent: 0.7,
             },
             max_travel_distance: MAX_TRAVEL_DISTANCE,
         }

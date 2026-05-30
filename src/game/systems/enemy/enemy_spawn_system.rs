@@ -22,7 +22,12 @@ use crate::{
             hover_state::{HoverDirection, HoverState},
             player::Player,
         },
-        resources::{enemy_resources::EnemySpawnManager, player_score::PlayerScore},
+        resources::{
+            enemy_resources::EnemySpawnManager,
+            game_over_state::{GameOverPhase, GameOverState},
+            player_score::PlayerScore,
+            tutorial_state::TutorialState,
+        },
     },
 };
 
@@ -56,6 +61,22 @@ impl Lane {
 }
 
 pub fn enemy_spawn_system(world: &mut World, system_context: &mut SystemContext) {
+    let phase = world
+        .get_resource::<GameOverState>()
+        .map(|s| s.phase)
+        .unwrap_or(GameOverPhase::Playing);
+    if !matches!(phase, GameOverPhase::Playing) {
+        return;
+    }
+
+    let tutorial_done = world
+        .get_resource::<TutorialState>()
+        .map(|s| s.completed)
+        .unwrap_or(true);
+    if !tutorial_done {
+        return;
+    }
+
     let Some(player_entity_id) = world.iter_component::<Player>().next().map(|(id, _)| id) else {
         return;
     };

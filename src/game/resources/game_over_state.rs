@@ -2,6 +2,7 @@ use crate::game::resources::high_scores::INITIALS_LEN;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum GameOverPhase {
+    PreStart,
     Playing,
     DeathRamping,
     EnteringInitials,
@@ -27,7 +28,7 @@ pub struct GameOverState {
 impl GameOverState {
     pub fn new() -> Self {
         Self {
-            phase: GameOverPhase::Playing,
+            phase: GameOverPhase::PreStart,
             initials_buffer: String::with_capacity(INITIALS_LEN),
             final_score: 0,
             submitted_index: None,

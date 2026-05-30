@@ -1,4 +1,5 @@
 pub mod async_tasks;
+pub mod tutorial_state;
 pub mod enemy_resources;
 pub mod firestore;
 pub mod game_over_state;

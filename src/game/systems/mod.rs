@@ -21,4 +21,5 @@ pub mod powerup_lifecycle_system;
 pub mod screen_effects_system;
 pub mod shield_system;
 pub mod terrain_system;
+pub mod tutorial_system;
 pub mod vfx_system;

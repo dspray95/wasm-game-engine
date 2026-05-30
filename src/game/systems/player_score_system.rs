@@ -3,13 +3,24 @@ use crate::{
     game::{
         components::{dead::Dead, player::Player},
         events::score_event::{ScoreEvent, ScoreType},
-        resources::player_score::PlayerScore,
+        resources::{
+            game_over_state::{GameOverPhase, GameOverState},
+            player_score::PlayerScore,
+        },
     },
 };
 
 const BASIC_KILL_SCORE: i32 = 25;
 
 pub fn player_score_system(world: &mut World, system_context: &mut SystemContext) {
+    let phase = world
+        .get_resource::<GameOverState>()
+        .map(|s| s.phase)
+        .unwrap_or(GameOverPhase::Playing);
+    if !matches!(phase, GameOverPhase::Playing) {
+        return;
+    }
+
     let player_dead = world
         .iter_component::<Player>()
         .next()

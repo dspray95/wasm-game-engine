@@ -38,6 +38,7 @@ use crate::{
             profanity::ProfanityList,
             laser_resources::LaserManager,
             player_score::PlayerScore,
+            tutorial_state::TutorialState,
             player_speed_scaling::PlayerSpeedScaling,
             screen_effects::ScreenEffects,
             terrain_resources::{TerrainGeneration, TerrainModelIds},
@@ -67,12 +68,17 @@ use crate::{
             screen_effects_system::screen_effects_system,
             shield_system::shield_system,
             terrain_system::terrain_system,
+            tutorial_system::tutorial_system,
             vfx_system::vfx_system,
         },
         ui::{
             difficulty_debug::difficulty_debug_panel, game_over_panel::game_over_panel,
-            health_indicator::health_indicator, score_counter::score_counter,
-            toast_panel::toast_panel, white_flash_overlay::white_flash_overlay,
+            health_indicator::health_indicator,
+            pre_start_panel::pre_start_panel,
+            score_counter::score_counter,
+            toast_panel::toast_panel,
+            tutorial_panel::tutorial_panel,
+            white_flash_overlay::white_flash_overlay,
         },
     },
 };
@@ -107,6 +113,7 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(vfx_system);
         schedule.add_game_system(collider_debug_system);
         schedule.add_game_system(player_score_system);
+        schedule.add_game_system(tutorial_system);
         schedule.add_game_system(screen_effects_system);
         schedule.add_game_system(game_over_system);
         schedule.add_game_system(high_score_sync_system);
@@ -121,9 +128,11 @@ impl GameSetup for CanyonRunnerWorld {
     fn setup_ui(&self, ui_registry: &mut crate::engine::ui::ui_registry::UIRegistry) {
         ui_registry.add(debug_panel);
         ui_registry.add(difficulty_debug_panel);
+        ui_registry.add(pre_start_panel);
         ui_registry.add(score_counter);
         ui_registry.add(health_indicator);
         ui_registry.add(toast_panel);
+        ui_registry.add(tutorial_panel);
         ui_registry.add(white_flash_overlay);
         ui_registry.add(game_over_panel);
     }
@@ -186,6 +195,7 @@ impl GameSetup for CanyonRunnerWorld {
         world.add_resource(HighScores::load());
         world.add_resource(AsyncHighScoreTask::new());
         world.add_resource(GameOverState::new());
+        world.add_resource(TutorialState::new());
         world.add_resource(ProfanityList::from_ron(include_str!(
             "../../assets/profanity.ron"
         )));
@@ -193,7 +203,9 @@ impl GameSetup for CanyonRunnerWorld {
             z_speed: DifficultyCurve {
                 base: 10.0,
                 cap: 50.0,
-                sensitivity: 0.00267,
+                warmup_score: 50.0,
+                full_scale_score: 1500.0,
+                exponent: 0.6,
             },
         });
         world.add_resource(ScreenEffects::new());
@@ -205,7 +217,9 @@ impl GameSetup for CanyonRunnerWorld {
             spawn_interval: DifficultyCurve {
                 base: 3.0,
                 cap: 1.0,
-                sensitivity: -0.000667,
+                warmup_score: 50.0,
+                full_scale_score: 1000.0,
+                exponent: 0.5,
             },
             time_since_last_spawn: 0.0,
             spawn_horizon_z: 80.0,

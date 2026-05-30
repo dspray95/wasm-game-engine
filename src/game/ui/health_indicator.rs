@@ -7,6 +7,7 @@ use crate::{
     },
     game::{
         components::player::Player,
+        resources::game_over_state::{GameOverPhase, GameOverState},
         ui::theme::{CanyonColors, DISPLAY_FONT_VISUAL_X_CORRECTION},
     },
 };
@@ -18,6 +19,14 @@ const PIP_GAP: f32 = 8.0;
 const SCREEN_OFFSET_BELOW_PLAYER_PIXELS: f32 = 70.0;
 
 pub fn health_indicator(context: &egui::Context, world: &mut World) {
+    let phase = world
+        .get_resource::<GameOverState>()
+        .map(|s| s.phase)
+        .unwrap_or(GameOverPhase::Playing);
+    if matches!(phase, GameOverPhase::PreStart) {
+        return;
+    }
+
     let Some((player_entity_id, health)) = world
         .iter_component::<Player>()
         .next()
