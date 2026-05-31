@@ -116,7 +116,9 @@ pub trait Fetch<'w> {
 
 impl<'w, T: 'static> Fetch<'w> for &'w T {
     type Item = &'w T;
-    fn primary_type_id() -> TypeId { TypeId::of::<T>() }
+    fn primary_type_id() -> TypeId {
+        TypeId::of::<T>()
+    }
     fn fetch(world: &'w World, id: u32) -> Option<Self::Item> {
         world.get_component_by_id::<T>(id)
     }
@@ -257,7 +259,7 @@ mod tests {
 
     #[test]
     fn fetch_returns_none_for_unknown_entity_id() {
-        let mut world = World::new();
+        let world = World::new();
         assert!(world.query::<&Position>(999).is_none());
     }
 
@@ -271,7 +273,9 @@ mod tests {
             .with(Velocity { x: 0.0, y: 0.0 })
             .build();
         {
-            let (pos, vel) = world.query_mut::<(&mut Position, &mut Velocity)>(e.id).unwrap();
+            let (pos, vel) = world
+                .query_mut::<(&mut Position, &mut Velocity)>(e.id)
+                .unwrap();
             pos.x = 10.0;
             vel.x = 5.0;
         }
@@ -383,7 +387,7 @@ mod tests {
 
     #[test]
     fn query_iter_empty_world_produces_no_items() {
-        let mut world = World::new();
+        let world = World::new();
         assert_eq!(world.query_iter::<&Position>().count(), 0);
     }
 }

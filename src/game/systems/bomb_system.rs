@@ -85,6 +85,8 @@ pub fn bomb_system(world: &mut World, system_context: &mut SystemContext) {
         if let Some(transform) = world.get_component_by_id::<WorldTransform>(enemy.id) {
             system_context.commands.send_event(EnemyKilledEvent {
                 origin: transform.position,
+                // Bomb shows one aggregated HUD total, not a pop per enemy.
+                show_popup: false,
             });
             system_context.commands.send_event(ScoreEvent {
                 score_type: ScoreType::EnemyKilled,

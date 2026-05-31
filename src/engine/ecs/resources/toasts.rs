@@ -19,6 +19,12 @@ pub const DEFAULT_FADE_IN: f32 = 0.15;
 pub const DEFAULT_FADE_OUT: f32 = 0.4;
 pub const DEFAULT_MAX_VISIBLE_HUD: usize = 4;
 
+// World-anchored toasts (diegetic "+score" pops) are quick and punchy: they
+// snap in, drift up, and fade fast so they don't clutter the play field.
+pub const WORLD_LIFETIME: f32 = 1.1;
+pub const WORLD_FADE_IN: f32 = 0.05;
+pub const WORLD_FADE_OUT: f32 = 0.55;
+
 /// Anchors a `Toast` to a screen location.
 ///
 /// `HudStack` toasts share a vertical stack below the game's HUD anchor.
@@ -57,6 +63,22 @@ impl Toast {
             fade_in_seconds: DEFAULT_FADE_IN,
             fade_out_seconds: DEFAULT_FADE_OUT,
             anchor: ToastAnchor::HudStack,
+            delay: 0.0,
+        }
+    }
+
+    /// Convenience constructor for a world-anchored toast (diegetic "+score"
+    /// pop). Projected to screen each frame via
+    /// [`world_to_screen`](crate::engine::ui::projection::world_to_screen).
+    pub fn world(text: impl Into<String>, position: Vector3<f32>) -> Self {
+        Self {
+            id: next_toast_id(),
+            text: text.into(),
+            elapsed: 0.0,
+            lifetime: WORLD_LIFETIME,
+            fade_in_seconds: WORLD_FADE_IN,
+            fade_out_seconds: WORLD_FADE_OUT,
+            anchor: ToastAnchor::World(position),
             delay: 0.0,
         }
     }

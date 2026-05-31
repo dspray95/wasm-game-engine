@@ -65,6 +65,7 @@ use crate::{
             player_score_system::player_score_system,
             player_system::player_system,
             powerup_lifecycle_system::powerup_lifecycle_system,
+            score_popup_system::score_popup_system,
             screen_effects_system::screen_effects_system,
             shield_system::shield_system,
             terrain_system::terrain_system,
@@ -76,6 +77,7 @@ use crate::{
             health_indicator::health_indicator,
             pre_start_panel::pre_start_panel,
             score_counter::score_counter,
+            score_popup_panel::score_popup_panel,
             toast_panel::toast_panel,
             tutorial_panel::tutorial_panel,
             white_flash_overlay::white_flash_overlay,
@@ -114,6 +116,7 @@ impl GameSetup for CanyonRunnerWorld {
         schedule.add_game_system(collider_debug_system);
         schedule.add_game_system(player_score_system);
         schedule.add_game_system(tutorial_system);
+        schedule.add_game_system(score_popup_system);
         schedule.add_game_system(screen_effects_system);
         schedule.add_game_system(game_over_system);
         schedule.add_game_system(high_score_sync_system);
@@ -130,6 +133,7 @@ impl GameSetup for CanyonRunnerWorld {
         ui_registry.add(difficulty_debug_panel);
         ui_registry.add(pre_start_panel);
         ui_registry.add(score_counter);
+        ui_registry.add(score_popup_panel);
         ui_registry.add(health_indicator);
         ui_registry.add(toast_panel);
         ui_registry.add(tutorial_panel);
@@ -204,8 +208,8 @@ impl GameSetup for CanyonRunnerWorld {
                 base: 10.0,
                 cap: 50.0,
                 warmup_score: 50.0,
-                full_scale_score: 1500.0,
-                exponent: 0.6,
+                full_scale_score: 2400.0,
+                exponent: 0.75,
             },
         });
         world.add_resource(ScreenEffects::new());
@@ -218,8 +222,8 @@ impl GameSetup for CanyonRunnerWorld {
                 base: 3.0,
                 cap: 1.0,
                 warmup_score: 50.0,
-                full_scale_score: 1000.0,
-                exponent: 0.5,
+                full_scale_score: 1700.0,
+                exponent: 0.7,
             },
             time_since_last_spawn: 0.0,
             spawn_horizon_z: 80.0,

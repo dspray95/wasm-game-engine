@@ -29,6 +29,26 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32, visible: boo
         .visible(visible)
         .show(ui);
 
+    // Strip non-letters from the input events *before* the TextEdit consumes
+    // them — post-filtering the buffer lets a typed digit paint for one frame
+    // first, which reads as a flash. Also uppercases here so casing never
+    // flickers either.
+    if visible {
+        ui.input_mut(|input| {
+            input.events.retain_mut(|event| match event {
+                egui::Event::Text(text) | egui::Event::Paste(text) => {
+                    *text = text
+                        .chars()
+                        .filter(|character| character.is_ascii_alphabetic())
+                        .map(|character| character.to_ascii_uppercase())
+                        .collect();
+                    !text.is_empty()
+                }
+                _ => true,
+            });
+        });
+    }
+
     let response = Styled::text_edit(&mut buffer)
         .char_limit(INITIALS_LEN)
         .font(row_font.clone())
@@ -67,7 +87,7 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32, visible: boo
 
     let cleaned: String = buffer
         .chars()
-        .filter(|character| character.is_ascii_alphanumeric())
+        .filter(|character| character.is_ascii_alphabetic())
         .map(|character| character.to_ascii_uppercase())
         .take(INITIALS_LEN)
         .collect();

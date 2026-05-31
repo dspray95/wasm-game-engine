@@ -18,6 +18,7 @@ pub mod player_invulnerability_system;
 pub mod player_score_system;
 pub mod player_system;
 pub mod powerup_lifecycle_system;
+pub mod score_popup_system;
 pub mod screen_effects_system;
 pub mod shield_system;
 pub mod terrain_system;

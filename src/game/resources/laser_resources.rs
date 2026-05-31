@@ -19,8 +19,8 @@ impl LaserManager {
                 base: 0.75,
                 cap: 0.375,
                 warmup_score: 0.0,
-                full_scale_score: 1500.0,
-                exponent: 0.7,
+                full_scale_score: 2400.0,
+                exponent: 0.8,
             },
             max_travel_distance: MAX_TRAVEL_DISTANCE,
         }

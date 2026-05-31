@@ -25,10 +25,10 @@ const GLITCH_MAGENTA: Color32 = Color32::from_rgb(255, 0, 200);
 const PUNCH_DURATION_SECONDS: f32 = 0.35;
 const PUNCH_PEAK_SCALE: f32 = 1.4;
 
-// Neon glow: rings of low-alpha white copies behind the number, intensifying with
-// the punch and during glitches. (radius_pixels, alpha_factor) per ring.
-const GLOW_RINGS: [(f32, f32); 2] = [(2.5, 1.0), (5.0, 0.45)];
-const GLOW_DIRECTIONS: usize = 8;
+// Neon glow behind the number, intensifying with the punch and during glitches.
+// Rendered by egui_styled's `.glow()` (a glyph-shaped halo); the alpha range
+// below is mapped to its 0..1 intensity.
+const GLOW_RADIUS: f32 = 5.0;
 const GLOW_BASE_ALPHA: f32 = 28.0;
 const GLOW_PEAK_ALPHA: f32 = 120.0;
 
@@ -110,7 +110,6 @@ pub fn draw(ui: &mut egui::Ui, final_score: i32, reveal_elapsed: f32) {
     let glow_boost = punch_norm.max(glitch_norm);
 
     let base_font_size = theme.font_size_xl;
-    let scaled_font = theme.font_display(base_font_size * scale);
 
     // Reserve only the resting footprint so the punch overflow never shifts the
     // leaderboard below. `layer_fixed` paints the scaled content freely inside it.
@@ -119,39 +118,29 @@ pub fn draw(ui: &mut egui::Ui, final_score: i32, reveal_elapsed: f32) {
         .layout_no_wrap(text.clone(), theme.font_display(base_font_size), colors.text)
         .size();
 
+    let glow_intensity =
+        (GLOW_BASE_ALPHA + (GLOW_PEAK_ALPHA - GLOW_BASE_ALPHA) * glow_boost) / 255.0;
+    let text_color = colors.text;
+
     Styled::stack()
         .layer_fixed(resting_size, egui::Align2::CENTER_CENTER, move |ui| {
-            let center = ui.max_rect().center();
-            // Unclipped painter so the scaled/offset overflow isn't cut to the box.
-            let painter = ui.painter().with_clip_rect(ui.ctx().content_rect());
-
-            paint_glow(&painter, center, &text, &scaled_font, scale, glow_boost);
-
+            // The whole composite — glow, RGB-split glitch shadows, main glyphs —
+            // is laid out at base size and scaled about its centre by the punch.
+            // `.scale()` wraps every effect in one transform, so the glow and the
+            // glitch offset scale together with the number, and `layer_fixed`
+            // lets the overflow draw freely without shifting the leaderboard.
+            let mut number = Styled::label(&text)
+                .font(theme.font_display(base_font_size))
+                .text_color(text_color)
+                .glow(egui::Color32::WHITE, GLOW_RADIUS, glow_intensity)
+                .scale(scale, egui::Align2::CENTER_CENTER)
+                .extend();
             if glitch_offset != egui::Vec2::ZERO {
-                let offset = glitch_offset * scale;
-                painter.text(
-                    center + offset,
-                    egui::Align2::CENTER_CENTER,
-                    &text,
-                    scaled_font.clone(),
-                    GLITCH_CYAN,
-                );
-                painter.text(
-                    center - offset,
-                    egui::Align2::CENTER_CENTER,
-                    &text,
-                    scaled_font.clone(),
-                    GLITCH_MAGENTA,
-                );
+                number = number
+                    .text_shadow(glitch_offset, GLITCH_CYAN)
+                    .text_shadow(-glitch_offset, GLITCH_MAGENTA);
             }
-
-            painter.text(
-                center,
-                egui::Align2::CENTER_CENTER,
-                &text,
-                scaled_font,
-                colors.text,
-            );
+            number.show(ui);
         })
         .show(ui);
 
@@ -177,36 +166,6 @@ fn ease_out_back(t: f32) -> f32 {
     const C3: f32 = C1 + 1.0;
     let x = t - 1.0;
     1.0 + C3 * x * x * x + C1 * x * x
-}
-
-fn paint_glow(
-    painter: &egui::Painter,
-    center: egui::Pos2,
-    text: &str,
-    font: &egui::FontId,
-    scale: f32,
-    boost: f32,
-) {
-    let alpha = GLOW_BASE_ALPHA + (GLOW_PEAK_ALPHA - GLOW_BASE_ALPHA) * boost;
-    for (radius, ring_factor) in GLOW_RINGS {
-        let ring_alpha = (alpha * ring_factor) as u8;
-        if ring_alpha == 0 {
-            continue;
-        }
-        let color = Color32::from_white_alpha(ring_alpha);
-        let radius = radius * scale;
-        for direction in 0..GLOW_DIRECTIONS {
-            let angle = TAU * direction as f32 / GLOW_DIRECTIONS as f32;
-            let offset = egui::vec2(angle.cos() * radius, angle.sin() * radius);
-            painter.text(
-                center + offset,
-                egui::Align2::CENTER_CENTER,
-                text,
-                font.clone(),
-                color,
-            );
-        }
-    }
 }
 
 fn compute_glitch_offset(

@@ -56,7 +56,10 @@ pub fn laser_hit_system(world: &mut World, system_context: &mut SystemContext) {
         .filter_map(|enemy| {
             world
                 .get_component_by_id::<WorldTransform>(enemy.id)
-                .map(|t| EnemyKilledEvent { origin: t.position })
+                .map(|t| EnemyKilledEvent {
+                    origin: t.position,
+                    show_popup: true,
+                })
         })
         .collect();
 

@@ -100,7 +100,7 @@ impl HighScores {
 pub fn sanitize_initials(input: &str) -> String {
     let cleaned: String = input
         .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
+        .filter(|c| c.is_ascii_alphabetic())
         .map(|c| c.to_ascii_uppercase())
         .take(INITIALS_LEN)
         .collect();

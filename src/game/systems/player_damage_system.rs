@@ -83,7 +83,10 @@ pub fn player_damage_system(world: &mut World, system_context: &mut SystemContex
         .filter_map(|enemy| {
             world
                 .get_component_by_id::<WorldTransform>(enemy.id)
-                .map(|t| EnemyKilledEvent { origin: t.position })
+                .map(|t| EnemyKilledEvent {
+                    origin: t.position,
+                    show_popup: true,
+                })
         })
         .collect();
     let enemy_kill_count = enemy_kill_events.len();

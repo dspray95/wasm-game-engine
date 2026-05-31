@@ -158,7 +158,7 @@ mod tests {
             }
         }
 
-        fn ctx(&mut self, delta_time: f32) -> SystemContext {
+        fn ctx(&mut self, delta_time: f32) -> SystemContext<'_> {
             SystemContext {
                 delta_time,
                 device: None,

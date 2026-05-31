@@ -6,11 +6,12 @@ use crate::{
         resources::{
             game_over_state::{GameOverPhase, GameOverState},
             player_score::PlayerScore,
+            tutorial_state::TutorialState,
         },
     },
 };
 
-const BASIC_KILL_SCORE: i32 = 25;
+pub const BASIC_KILL_SCORE: i32 = 25;
 
 pub fn player_score_system(world: &mut World, system_context: &mut SystemContext) {
     let phase = world
@@ -18,6 +19,15 @@ pub fn player_score_system(world: &mut World, system_context: &mut SystemContext
         .map(|s| s.phase)
         .unwrap_or(GameOverPhase::Playing);
     if !matches!(phase, GameOverPhase::Playing) {
+        return;
+    }
+
+    // No score until the tutorial is dismissed, matching the enemy-spawn hold.
+    let tutorial_done = world
+        .get_resource::<TutorialState>()
+        .map(|s| s.completed)
+        .unwrap_or(true);
+    if !tutorial_done {
         return;
     }
 
