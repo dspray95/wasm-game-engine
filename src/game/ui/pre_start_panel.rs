@@ -27,6 +27,8 @@ pub fn pre_start_panel(context: &egui::Context, world: &mut World) {
         if let Some(state) = world.get_resource_mut::<GameOverState>() {
             state.phase = GameOverPhase::Playing;
         }
+        // Let the host page react to the game starting (e.g. hide intro DOM).
+        notify_game_start();
         return;
     }
 
@@ -70,3 +72,20 @@ pub fn pre_start_panel(context: &egui::Context, world: &mut World) {
                 });
         });
 }
+
+/// Notify the host page that the game has started, so it can hide intro DOM
+/// elements. Calls `window.onGameStart()` if the page defines it; `catch` makes
+/// a missing function a no-op rather than a panic. No-op on native.
+#[cfg(target_arch = "wasm32")]
+fn notify_game_start() {
+    use wasm_bindgen::prelude::*;
+    #[wasm_bindgen]
+    extern "C" {
+        #[wasm_bindgen(js_namespace = window, catch)]
+        fn onGameStart() -> Result<(), JsValue>;
+    }
+    let _ = onGameStart();
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn notify_game_start() {}

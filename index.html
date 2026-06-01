@@ -77,6 +77,12 @@
 
   await initFirebase();
 
+  // Called once by the WASM when the player presses [ENTER] to start the game
+  // (the PreStart -> Playing transition). Hide any intro/landing DOM here.
+  window.onGameStart = function () {
+    // e.g. document.getElementById("intro")?.remove();
+  };
+
   import init, { start } from './pkg/wasm_game_engine.js';
   init().then(() => {
     start();

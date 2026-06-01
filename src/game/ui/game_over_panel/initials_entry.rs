@@ -104,19 +104,23 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32, visible: boo
             state.entry_error = None;
         }
     }
-    if visible {
+    // Submit on Enter via egui's own signal: a single-line TextEdit surrenders
+    // focus when Enter is pressed, which surfaces as `lost_focus()`. This is the
+    // cross-platform-correct detection (raw key checks miss it on web, where the
+    // focused field routes input through the browser text agent). The earlier
+    // code's `has_focus()` gate was the bug — focus is already gone on this frame.
+    let enter_pressed = response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter));
+
+    // Keep the field focused for typing, but only re-grab when it isn't already
+    // focused — re-grabbing every frame suppresses the `lost_focus()` above.
+    if visible && !response.has_focus() && !enter_pressed {
         response.request_focus();
     }
 
-    // `lost_focus()` never fires while we re-grab focus every frame, so detect
-    // Enter against the live focus state instead. `consume_key` strips the
-    // event from the queue so the play-again prompt (which listens for Enter
-    // in the Showing phase) can't fire on the same frame the player submits.
-    let enter_pressed = visible
-        && response.has_focus()
-        && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
-
     if (enter_pressed || submit_clicked) && !cleaned.is_empty() {
+        // Strip the Enter so the Showing-phase play-again prompt can't see it on
+        // the frames right after we flip the phase.
+        ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
         submit(world, &cleaned, final_score);
     }
 
