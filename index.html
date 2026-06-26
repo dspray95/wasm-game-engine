@@ -25,6 +25,13 @@
 <body>
 <canvas id="wgpu-canvas"></canvas>
 
+<script>
+  // No-op stubs so the WASM can always call these functions.
+  // initFirebase() below overwrites them when Firebase loads successfully.
+  window.fetchHighScores = async () => JSON.stringify([]);
+  window.submitHighScore = async () => true;
+</script>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
   import {

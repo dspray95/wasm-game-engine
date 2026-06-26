@@ -209,7 +209,7 @@ impl GameSetup for CanyonRunnerWorld {
                 cap: 50.0,
                 warmup_score: 50.0,
                 full_scale_score: 2400.0,
-                exponent: 0.75,
+                exponent: 0.60,
             },
         });
         world.add_resource(ScreenEffects::new());
@@ -223,7 +223,7 @@ impl GameSetup for CanyonRunnerWorld {
                 cap: 1.0,
                 warmup_score: 50.0,
                 full_scale_score: 1700.0,
-                exponent: 0.7,
+                exponent: 0.55,
             },
             time_since_last_spawn: 0.0,
             spawn_horizon_z: 80.0,

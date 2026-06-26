@@ -1,9 +1,15 @@
 use egui_styled::prelude::*;
+use egui_styled::theme::StyledTheme;
 
 use crate::game::{resources::high_scores::MAX_ENTRIES, ui::theme::CanyonColors};
 
-pub fn draw(ui: &mut egui::Ui, entries: &[(String, i32)], submitted_index: Option<usize>) {
-    let (theme, colors) = ui.ctx().design::<CanyonColors>();
+pub fn draw(
+    ui: &mut egui::Ui,
+    theme: &StyledTheme,
+    entries: &[(String, i32)],
+    submitted_index: Option<usize>,
+) {
+    let colors = ui.ctx().design_data::<CanyonColors>();
     let title_font = theme.font_display(theme.font_size_md);
     let row_font = theme.font_display(theme.font_size_sm);
 

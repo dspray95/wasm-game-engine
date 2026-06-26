@@ -2,6 +2,7 @@ use std::f32::consts::TAU;
 
 use egui::Color32;
 use egui_styled::prelude::*;
+use egui_styled::theme::StyledTheme;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
@@ -41,8 +42,8 @@ struct GlitchReplayState {
     replay_start: f64,
 }
 
-pub fn draw(ui: &mut egui::Ui, final_score: i32, reveal_elapsed: f32) {
-    let (theme, colors) = ui.ctx().design::<CanyonColors>();
+pub fn draw(ui: &mut egui::Ui, theme: &StyledTheme, final_score: i32, reveal_elapsed: f32) {
+    let colors = ui.ctx().design_data::<CanyonColors>();
 
     Styled::label("YOUR SCORE")
         .font(theme.font_display(theme.font_size_md))

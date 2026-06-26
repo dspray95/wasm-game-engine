@@ -1,4 +1,5 @@
 use egui_styled::prelude::*;
+use egui_styled::theme::StyledTheme;
 
 use crate::{
     engine::ecs::world::World,
@@ -11,13 +12,13 @@ use crate::{
 const BLINK_PERIOD_SECONDS: f64 = 1.0;
 const STATIC_GLITCH_OFFSET_PIXELS: f32 = 2.0;
 
-pub fn draw(ui: &mut egui::Ui, world: &mut World) {
+pub fn draw(ui: &mut egui::Ui, theme: &StyledTheme, scale: f32, world: &mut World) {
     let phase = world
         .get_resource::<GameOverState>()
         .map(|state| state.phase)
         .unwrap_or(GameOverPhase::Playing);
 
-    let (theme, colors) = ui.ctx().design::<CanyonColors>();
+    let colors = ui.ctx().design_data::<CanyonColors>();
 
     let row_font = theme.font_display(theme.font_size_sm);
     let row_height = row_font.size + 4.0;
@@ -32,7 +33,7 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World) {
         .align(egui::Align::Center)
         .gap(0.0)
         .min_height(row_height * 2.0)
-        .margin_top(100.0)
+        .margin_top(100.0 * scale)
         .visible(showing && blink)
         .show(ui, |ui| {
             Styled::label("PRESS ")

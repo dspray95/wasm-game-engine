@@ -1,4 +1,5 @@
 use egui_styled::prelude::*;
+use egui_styled::theme::StyledTheme;
 
 use crate::{
     engine::ecs::world::World,
@@ -13,8 +14,15 @@ use crate::{
     },
 };
 
-pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32, visible: bool) {
-    let (theme, colors) = ui.ctx().design::<CanyonColors>();
+pub fn draw(
+    ui: &mut egui::Ui,
+    theme: &StyledTheme,
+    scale: f32,
+    world: &mut World,
+    final_score: i32,
+    visible: bool,
+) {
+    let colors = ui.ctx().design_data::<CanyonColors>();
     let title_font = theme.font_display(theme.font_size_md);
     let row_font = theme.font_display(theme.font_size_sm);
 
@@ -52,7 +60,7 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32, visible: boo
     let response = Styled::text_edit(&mut buffer)
         .char_limit(INITIALS_LEN)
         .font(row_font.clone())
-        .desired_width(120.0)
+        .desired_width(120.0 * scale)
         .horizontal_align(egui::Align::Center)
         .bg(colors.background)
         .text_color(colors.text)
@@ -62,8 +70,8 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32, visible: boo
         .padding(egui::Margin {
             left: 2,
             right: 2,
-            top: 10,
-            bottom: 7,
+            top: (10.0 * scale).round() as i8,
+            bottom: (7.0 * scale).round() as i8,
         })
         .visible(visible)
         .show(ui);
@@ -76,8 +84,8 @@ pub fn draw(ui: &mut egui::Ui, world: &mut World, final_score: i32, visible: boo
         .border(4.0, colors.hud_cyan)
         .hover_border(4.0, colors.hud_cyan_bright)
         .corner_radius(0)
-        .min_width(180.0)
-        .min_height(36.0)
+        .min_width(180.0 * scale)
+        .min_height(36.0 * scale)
         .margin_top(theme.spacing_md)
         .shadow(egui::vec2(3.0, -2.0), 4.0, colors.input_magenta)
         .shadow(egui::vec2(-2.0, 3.0), 4.0, egui::Color32::WHITE)

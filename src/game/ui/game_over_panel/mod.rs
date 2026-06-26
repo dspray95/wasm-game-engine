@@ -5,6 +5,7 @@ mod play_again;
 mod score_display;
 
 use egui_styled::prelude::*;
+use egui_styled::theme::StyledTheme;
 
 use crate::{
     engine::ecs::world::World,
@@ -13,6 +14,11 @@ use crate::{
         high_scores::HighScores,
     },
 };
+
+// Viewport height at which the panel is laid out at its native size. Below
+// this we scale fonts and spacing uniformly so the leaderboard never overflows.
+const REFERENCE_VIEWPORT_HEIGHT: f32 = 900.0;
+const MIN_PANEL_SCALE: f32 = 0.55;
 
 pub fn game_over_panel(context: &egui::Context, world: &mut World) {
     let phase = world
@@ -51,7 +57,10 @@ pub fn game_over_panel(context: &egui::Context, world: &mut World) {
 
     backdrop::draw(context);
 
-    let theme = context.styled_theme();
+    let base_theme = context.styled_theme();
+    let screen_height = context.content_rect().height();
+    let panel_scale = (screen_height / REFERENCE_VIEWPORT_HEIGHT).clamp(MIN_PANEL_SCALE, 1.0);
+    let theme = scaled_theme(&base_theme, panel_scale);
 
     Styled::area()
         .id("game_over_panel")
@@ -61,10 +70,31 @@ pub fn game_over_panel(context: &egui::Context, world: &mut World) {
                 .gap(theme.spacing_lg)
                 .align(egui::Align::Center)
                 .show(ui, |ui| {
-                    score_display::draw(ui, final_score, reveal_elapsed);
-                    initials_entry::draw(ui, world, final_score, phase == GameOverPhase::EnteringInitials);
-                    leaderboard::draw(ui, &entries, submitted_index);
-                    play_again::draw(ui, world);
+                    score_display::draw(ui, &theme, final_score, reveal_elapsed);
+                    initials_entry::draw(
+                        ui,
+                        &theme,
+                        panel_scale,
+                        world,
+                        final_score,
+                        phase == GameOverPhase::EnteringInitials,
+                    );
+                    leaderboard::draw(ui, &theme, &entries, submitted_index);
+                    play_again::draw(ui, &theme, panel_scale, world);
                 });
         });
+}
+
+fn scaled_theme(base: &StyledTheme, scale: f32) -> StyledTheme {
+    let mut theme = base.clone();
+    theme.spacing_xs *= scale;
+    theme.spacing_sm *= scale;
+    theme.spacing_md *= scale;
+    theme.spacing_lg *= scale;
+    theme.spacing_xl *= scale;
+    theme.font_size_sm *= scale;
+    theme.font_size_md *= scale;
+    theme.font_size_lg *= scale;
+    theme.font_size_xl *= scale;
+    theme
 }

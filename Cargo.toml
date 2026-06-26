@@ -37,7 +37,7 @@ erased-serde = "0.4.10"
 egui = "0.34.2"
 egui-wgpu = "0.34.2"
 egui-winit = { version = "0.34.2", default-features = false, features = ["links"] }
-egui_styled = { path = "/home/david/repos/egui_styled" }
+egui_styled = "0.7.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dirs = "5"

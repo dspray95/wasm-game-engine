@@ -205,15 +205,24 @@ async fn initialize_gpu_for_wasm(app_state: Rc<RefCell<AppState>>, window: Windo
     use std::sync::Arc;
     let window = Arc::new(window);
 
-    // Trust winit's inner_size() as the source of truth for surface size — egui
-    // scissors against window.inner_size(), so any divergence between the surface
-    // and inner_size produces "scissor rect not contained in render target" errors.
-    let size = window.inner_size();
-    let width = size.width.max(1);
-    let height = size.height.max(1);
-    // Force the canvas backing store to match. wgpu's surface texture on web is
-    // bound to canvas.width/height, not whatever we pass to surface.configure().
     let canvas = window.canvas().unwrap();
+
+    // getBoundingClientRect() returns the CSS-rendered size in logical pixels.
+    // Multiplying by devicePixelRatio gives physical pixels, which is what wgpu
+    // needs for the surface. On macOS/Windows the canvas width/height *attributes*
+    // default to 300x150 (browser default for a bare <canvas> element), so reading
+    // inner_size() before setting those attributes returns stale values and the
+    // surface gets configured at 300x150 — causing a pink screen until the first
+    // resize event fires with the correct viewport dimensions.
+    let dpr = web_sys::window()
+        .map(|w| w.device_pixel_ratio())
+        .unwrap_or(1.0);
+    let rect = canvas.get_bounding_client_rect();
+    let width = ((rect.width() * dpr) as u32).max(1);
+    let height = ((rect.height() * dpr) as u32).max(1);
+
+    // Set the backing-store attributes so that winit's inner_size() (which reads
+    // canvas.width/canvas.height) agrees with the physical size we pass to wgpu.
     canvas.set_width(width);
     canvas.set_height(height);
 
